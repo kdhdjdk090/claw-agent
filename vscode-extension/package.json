@@ -1,0 +1,101 @@
+{
+  "name": "claw-agent",
+  "displayName": "Claw Agent",
+  "description": "Local AI coding agent powered by Ollama — Claude Code-style agent mode in VS Code",
+  "version": "0.1.0",
+  "publisher": "claw-agent",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["AI", "Chat"],
+  "icon": "icon.png",
+  "activationEvents": [
+    "onView:claw.chatView",
+    "onCommand:claw.openChat"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "claw.openChat",
+        "title": "Claw: Open Agent Chat",
+        "icon": "$(hubot)"
+      },
+      {
+        "command": "claw.prompt",
+        "title": "Claw: Quick Prompt"
+      },
+      {
+        "command": "claw.explainSelection",
+        "title": "Claw: Explain Selection"
+      },
+      {
+        "command": "claw.fixSelection",
+        "title": "Claw: Fix Selection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "claw.explainSelection",
+          "group": "claw",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "claw.fixSelection",
+          "group": "claw",
+          "when": "editorHasSelection"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "claw.openChat",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      },
+      {
+        "command": "claw.prompt",
+        "key": "ctrl+shift+p",
+        "when": "false"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claw-agent",
+          "title": "Claw Agent",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "claw-agent": [
+        {
+          "type": "webview",
+          "id": "claw.chatView",
+          "name": "Agent Chat"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Claw Agent",
+      "properties": {
+        "claw.model": {
+          "type": "string",
+          "default": "deepseek-v3.1:671b-cloud",
+          "description": "Ollama model to use"
+        },
+        "claw.ollamaUrl": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama server URL"
+        }
+      }
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/vscode": "^1.85.0"
+  }
+}

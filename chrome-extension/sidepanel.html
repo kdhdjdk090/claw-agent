@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claw Agent</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <span class="logo">⚡</span>
+      <span class="title">Claw Agent</span>
+    </div>
+    <div class="header-right">
+      <select id="modelSelect" class="model-select">
+        <option value="deepseek-v3.1:671b-cloud">deepseek-v3.1:671b</option>
+        <option value="qwen2.5:7b">qwen2.5:7b</option>
+        <option value="llama3:latest">llama3</option>
+        <option value="codellama:7b">codellama:7b</option>
+        <option value="mistral:latest">mistral</option>
+      </select>
+      <button id="settingsBtn" class="icon-btn" title="Settings">⚙</button>
+      <button id="newChatBtn" class="icon-btn" title="New Chat">+</button>
+    </div>
+  </div>
+
+  <!-- Settings Panel (hidden by default) -->
+  <div id="settingsPanel" class="settings-panel hidden">
+    <div class="setting-row">
+      <label for="ollamaUrl">Ollama URL</label>
+      <input type="text" id="ollamaUrl" value="http://localhost:11434" />
+    </div>
+    <div class="setting-row">
+      <label for="customModel">Custom Model</label>
+      <input type="text" id="customModel" placeholder="e.g. deepseek-coder:33b" />
+      <button id="addModelBtn" class="small-btn">Add</button>
+    </div>
+    <div class="setting-row">
+      <label for="modeSelect">Mode</label>
+      <select id="modeSelect">
+        <option value="act">Act without asking</option>
+        <option value="suggest">Suggest only</option>
+        <option value="ask">Ask before acting</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <label for="systemPrompt">System Prompt</label>
+      <textarea id="systemPrompt" rows="3" placeholder="Custom instructions..."></textarea>
+    </div>
+    <button id="saveSettingsBtn" class="primary-btn">Save Settings</button>
+    <button id="fetchModelsBtn" class="secondary-btn">Refresh Models</button>
+  </div>
+
+  <!-- Messages -->
+  <div class="messages" id="messages">
+    <div class="welcome">
+      <div class="welcome-icon">⚡</div>
+      <h2>Claw Agent</h2>
+      <p>Local AI assistant powered by Ollama</p>
+      <div class="quick-actions">
+        <button class="quick-btn" data-prompt="Summarize this page">📄 Summarize page</button>
+        <button class="quick-btn" data-prompt="Extract all links from this page">🔗 Extract links</button>
+        <button class="quick-btn" data-prompt="Find code snippets on this page">💻 Find code</button>
+        <button class="quick-btn" data-prompt="Explain what this page is about">❓ Explain page</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cost Bar -->
+  <div class="cost-bar" id="costBar"></div>
+
+  <!-- Risk Banner -->
+  <div class="risk-banner" id="riskBanner">
+    <strong>LOCAL MODE:</strong> Claw runs entirely on your machine via Ollama. No data leaves your computer.
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <div class="input-row">
+      <textarea id="input" rows="1" placeholder="Type / for commands"></textarea>
+      <button id="stopBtn" class="stop-btn" title="Stop agent" style="display:none">■ Stop</button>
+      <button id="sendBtn" class="send-btn" title="Send">↑</button>
+    </div>
+    <div class="input-footer">
+      <div class="mode-indicator" id="modeIndicator">
+        <span class="mode-icon">▷▷</span>
+        <span id="modeLabel">Act without asking</span>
+        <span class="mode-chevron">▾</span>
+      </div>
+      <div class="input-actions">
+        <button id="readPageBtn" class="action-btn" title="Read current page">📖</button>
+        <button id="screenshotBtn" class="action-btn" title="Attach context">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer">Claw is AI and can make mistakes. Verify important information.</div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

@@ -1,0 +1,372 @@
+================================================================================
+  CLAW AGENT v0.1.0 — FULL COMMAND REFERENCE & OPERATIONS GUIDE
+  100% Local AI Agent · Ollama · No Cloud APIs · Free Forever
+================================================================================
+
+
+================================================================================
+  1. INSTALLATION & SETUP
+================================================================================
+
+  Prerequisites:
+    - Python 3.10+
+    - Ollama installed and running (https://ollama.com)
+    - At least one model pulled (e.g. ollama pull deepseek-v3.1:671b-cloud)
+
+  Install (from project root):
+    cd C:\Users\Sinwa\Pictures\ClaudeAI\claw-agent
+    pip install -e .
+
+  Verify:
+    claw --help
+    claw --version
+
+
+================================================================================
+  2. START / STOP / RESTART
+================================================================================
+
+  --- Start Ollama ---
+    ollama serve                              # Start Ollama server
+    ollama serve &                            # Start in background (Linux/Mac)
+    Start-Process ollama -ArgumentList serve   # Background (Windows PowerShell)
+
+  --- Start CLI Agent ---
+    claw                                      # Interactive mode (default model)
+    claw --model qwen2.5:7b                   # Use specific model
+    claw prompt "summarize this repo"         # One-shot mode (non-interactive)
+
+  --- Stop CLI Agent ---
+    /quit                                     # Inside the CLI
+    Ctrl+C                                    # Force quit
+
+  --- Restart CLI Agent ---
+    /quit                                     # Exit first
+    claw                                      # Start again (fresh session)
+    claw --model deepseek-v3.1:671b-cloud     # Restart with different model
+
+  --- Start VS Code Extension ---
+    1. Open VS Code
+    2. Ctrl+Shift+P → "Claw Agent: Open Chat"
+    3. Or click the Claw icon in the sidebar
+    Bridge auto-starts when you open the chat panel.
+
+  --- Stop VS Code Extension ---
+    Close the Claw Agent chat panel.
+
+  --- Restart VS Code Extension ---
+    Ctrl+Shift+P → "Developer: Reload Window"
+
+  --- Start Chrome Extension ---
+    1. Go to chrome://extensions
+    2. Enable "Developer mode" (top right)
+    3. Click "Load unpacked" → select chrome-extension/ folder
+    4. Click the Claw icon in toolbar → opens side panel
+
+  --- Stop Chrome Extension ---
+    Close the side panel, or disable in chrome://extensions.
+
+  --- Restart Chrome Extension ---
+    chrome://extensions → click reload (↻) on Claw Agent
+
+  --- Stop Ollama ---
+    Ctrl+C in the ollama serve terminal
+    taskkill /IM ollama.exe /F               # Force kill (Windows)
+    killall ollama                            # Force kill (Mac/Linux)
+
+
+================================================================================
+  3. CLI SLASH COMMANDS (22 commands)
+================================================================================
+
+  --- Core ---
+  /help                   Show all available commands
+  /model <name>           Switch to a different Ollama model
+  /models                 List all available Ollama models
+  /tools                  List all 22 agent tools with descriptions
+  /cost                   Show token usage, timing, turns stats
+  /compact                Compress conversation to save context window
+  /clear                  Clear conversation and reset state
+
+  --- Sessions ---
+  /save                   Save current session to disk
+  /sessions               List all saved sessions
+  /resume <id>            Resume a previously saved session
+  /delete <id>            Delete a saved session
+  /export                 Export conversation to markdown file
+
+  --- Git & Workspace ---
+  /diff                   Show git diff (what the agent changed)
+  /status                 Show workspace info: path, git branch, project type
+  /undo                   Undo last file write (git checkout last changed file)
+
+  --- Configuration ---
+  /config                 Show current agent configuration table
+  /version                Show Claw Agent version, Ollama version, Python version
+  /doctor                 Run 8 diagnostic checks (Ollama, tools, connectivity)
+  /permissions            Show tool permission summary (gated/allowed)
+  /memory                 Show context window usage bar
+  /init                   Generate .claw config file for the project
+
+  --- Debug ---
+  /bug                    Dump debug info for bug reports
+
+  --- Control ---
+  /quit                   Exit the CLI
+
+
+================================================================================
+  4. VS CODE EXTENSION COMMANDS
+================================================================================
+
+  How to open: Ctrl+Shift+P → "Claw Agent: Open Chat"
+
+  --- Slash Commands (in chat input) ---
+  /clear                  New conversation
+  /help                   Show available commands
+  /cost                   Show token usage stats
+  /version                Show extension version
+  /compact                Compress conversation context (sent to agent)
+  /model                  Show current model
+
+  --- Agent-Proxied Commands (sent through to CLI agent) ---
+  /save                   Save current session
+  /sessions               List saved sessions
+  /resume <id>            Resume a saved session
+  /diff                   Show git diff
+  /status                 Show workspace status
+
+  --- Features ---
+  - Streaming responses with markdown rendering
+  - Inline tool call display with timing
+  - Auto-starts Python bridge process
+  - Auto-reconnects on bridge crash
+  - Model selection dropdown
+  - Dark theme matching VS Code
+
+
+================================================================================
+  5. CHROME EXTENSION COMMANDS
+================================================================================
+
+  How to open: Click Claw icon in toolbar → side panel opens
+
+  --- Slash Commands (in chat input) ---
+  /clear                  New conversation
+  /help                   Show all commands
+  /models                 List available Ollama models
+  /model                  Show current model
+  /page                   Read current page into context
+  /links                  Extract all links from current page
+  /code                   Extract code blocks from current page
+  /forms                  Extract forms/inputs from current page
+  /compact                Compress conversation context
+  /cost                   Show session token/timing stats
+  /stop                   Cancel current generation
+  /version                Show version info
+
+  --- Session Commands ---
+  /save                   Save conversation to browser storage
+  /sessions               List all saved sessions
+  /resume <id>            Resume a previously saved session
+  /delete <id>            Delete a saved session
+
+  --- Context Menus (right-click on any page) ---
+  "Claw: Explain selection"     Explain highlighted text
+  "Claw: Summarize page"        Summarize the current page
+  "Claw: Fix this code"         Fix bugs in selected code
+  "Claw: Rewrite selection"     Rewrite selected text more clearly
+
+  --- Browser Tools (40 tools, used by agent autonomously) ---
+  read_page               Read current page content (title, text, headings)
+  extract_links           Get all links from the page
+  extract_code            Get code blocks from the page
+  extract_forms           Get forms and their inputs
+  extract_tables          Extract table data as structured arrays
+  click_element           Click a button/link by CSS selector or text:ButtonText
+  fill_input              Type into an input field
+  select_option           Select option in a dropdown
+  press_key               Press keyboard key (Enter, Escape, Tab, etc.)
+  type_text               Natural typing with keyboard events (React/Vue compatible)
+  check_element           Toggle checkbox or radio button
+  click_at_coordinates    Click at pixel x,y coordinates
+  double_click            Double-click an element
+  right_click             Right-click (context menu) on element
+  drag_element            Drag and drop elements
+  hover_element           Hover to trigger menus/tooltips
+  focus_element           Focus an element
+  key_combo               Keyboard shortcuts (Ctrl+S, Ctrl+C, etc.)
+  scroll_page             Scroll up/down/top/bottom
+  scroll_to_element       Scroll specific element into view
+  scroll_container        Scroll within a container/div
+  get_interactive_elements Get ALL interactive elements with selectors & positions
+  get_element_info        Get detailed info about an element
+  get_tab_info            Get current tab URL and title
+  highlight_element       Highlight an element with colored outline
+  take_screenshot         Capture visible viewport as PNG
+  wait_for_element        Wait for element to appear (up to 10s)
+  navigate_to             Navigate tab to a URL
+  navigate_back           Go back in browser history
+  navigate_forward        Go forward in browser history
+  submit_form             Submit a form programmatically
+  set_attribute           Set HTML attribute on element
+  javascript_eval         Execute JavaScript on the page
+  web_search              Search via DuckDuckGo
+  fetch_url               Fetch content from a URL
+  read_clipboard          Read system clipboard text
+  write_clipboard         Write text to clipboard
+  get_storage             Read localStorage/sessionStorage
+  set_storage             Write to localStorage/sessionStorage
+  get_cookies             Get cookies for current domain
+  manage_tabs             List/open/close/switch browser tabs
+
+
+================================================================================
+  6. AGENT TOOLS (22 tools, used in CLI & VS Code)
+================================================================================
+
+  --- File Operations ---
+  read_file               Read a file (with optional line range)
+  write_file              Write/create a file
+  list_directory          List directory contents
+  find_files              Find files by glob pattern
+
+  --- Shell ---
+  run_command             Execute a shell command (with timeout)
+
+  --- Search ---
+  grep_search             Search file contents with regex
+
+  --- Editing ---
+  replace_in_file         Find and replace text in a file
+  multi_edit_file         Multiple find/replace operations in one call
+  insert_at_line          Insert text at a specific line number
+  diff_files              Compare two files
+
+  --- Web ---
+  web_fetch               Fetch a webpage and extract text
+  web_search              Search the web via DuckDuckGo
+
+  --- Agent ---
+  run_subagent            Spawn a sub-agent for complex sub-tasks
+  plan_and_execute        Create and execute a multi-step plan
+
+  --- Task Tracking ---
+  task_create             Create a todo/task
+  task_update             Update task status
+  task_list               List all tasks
+  task_get                Get details of a specific task
+
+  --- Code ---
+  notebook_run            Run code in a notebook cell
+
+  --- Context ---
+  get_workspace_context   Get workspace info (files, git, language)
+  git_diff                Show git diff
+  git_log                 Show recent git commits
+
+
+================================================================================
+  7. KEYBOARD SHORTCUTS
+================================================================================
+
+  CLI:
+    Enter                 Send message
+    Ctrl+C                Cancel / Force quit
+    Up/Down arrows        Browse command history
+
+  VS Code (in chat panel):
+    Enter                 Send message
+    Shift+Enter           New line
+
+  Chrome (in side panel):
+    Enter                 Send message
+    Shift+Enter           New line
+
+
+================================================================================
+  8. CONFIGURATION FILES
+================================================================================
+
+  ~/.claw-agent/history.txt     CLI command history
+  ~/.claw-agent/sessions/       Saved sessions (JSON)
+  .claw                         Project config (created by /init)
+  MEMORY.md                     Project memory — auto-loaded into agent context
+  SOUL.md                       Agent identity/personality — auto-loaded into agent context
+  OLLAMA_ORIGINS=*              Environment variable for Chrome CORS access
+
+  The agent searches for MEMORY.md, SOUL.md, and .claw in the current
+  working directory and up to 3 parent directories. Files are loaded
+  into the system prompt at startup (max 4K per file).
+
+
+================================================================================
+  9. MODELS
+================================================================================
+
+  Switch model:
+    claw --model <name>         At startup
+    /model <name>               During session (CLI)
+    Model dropdown              VS Code / Chrome UI
+
+  Available (example):
+    deepseek-v3.1:671b-cloud    Default (671B params, cloud quantized)
+    qwen2.5:7b                  Fast, lightweight
+    llama3                      Meta's Llama 3
+    codellama:7b                Code-specialized
+    mistral                     Mistral 7B
+    deepseek-coder:6.7b         DeepSeek code model
+
+  Pull new models:
+    ollama pull <model-name>
+
+
+================================================================================
+  10. TROUBLESHOOTING
+================================================================================
+
+  Agent not responding?
+    → Check Ollama is running: ollama list
+    → Run /doctor in the CLI for full diagnostics
+
+  Chrome extension 403 error?
+    → Set OLLAMA_ORIGINS=* as environment variable
+    → Windows: System Properties → Environment Variables → User → New
+    → Or PowerShell: [System.Environment]::SetEnvironmentVariable("OLLAMA_ORIGINS", "*", "User")
+    → Restart Ollama after setting
+
+  VS Code extension not connecting?
+    → Ctrl+Shift+P → "Developer: Reload Window"
+    → Check Output panel → select "Claw Agent"
+
+  Too many tool calls / looping?
+    → Circuit breakers auto-stop after errors
+    → /stop (Chrome) or Ctrl+C (CLI) to force stop
+    → /clear to start fresh
+
+  Out of context window?
+    → /compact to compress conversation
+
+  MEMORY.md or SOUL.md not loading?
+    → Must be in the project root (or up to 3 parent dirs)
+    → Run /config in CLI to confirm project context loaded
+    → File must be under 4K characters
+    → /clear to reset completely
+
+
+================================================================================
+  PROJECT PATHS
+================================================================================
+
+  Project root:      C:\Users\Sinwa\Pictures\ClaudeAI\claw-agent
+  CLI source:        claw_agent\cli.py
+  Agent core:        claw_agent\agent.py
+  Tools:             claw_agent\tools\__init__.py
+  VS Code ext:       vscode-extension\src\
+  Chrome ext:        chrome-extension\
+  Tests:             test_full.py, test_slash_and_ext.py
+  Installed VS Code: %USERPROFILE%\.vscode\extensions\claw-agent-0.1.0\
+
+================================================================================
+  END OF REFERENCE
+================================================================================

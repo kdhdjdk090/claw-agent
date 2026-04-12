@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claw-agent"
+version = "0.1.0"
+description = "An autonomous AI coding agent — runs 100% locally via Ollama, no cloud APIs needed"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27.0",
+    "rich>=13.0",
+    "prompt-toolkit>=3.0",
+]
+
+[project.scripts]
+claw = "claw_agent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["claw_agent*"]
