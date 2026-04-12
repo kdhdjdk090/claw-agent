@@ -151,75 +151,99 @@ def _tool_display_name(name: str, args: dict) -> str:
 def print_banner(model: str, models: list[str]):
     cwd = os.getcwd()
     width = 60
+    
+    # Detect if cloud mode
+    from .agent import DEEPSEEK_API_KEY
+    is_cloud = bool(DEEPSEEK_API_KEY)
+    mode_str = "☁️ Cloud" if is_cloud else "💻 Local"
+    
     console.print()
-    console.print(f"[bold bright_magenta]╭{'─' * width}╮[/bold bright_magenta]")
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta] [bold bright_white]\u2728 Claw Agent[/bold bright_white] [dim]v0.1.0[/dim]{' ' * (width - 22)}[bold bright_magenta]│[/bold bright_magenta]")
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta]{' ' * width}[bold bright_magenta]│[/bold bright_magenta]")
+    console.print(f"[bold cyan]╭{'─' * width}╮[/bold cyan]")
+    console.print(f"[bold cyan]│[/bold cyan] [bold white]🦅  Claw AI[/bold white] [dim]v0.2.0[/dim]{' ' * (width - 20)}[bold cyan]│[/bold cyan]")
+    console.print(f"[bold cyan]│[/bold cyan]{' ' * width}[bold cyan]│[/bold cyan]")
+    
     # Working directory
-    cwd_display = cwd if len(cwd) <= width - 4 else "\u2026" + cwd[-(width - 5):]
+    cwd_display = cwd if len(cwd) <= width - 4 else "…" + cwd[-(width - 5):]
     cwd_pad = width - len(cwd_display) - 2
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta] [dim]{cwd_display}[/dim]{' ' * cwd_pad}[bold bright_magenta]│[/bold bright_magenta]")
-    # Model
-    model_str = f"Model: {model}"
-    model_pad = width - len(model_str) - 2
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta] [dim magenta]{model_str}[/dim magenta]{' ' * model_pad}[bold bright_magenta]│[/bold bright_magenta]")
+    console.print(f"[bold cyan]│[/bold cyan] [dim]{cwd_display}[/dim]{' ' * cwd_pad}[bold cyan]│[/bold cyan]")
+    
+    # Mode & Model
+    mode_model = f"{mode_str} • {model}"
+    mode_pad = width - len(mode_model) - 2
+    console.print(f"[bold cyan]│[/bold cyan] [dim green]{mode_model}[/dim green]{' ' * mode_pad}[bold cyan]│[/bold cyan]")
+    
     # Tools
-    tools_str = f"{len(TOOL_REGISTRY)} tools available"
+    tools_str = f"{len(TOOL_REGISTRY)} tools"
     tools_pad = width - len(tools_str) - 2
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta] [dim]{tools_str}[/dim]{' ' * tools_pad}[bold bright_magenta]│[/bold bright_magenta]")
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta]{' ' * width}[bold bright_magenta]│[/bold bright_magenta]")
+    console.print(f"[bold cyan]│[/bold cyan] [dim]{tools_str}[/dim]{' ' * tools_pad}[bold cyan]│[/bold cyan]")
+    console.print(f"[bold cyan]│[/bold cyan]{' ' * width}[bold cyan]│[/bold cyan]")
+    
+    # Tip
     tip_str = "Type /help for commands"
     tip_pad = width - len(tip_str) - 2
-    console.print(f"[bold bright_magenta]│[/bold bright_magenta] [dim]{tip_str}[/dim]{' ' * tip_pad}[bold bright_magenta]│[/bold bright_magenta]")
-    console.print(f"[bold bright_magenta]╰{'─' * width}╯[/bold bright_magenta]")
+    console.print(f"[bold cyan]│[/bold cyan] [dim]{tip_str}[/dim]{' ' * tip_pad}[bold cyan]│[/bold cyan]")
+    console.print(f"[bold cyan]╰{'─' * width}╯[/bold cyan]")
     console.print()
 
 
 def print_help():
+    from .agent import DEEPSEEK_API_KEY
+    is_cloud = bool(DEEPSEEK_API_KEY)
+    
     console.print()
-    console.print("[bold bright_white]  Slash Commands[/bold bright_white]")
-    console.print()
+    console.print(Panel(
+        "[bold white]🦅 Claw AI - All Commands[/bold white]\n",
+        border_style="cyan"
+    ))
 
-    def _section(title: str, items: list[tuple[str, str]]):
-        console.print(f"  [bold bright_magenta]{title}[/bold bright_magenta]")
+    def _section(title: str, icon: str, items: list[tuple[str, str]]):
+        console.print(f"  [bold cyan]{icon} {title}[/bold cyan]")
         for cmd, desc in items:
-            console.print(f"    [bold white]{cmd:<24}[/bold white] [dim]{desc}[/dim]")
+            console.print(f"    [bold white]{cmd:<26}[/bold white] [dim]{desc}[/dim]")
         console.print()
 
-    _section("Core", [
-        ("/help", "Show this help"),
-        ("/model <name>", "Switch model"),
-        ("/models", "List available models"),
-        ("/tools", f"List all {len(TOOL_REGISTRY)} tools"),
-        ("/cost", "Token usage & timing stats"),
-        ("/compact", "Compress conversation history"),
+    _section("Core Commands", "⚡", [
+        ("/help", "Show this help message"),
+        ("/model <name>", "Switch AI model (e.g., /model deepseek-chat)"),
+        ("/models", "List all available models"),
+        ("/tools", f"List all {len(TOOL_REGISTRY)} available tools"),
+        ("/cost", "Show token usage and timing statistics"),
+        ("/compact", "Compress conversation history to save context"),
     ])
-    _section("Sessions", [
+    
+    _section("Session Management", "💾", [
         ("/save", "Save current session"),
-        ("/sessions", "List saved sessions"),
-        ("/resume <id>", "Resume a saved session"),
-        ("/continue", "Quick-resume most recent session"),
+        ("/sessions", "List all saved sessions"),
+        ("/resume <id>", "Resume a saved session by ID"),
+        ("/continue", "Quick-resume the most recent session"),
         ("/delete <id>", "Delete a saved session"),
-        ("/export", "Export conversation to markdown"),
+        ("/export", "Export conversation to markdown file"),
     ])
-    _section("Workspace", [
-        ("/diff", "Show what the agent changed (git diff)"),
-        ("/status", "Workspace status, git, project info"),
+    
+    _section("Workspace & Git", "📁", [
+        ("/diff", "Show git diff of recent changes"),
+        ("/status", "Show workspace status and project info"),
         ("/config", "Show current agent configuration"),
-        ("/permissions [mode]", "Show/switch permissions"),
-        ("/memory", "Context window usage"),
+        ("/permissions [mode]", "Show or switch permission mode"),
+        ("/memory", "Show context window usage"),
         ("/undo", "Undo last file write (git checkout)"),
         ("/init", "Generate .claw config for this project"),
     ])
-    _section("Debug", [
-        ("/version", "Show Claw Agent version"),
-        ("/doctor", "Diagnose Ollama, tools, connectivity"),
-        ("/bug", "Report a bug / show debug info"),
+    
+    _section("Diagnostics", "🔧", [
+        ("/version", "Show Claw AI version and platform info"),
+        ("/doctor", "Run diagnostics (Ollama, tools, API)"),
+        ("/bug", "Show debug information for bug reports"),
     ])
-    _section("Control", [
-        ("/clear", "Clear conversation"),
-        ("/quit", "Exit (or /exit, /q)"),
+    
+    _section("Control", "⌨️", [
+        ("/clear", "Clear current conversation"),
+        ("/quit", "Exit Claw AI (or /exit, /q)"),
     ])
+    
+    mode_note = "☁️ Cloud Mode (DeepSeek API)" if is_cloud else "💻 Local Mode (Ollama)"
+    console.print(f"  [dim]Current: {mode_note}[/dim]")
+    console.print()
 
 
 # --- Streaming display ---
@@ -841,6 +865,7 @@ def main():
     # Auto-detect: Use DeepSeek API if key is set, otherwise require Ollama
     from .agent import DEEPSEEK_API_KEY, DEFAULT_MODEL, DEFAULT_BASE_URL
     use_cloud = bool(DEEPSEEK_API_KEY)
+    models = []
 
     if use_cloud:
         # Cloud mode - no Ollama needed
