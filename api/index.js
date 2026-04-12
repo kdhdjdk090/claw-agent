@@ -1,133 +1,127 @@
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-module.exports = (req, res) => {
-  // Handle chat API
-  if (req.url.startsWith('/api/chat') && req.method === 'POST') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'application/json');
-    
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try {
-        const { message } = JSON.parse(body);
-        let reply = 'Hello!';
-        
-        if (message && message.toLowerCase().includes('hello')) {
-          reply = "Hi! I'm Claw AI. Ask me about coding!";
-        } else if (message && message.toLowerCase().includes('help')) {
-          reply = "I can help with coding, debugging, and architecture!";
-        } else if (message) {
-          reply = `You said: "${message}". Try saying "hello" or "help"!`;
-        }
-        
-        res.status(200).end(JSON.stringify({ reply }));
-      } catch (e) {
-        res.status(500).end(JSON.stringify({ error: 'Server error' }));
-      }
-    });
-    return;
+// Read the updated index.html from project root
+const HTML_PATH = path.join(__dirname, '..', 'index.html');
+
+module.exports = async (req, res) => {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  // Serve HTML for everything else
+  // POST /api/chat - Send message to DeepSeek API
+  if (req.url.startsWith('/api/chat') && req.method === 'POST') {
+    return handleChat(req, res);
+  }
+
+  // Serve the updated index.html with slash command support
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  
-  const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Claw AI - Chat</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: #1e1e2e; color: #e0e0e0; height: 100vh; }
-    .app { display: flex; flex-direction: column; height: 100vh; }
-    .header { background: #2d2d44; padding: 20px; border-bottom: 1px solid #4d4d6c; }
-    .header h1 { font-size: 24px; color: #61dafb; margin: 0; }
-    .chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-    .msg { padding: 12px 15px; border-radius: 8px; max-width: 70%; word-wrap: break-word; }
-    .msg.user { align-self: flex-end; background: #61dafb; color: #1e1e2e; margin-right: 10px; }
-    .msg.ai { background: #2d2d44; border-left: 3px solid #61dafb; margin-left: 10px; }
-    .footer { padding: 20px; border-top: 1px solid #4d4d6c; display: flex; gap: 10px; }
-    input { flex: 1; padding: 12px; background: #2d2d44; border: 1px solid #4d4d6c; color: #e0e0e0; border-radius: 4px; font-size: 14px; }
-    input:focus { outline: none; border-color: #61dafb; }
-    button { padding: 12px 24px; background: #61dafb; color: #1e1e2e; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px; }
-    button:hover { background: #45e0f5; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .start { text-align: center; color: #666; padding: 40px 20px; }
-  </style>
-</head>
-<body>
-  <div class="app">
-    <div class="header">
-      <h1>🦅 Claw AI Chat</h1>
-    </div>
-    <div class="chat" id="chat">
-      <div class="start">
-        <p>Welcome to Claw AI Chat!</p>
-        <p style="font-size: 12px; margin-top: 10px; color: #555;">Start typing to begin...</p>
-      </div>
-    </div>
-    <div class="footer">
-      <input type="text" id="input" placeholder="Type your message..." autocomplete="off">
-      <button id="btn" onclick="send()">Send</button>
-    </div>
-  </div>
+  try {
+    const html = fs.readFileSync(HTML_PATH, 'utf-8');
+    return res.status(200).end(html);
+  } catch (err) {
+    // Fallback if index.html not found
+    res.status(200).end('<h1>Claw AI - Coming Soon</h1>');
+  }
+};
 
-  <script>
-    const chat = document.getElementById('chat');
-    const input = document.getElementById('input');
-    const btn = document.getElementById('btn');
-    let first = true;
-
-    function add(text, role) {
-      if (first) {
-        chat.innerHTML = '';
-        first = false;
-      }
-      const msg = document.createElement('div');
-      msg.className = 'msg ' + role;
-      msg.textContent = text;
-      chat.appendChild(msg);
-      chat.scrollTop = chat.scrollHeight;
-    }
-
-    async function send() {
-      const text = input.value.trim();
-      if (!text) return;
+async function handleChat(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk);
+  req.on('end', async () => {
+    try {
+      const { message, model } = JSON.parse(body);
       
-      input.value = '';
-      btn.disabled = true;
-      add(text, 'user');
+      if (!message) {
+        return res.status(400).json({ error: 'message required' });
+      }
 
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
+      const apiKey = process.env.DEEPSEEK_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({
+          error: 'API key not configured. Set DEEPSEEK_API_KEY in Vercel environment variables.',
+          instructions: 'Go to Vercel Dashboard → Project Settings → Environment Variables → Add DEEPSEEK_API_KEY'
         });
-        const data = await res.json();
-        add(data.reply || 'No response', 'ai');
-      } catch (e) {
-        add('Connection error', 'ai');
       }
-      
-      btn.disabled = false;
-      input.focus();
-    }
 
-    input.addEventListener('keypress', e => {
-      if (e.key === 'Enter' && !e.ctrlKey) {
-        e.preventDefault();
-        send();
+      // Call DeepSeek API
+      const payload = JSON.stringify({
+        model: model || 'deepseek-chat',
+        messages: [
+          { role: 'system', content: 'You are Claw AI, an expert autonomous AI coding agent. You act decisively and never ask questions. When asked what model you are, say you are Claw running via Cloud API.' },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048,
+        stream: false
+      });
+
+      const result = await callDeepSeekAPI(apiKey, payload);
+      
+      if (result.error) {
+        return res.status(400).json({ error: result.error.message });
       }
+
+      const reply = result.choices?.[0]?.message?.content || 'No response';
+      const usage = result.usage || {};
+
+      res.status(200).json({
+        reply,
+        usage,
+        model: model || 'deepseek-chat'
+      });
+    } catch (e) {
+      console.error('Chat error:', e.message);
+      res.status(500).json({ error: e.message });
+    }
+  });
+}
+
+function callDeepSeekAPI(apiKey, payload) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.deepseek.com',
+      port: 443,
+      path: '/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+        'Authorization': `Bearer ${apiKey}`
+      },
+      timeout: 120000,
+    };
+
+    const request = https.request(options, (deepseekRes) => {
+      let data = '';
+      deepseekRes.on('data', chunk => data += chunk);
+      deepseekRes.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          resolve(result);
+        } catch (e) {
+          reject(new Error('Failed to parse DeepSeek response'));
+        }
+      });
     });
 
-    input.focus();
-  </script>
-</body>
-</html>`;
+    request.on('error', error => {
+      reject(new Error(`DeepSeek API error: ${error.message}`));
+    });
 
-  res.status(200).end(html);
-};
+    request.on('timeout', () => {
+      request.destroy();
+      reject(new Error('Request timeout'));
+    });
+
+    request.write(payload);
+    request.end();
+  });
+}
