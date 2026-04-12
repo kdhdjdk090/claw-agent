@@ -232,13 +232,136 @@
             color: #666;
             max-width: 300px;
         }
+
+        /* Slash command help modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #2d2d44;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal h2 {
+            color: #61dafb;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+
+        .modal-section h3 {
+            color: #999;
+            font-size: 14px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .modal-command {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #4d4d6c;
+        }
+
+        .modal-command:last-child {
+            border-bottom: none;
+        }
+
+        .modal-command code {
+            background: #1e1e2e;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #61dafb;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .modal-command span {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .modal-close {
+            background: #61dafb;
+            color: #1e1e2e;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .command-hint {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: #2d2d44;
+            border: 1px solid #4d4d6c;
+            border-radius: 8px 8px 0 0;
+            padding: 10px;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .command-hint.active {
+            display: block;
+        }
+
+        .command-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .command-item:hover {
+            background: #3d3d5c;
+        }
+
+        .command-item code {
+            color: #61dafb;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .command-item span {
+            color: #999;
+            font-size: 12px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🦅 Claw AI Chat</h1>
-            <p id="status">⚡ Powered by DeepSeek API</p>
+            <p id="status">⚡ Powered by DeepSeek API | Type /help for commands</p>
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -246,19 +369,45 @@
                 <div class="empty-state-icon">💬</div>
                 <h2>Start a conversation</h2>
                 <p>Ask me anything about coding, debugging, or ideas. I'm here to help!</p>
+                <p style="font-size: 12px; margin-top: 10px;">Type <code style="background: #2d2d44; padding: 2px 6px; border-radius: 3px; color: #61dafb;">/help</code> to see all commands</p>
             </div>
         </div>
 
-        <div class="input-area">
+        <div class="input-area" style="position: relative;">
+            <div class="command-hint" id="commandHint"></div>
             <div class="input-wrapper">
-                <input 
-                    type="text" 
-                    id="userInput" 
-                    placeholder="Type your message... (or press Enter)"
+                <input
+                    type="text"
+                    id="userInput"
+                    placeholder="Type your message... (or /help for commands)"
                     autocomplete="off"
                 >
             </div>
             <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal">
+            <h2>🦅 Claw AI - Commands</h2>
+            
+            <div class="modal-section">
+                <h3>Core</h3>
+                <div class="modal-command"><code>/help</code><span>Show this help</span></div>
+                <div class="modal-command"><code>/clear</code><span>Clear conversation</span></div>
+                <div class="modal-command"><code>/model &lt;name&gt;</code><span>Switch model</span></div>
+                <div class="modal-command"><code>/status</code><span>Show current model & status</span></div>
+            </div>
+
+            <div class="modal-section">
+                <h3>Examples</h3>
+                <div class="modal-command"><code>What is 2+2?</code><span>Ask a question</span></div>
+                <div class="modal-command"><code>Write a Python function...</code><span>Generate code</span></div>
+                <div class="modal-command"><code>Explain recursion</code><span>Get an explanation</span></div>
+            </div>
+
+            <button class="modal-close" onclick="closeHelpModal()">Got it!</button>
         </div>
     </div>
 
@@ -267,8 +416,73 @@
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
         const statusEl = document.getElementById('status');
+        const commandHint = document.getElementById('commandHint');
+        const helpModal = document.getElementById('helpModal');
 
         let isFirstMessage = true;
+        let currentModel = 'deepseek-r1:671b';
+        let conversationHistory = [];
+
+        // Available slash commands
+        const slashCommands = [
+            { cmd: '/help', desc: 'Show this help' },
+            { cmd: '/clear', desc: 'Clear conversation' },
+            { cmd: '/model', desc: 'Switch model (e.g., /model deepseek-r1:32b)' },
+            { cmd: '/status', desc: 'Show current model & status' },
+        ];
+
+        // Handle slash command input
+        userInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            
+            if (value.startsWith('/')) {
+                showCommandHints(value);
+            } else {
+                hideCommandHints();
+            }
+        });
+
+        function showCommandHints(input) {
+            const matches = slashCommands.filter(sc => 
+                sc.cmd.startsWith(input.toLowerCase()) || input === '/'
+            );
+
+            if (matches.length === 0) {
+                hideCommandHints();
+                return;
+            }
+
+            commandHint.innerHTML = matches.map(sc => 
+                `<div class="command-item" onclick="selectCommand('${sc.cmd}')">
+                    <code>${sc.cmd}</code>
+                    <span>${sc.desc}</span>
+                </div>`
+            ).join('');
+            commandHint.classList.add('active');
+        }
+
+        function hideCommandHints() {
+            commandHint.classList.remove('active');
+        }
+
+        function selectCommand(cmd) {
+            userInput.value = cmd + ' ';
+            userInput.focus();
+            hideCommandHints();
+        }
+
+        // Close modal functions
+        function closeHelpModal() {
+            helpModal.classList.remove('active');
+            userInput.focus();
+        }
+
+        // Close modal when clicking outside
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                closeHelpModal();
+            }
+        });
 
         // Handle Enter key
         userInput.addEventListener('keypress', (e) => {
@@ -278,12 +492,30 @@
             }
         });
 
+        // Handle Escape key
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (helpModal.classList.contains('active')) {
+                    closeHelpModal();
+                } else {
+                    hideCommandHints();
+                }
+            }
+        });
+
         async function sendMessage() {
-            const message = userInput.value.trim();
-            if (!message || sendBtn.disabled) return;
+            const input = userInput.value.trim();
+            if (!input || sendBtn.disabled) return;
 
             // Clear input
             userInput.value = '';
+            hideCommandHints();
+
+            // Check for slash commands
+            if (input.startsWith('/')) {
+                handleSlashCommand(input);
+                return;
+            }
 
             // Clear empty state on first message
             if (isFirstMessage) {
@@ -292,12 +524,14 @@
             }
 
             // Add user message to UI
-            addMessage(message, 'user');
+            addMessage(input, 'user');
+            conversationHistory.push({ role: 'user', content: input });
 
             // Disable send button
             sendBtn.disabled = true;
             const originalText = sendBtn.textContent;
             sendBtn.textContent = 'Thinking...';
+            statusEl.textContent = '⏳ Processing...';
 
             try {
                 // Send to API
@@ -306,19 +540,24 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ 
+                        message: input,
+                        model: currentModel
+                    })
                 });
 
                 const data = await response.json();
-                
+
                 if (!response.ok) {
                     if (data.error && data.error.includes('not configured')) {
-                        addMessage('❌ Error: DeepSeek API key not configured\n\nPlease set DEEPSEEK_API_KEY in Vercel environment variables', 'system');
+                        addMessage('❌ Error: API key not configured\n\nPlease set DEEPSEEK_API_KEY in environment variables', 'system');
                     } else {
                         addMessage(`❌ Error: ${data.error}`, 'system');
                     }
                 } else {
                     addMessage(data.reply, 'assistant');
+                    conversationHistory.push({ role: 'assistant', content: data.reply });
+                    
                     if (data.usage) {
                         addMessage(`📊 Tokens: ${data.usage.prompt_tokens} input, ${data.usage.completion_tokens} output`, 'system');
                     }
@@ -328,8 +567,51 @@
                 addMessage('Sorry, cannot connect to the API. Please try again.', 'system');
             } finally {
                 sendBtn.disabled = false;
-                sendBtn.textContent = originalText;
+                sendBtn.textContent = 'Send';
+                statusEl.textContent = `⚡ Powered by DeepSeek API | Model: ${currentModel} | Type /help for commands`;
                 userInput.focus();
+            }
+        }
+
+        function handleSlashCommand(input) {
+            const parts = input.split(' ');
+            const cmd = parts[0].toLowerCase();
+            const arg = parts.slice(1).join(' ').trim();
+
+            switch (cmd) {
+                case '/help':
+                    helpModal.classList.add('active');
+                    break;
+
+                case '/clear':
+                    chatContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">💬</div>
+                            <h2>Conversation cleared</h2>
+                            <p>Start a new conversation</p>
+                        </div>
+                    `;
+                    conversationHistory = [];
+                    isFirstMessage = true;
+                    addMessage('✓ Conversation cleared', 'system');
+                    break;
+
+                case '/model':
+                    if (arg) {
+                        currentModel = arg;
+                        addMessage(`✓ Model switched to: ${currentModel}`, 'system');
+                        statusEl.textContent = `⚡ Powered by DeepSeek API | Model: ${currentModel} | Type /help for commands`;
+                    } else {
+                        addMessage(`Current model: ${currentModel}\n\nUse /model <name> to switch (e.g., /model deepseek-r1:32b)`, 'system');
+                    }
+                    break;
+
+                case '/status':
+                    addMessage(`📊 Status:\n• Model: ${currentModel}\n• Messages: ${conversationHistory.length}\n• Platform: Web UI`, 'system');
+                    break;
+
+                default:
+                    addMessage(`❌ Unknown command: ${cmd}\n\nType /help to see available commands`, 'system');
             }
         }
 

@@ -21,10 +21,10 @@ from .cost_tracker import CostTracker
 from .hooks import HookRunner
 
 SYSTEM_PROMPT_TEMPLATE = """\
-You are Claw, an expert autonomous AI coding agent running on model "{model}" via Ollama locally.
+You are Claw, an expert autonomous AI coding agent running on model "{model}".
 You have deep expertise in all programming languages, frameworks, databases, DevOps, cloud, \
 system administration, and software engineering. You act decisively — you NEVER ask questions.
-When asked what model you are, say you are Claw running on "{model}" via local Ollama.
+When asked what model you are, say you are Claw running on "{model}" {mode_label}.
 
 WORKSPACE: {cwd}
 PLATFORM: {platform}
@@ -207,6 +207,10 @@ class Agent:
         self._confirm_fn = confirm_fn
         self._hooks = HookRunner.load()  # Cache hooks once at init (M1)
 
+        # Determine mode label for system prompt
+        is_local_ollama = "localhost" in self.base_url or "127.0.0.1" in self.base_url
+        self._mode_label = "via local Ollama" if is_local_ollama else "via Cloud API"
+
         # H4: Load and apply .claw project config
         claw_config = _load_claw_config()
         if claw_config:
@@ -233,7 +237,12 @@ class Agent:
         self._compacted = False
         # Build system prompt from template + project files (MEMORY.md, SOUL.md, .claw)
         project_ctx = _load_project_context()
-        system_content = SYSTEM_PROMPT_TEMPLATE.format(cwd=os.getcwd(), model=model, platform=sys.platform)
+        system_content = SYSTEM_PROMPT_TEMPLATE.format(
+            cwd=os.getcwd(), 
+            model=self.model, 
+            platform=sys.platform,
+            mode_label=self._mode_label
+        )
         if project_ctx:
             system_content += "\n\nPROJECT CONTEXT (loaded from workspace files):" + project_ctx
         self.messages: list[dict[str, Any]] = [

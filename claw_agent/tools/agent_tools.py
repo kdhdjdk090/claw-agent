@@ -26,7 +26,7 @@ def run_subagent(
     from ..permissions import PermissionContext, ALWAYS_ALLOWED
 
     # Use the current agent's model if not specified, fall back to a smaller model
-    agent_model = model or "qwen2.5:7b"
+    agent_model = model or "deepseek-r1:8b"
 
     # Build permission context based on tools_subset
     perms = PermissionContext.default()
@@ -73,7 +73,7 @@ def plan_and_execute(goal: str, model: str | None = None) -> str:
     """Break a goal into steps, then execute each with a sub-agent."""
     from ..agent import Agent
 
-    agent_model = model or "qwen2.5:7b"
+    agent_model = model or "deepseek-r1:8b"
     planner = Agent(model=agent_model)
 
     # Step 1: Plan

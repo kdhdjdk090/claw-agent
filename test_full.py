@@ -254,7 +254,7 @@ except:
     ollama_up = False
 
 if ollama_up:
-    live_agent = Agent(model="deepseek-v3.1:671b-cloud", base_url="http://localhost:11434")
+    live_agent = Agent(model="deepseek-r1:671b", base_url="http://localhost:11434")
     events = []
     try:
         for ev in live_agent.stream_chat("What is 2+2? Answer with just the number."):
@@ -325,7 +325,7 @@ if os.path.exists(bridge_path):
     # Test bridge start + simple message
     try:
         proc = subprocess.Popen(
-            ["C:\\Program Files\\PyManager\\python.exe", bridge_path, "--model", "deepseek-v3.1:671b-cloud"],
+            ["C:\\Program Files\\PyManager\\python.exe", bridge_path, "--model", "deepseek-r1:671b"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             cwd=os.path.dirname(__file__), text=True
         )

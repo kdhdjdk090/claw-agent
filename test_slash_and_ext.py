@@ -53,7 +53,7 @@ test("list_models returns list", lambda: isinstance(list_models(), list) and len
 
 models = list_models()
 test("pick_model returns string", lambda: isinstance(pick_model(models), str))
-test("pick_model prefers deepseek-v3.1", lambda: "deepseek" in pick_model(models).lower() or len(pick_model(models)) > 0)
+test("pick_model prefers deepseek-r1", lambda: "deepseek" in pick_model(models).lower() or len(pick_model(models)) > 0)
 
 test("make_agent returns Agent", lambda: isinstance(make_agent("qwen2.5:7b"), Agent))
 

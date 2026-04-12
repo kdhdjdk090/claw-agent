@@ -49,7 +49,7 @@ def format_args(args: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="deepseek-v3.1:671b-cloud")
+    parser.add_argument("--model", default="deepseek-r1:671b")
     parser.add_argument("--base-url", default="http://localhost:11434")
     args = parser.parse_args()
 

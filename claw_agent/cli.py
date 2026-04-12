@@ -77,13 +77,19 @@ def list_models() -> list[str]:
 
 def pick_model(models: list[str]) -> str:
     preferred = [
-        "deepseek-v3.1:671b-cloud", "qwen2.5:14b", "qwen2.5:7b",
-        "mistral:latest", "llama3.1:8b",
+        "deepseek-v3.1:671b-cloud", "deepseek-v3.1",
+        "deepseek-r1:671b", "deepseek-r1:32b", "deepseek-r1:14b", "deepseek-r1:8b",
+        "deepseek-v3:671b", "deepseek-v3",
+        "deepseek-coder:6.7b", "deepseek-coder",
+        "gemma4:latest", "gemma4",
+        "qwen2.5:14b", "qwen2.5:7b",
+        "mistral:latest", "mistral",
+        "llama3:latest", "llama3.1:8b", "llama3",
     ]
     for p in preferred:
         if any(p in m for m in models):
             return next(m for m in models if p in m)
-    return models[0] if models else "qwen2.5:7b"
+    return models[0] if models else "deepseek-v3.1:671b-cloud"
 
 
 def _cli_confirm() -> bool:
@@ -838,7 +844,7 @@ def main():
             "[claw.error]Ollama is not running![/claw.error]\n\n"
             "  1. Install: [cyan]https://ollama.com/download[/cyan]\n"
             "  2. Start:   [cyan]ollama serve[/cyan]\n"
-            "  3. Pull:    [cyan]ollama pull qwen2.5:7b[/cyan]",
+            "  3. Pull:    [cyan]ollama pull deepseek-v3.1:671b-cloud[/cyan]",
             title="Setup Required", border_style="red",
         ))
         sys.exit(1)
