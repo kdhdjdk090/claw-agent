@@ -397,7 +397,24 @@
                 <div class="modal-command"><code>/help</code><span>Show this help</span></div>
                 <div class="modal-command"><code>/clear</code><span>Clear conversation</span></div>
                 <div class="modal-command"><code>/model &lt;name&gt;</code><span>Switch model</span></div>
+                <div class="modal-command"><code>/models</code><span>List available models</span></div>
                 <div class="modal-command"><code>/status</code><span>Show current model & status</span></div>
+                <div class="modal-command"><code>/tools</code><span>List all 26 tools</span></div>
+                <div class="modal-command"><code>/cost</code><span>Show token usage</span></div>
+            </div>
+
+            <div class="modal-section">
+                <h3>Session</h3>
+                <div class="modal-command"><code>/save</code><span>Save conversation</span></div>
+                <div class="modal-command"><code>/export</code><span>Export to markdown</span></div>
+            </div>
+
+            <div class="modal-section">
+                <h3>Info</h3>
+                <div class="modal-command"><code>/version</code><span>Show version info</span></div>
+                <div class="modal-command"><code>/config</code><span>Show configuration</span></div>
+                <div class="modal-command"><code>/permissions</code><span>Show permissions</span></div>
+                <div class="modal-command"><code>/memory</code><span>Context window usage</span></div>
             </div>
 
             <div class="modal-section">
@@ -423,12 +440,21 @@
         let currentModel = 'deepseek-r1:671b';
         let conversationHistory = [];
 
-        // Available slash commands
+        // Available slash commands (expanded to match CLI)
         const slashCommands = [
-            { cmd: '/help', desc: 'Show this help' },
+            { cmd: '/help', desc: 'Show all commands' },
             { cmd: '/clear', desc: 'Clear conversation' },
-            { cmd: '/model', desc: 'Switch model (e.g., /model deepseek-r1:32b)' },
+            { cmd: '/model', desc: 'Switch model (e.g., /model deepseek-chat)' },
+            { cmd: '/models', desc: 'List available models' },
             { cmd: '/status', desc: 'Show current model & status' },
+            { cmd: '/tools', desc: 'List all available tools' },
+            { cmd: '/cost', desc: 'Show token usage' },
+            { cmd: '/save', desc: 'Save conversation' },
+            { cmd: '/export', desc: 'Export to markdown' },
+            { cmd: '/version', desc: 'Show version info' },
+            { cmd: '/config', desc: 'Show configuration' },
+            { cmd: '/permissions', desc: 'Show permissions' },
+            { cmd: '/memory', desc: 'Context window usage' },
         ];
 
         // Handle slash command input
@@ -577,6 +603,7 @@
             const parts = input.split(' ');
             const cmd = parts[0].toLowerCase();
             const arg = parts.slice(1).join(' ').trim();
+            let totalTokens = conversationHistory.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0);
 
             switch (cmd) {
                 case '/help':
@@ -602,12 +629,66 @@
                         addMessage(`✓ Model switched to: ${currentModel}`, 'system');
                         statusEl.textContent = `⚡ Powered by DeepSeek API | Model: ${currentModel} | Type /help for commands`;
                     } else {
-                        addMessage(`Current model: ${currentModel}\n\nUse /model <name> to switch (e.g., /model deepseek-r1:32b)`, 'system');
+                        addMessage(`Current model: ${currentModel}\n\nAvailable models:\n- deepseek-reasoner (largest, default)\n- deepseek-chat (fast)\n- deepseek-coder (code specialist)\n\nUse /model <name> to switch`, 'system');
                     }
                     break;
 
+                case '/models':
+                    addMessage(`Available models:\n\n1. deepseek-reasoner ⭐\n   - Largest, most capable\n   - Best for complex tasks\n   - Default model\n\n2. deepseek-chat\n   - Fast responses\n   - Great for general coding\n\n3. deepseek-coder\n   - Code specialist\n   - Best for programming tasks\n\nUse /model <name> to switch`, 'system');
+                    break;
+
                 case '/status':
-                    addMessage(`📊 Status:\n• Model: ${currentModel}\n• Messages: ${conversationHistory.length}\n• Platform: Web UI`, 'system');
+                    addMessage(`📊 Status:\n• Model: ${currentModel}\n• Messages: ${conversationHistory.length}\n• Estimated tokens: ~${Math.round(totalTokens).toLocaleString()}\n• Platform: Web UI\n• API: DeepSeek Cloud`, 'system');
+                    break;
+
+                case '/tools':
+                    addMessage(`🛠️ Available Tools (26):\n\n📁 File: read_file, write_file, list_directory, find_files\n💻 Shell: run_command, powershell\n🔍 Search: grep_search\n✏️ Edit: replace_in_file, multi_edit_file, insert_at_line, diff_files\n🌐 Web: web_fetch, web_search\n🤖 Agent: run_subagent, plan_and_execute\n📋 Tasks: task_create, task_update, task_list, task_get\n💻 Code: notebook_run\n📍 Context: get_workspace_context, git_diff, git_log\n⚙️ Utility: sleep, config_get, config_set`, 'system');
+                    break;
+
+                case '/cost':
+                    addMessage(`📊 Token Usage:\n• Estimated tokens: ~${Math.round(totalTokens).toLocaleString()}\n• Messages: ${conversationHistory.length}\n• Cost: FREE (using DeepSeek API)\n\nNote: Exact token counts available in CLI mode`, 'system');
+                    break;
+
+                case '/save':
+                    try {
+                        localStorage.setItem('claw-conversation', JSON.stringify(conversationHistory));
+                        addMessage('✓ Conversation saved to browser storage', 'system');
+                    } catch (e) {
+                        addMessage('✗ Could not save: ' + e.message, 'system');
+                    }
+                    break;
+
+                case '/export':
+                    let md = `# Claw AI Conversation\n\nModel: ${currentModel}\nDate: ${new Date().toISOString()}\n\n`;
+                    conversationHistory.forEach(msg => {
+                        md += `## ${msg.role === 'user' ? '👤 You' : '🤖 Claw'}\n\n${msg.content}\n\n`;
+                    });
+                    const blob = new Blob([md], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `claw-export-${Date.now()}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    addMessage('✓ Conversation exported as markdown', 'system');
+                    break;
+
+                case '/version':
+                    addMessage(`🦅 Claw AI v0.2.0\n• Platform: Web UI\n• API: DeepSeek Cloud\n• Model: ${currentModel}\n• Features: Skills, MCP, Approval modes\n• GitHub: kdhdjdk090/claw-agent`, 'system');
+                    break;
+
+                case '/config':
+                    addMessage(`⚙️ Configuration:\n• Model: ${currentModel}\n• API: DeepSeek Cloud\n• Base URL: https://api.deepseek.com/v1\n• Mode: Cloud (no Ollama needed)\n• Tools: 26 available`, 'system');
+                    break;
+
+                case '/permissions':
+                    addMessage(`🔒 Permissions:\n• Mode: Cloud API (auto-approved)\n• Tools: All 26 tools enabled\n• Safety: Dangerous commands blocked\n\nNote: Full permission control available in CLI mode with /approval command`, 'system');
+                    break;
+
+                case '/memory':
+                    let pct = Math.min(100, (totalTokens / 200000 * 100));
+                    let bar = '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
+                    addMessage(`🧠 Context Window:\n• Used: ~${Math.round(totalTokens).toLocaleString()} tokens\n• Max: 200,000 tokens\n• Usage: [${bar}] ${pct.toFixed(1)}%\n• Messages: ${conversationHistory.length}`, 'system');
                     break;
 
                 default:

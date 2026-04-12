@@ -363,6 +363,7 @@ class Agent:
                 payload = {
                     "model": self.model,
                     "messages": self.messages,
+                    "tools": OLLAMA_TOOL_DEFINITIONS,  # Include tools for cloud too!
                     "stream": True,
                 }
                 api_url = f"{self.base_url}/chat/completions"
@@ -393,6 +394,14 @@ class Agent:
                 for line in response.iter_lines():
                     if not line:
                         continue
+                    
+                    # Handle SSE format (DeepSeek/OpenAI use "data: " prefix)
+                    if self.is_cloud and line.startswith("data: "):
+                        line = line[6:]  # Strip "data: " prefix
+                    
+                    if line.strip() == "[DONE]":
+                        break
+                    
                     try:
                         chunk = json.loads(line)
                     except json.JSONDecodeError:
@@ -400,22 +409,40 @@ class Agent:
 
                     if self.is_cloud:
                         # OpenAI/DeepSeek streaming format
-                        choice = chunk.get("choices", [{}])[0]
+                        choices = chunk.get("choices", [])
+                        if not choices:
+                            continue
+                        choice = choices[0]
                         delta = choice.get("delta", {})
                         content = delta.get("content", "")
                         tool_calls_delta = delta.get("tool_calls", [])
-                        
+                        finish_reason = choice.get("finish_reason", "")
+
                         if content:
                             collected_content += content
                             yield TextDelta(content)
-                        
+
                         if tool_calls_delta:
-                            tool_calls.extend(tool_calls_delta)
-                        
+                            for tc in tool_calls_delta:
+                                # Merge tool call chunks
+                                if tool_calls and tool_calls[-1].get("id") == tc.get("id"):
+                                    # Append to existing tool call
+                                    prev_fn = tool_calls[-1].get("function", {})
+                                    curr_fn = tc.get("function", {})
+                                    if curr_fn.get("arguments"):
+                                        prev_fn["arguments"] = prev_fn.get("arguments", "") + curr_fn["arguments"]
+                                    if curr_fn.get("name"):
+                                        prev_fn["name"] = curr_fn["name"]
+                                else:
+                                    tool_calls.append(tc)
+
                         # Final chunk has usage or finish_reason
                         if chunk.get("usage"):
                             prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
                             completion_tokens = chunk["usage"].get("completion_tokens", 0)
+                        
+                        if finish_reason == "stop":
+                            break
                     else:
                         # Ollama format
                         msg = chunk.get("message", {})
@@ -438,6 +465,25 @@ class Agent:
                             completion_tokens = chunk.get("eval_count", 0)
 
             duration_ms = (time.time() - start) * 1000
+
+            # Convert OpenAI-format tool calls to internal format for cloud mode
+            if self.is_cloud and tool_calls:
+                converted_calls = []
+                for tc in tool_calls:
+                    fn = tc.get("function", {})
+                    name = fn.get("name", "")
+                    args_str = fn.get("arguments", "{}")
+                    try:
+                        args = json.loads(args_str) if isinstance(args_str, str) else args_str
+                    except json.JSONDecodeError:
+                        args = {}
+                    converted_calls.append({
+                        "function": {
+                            "name": name,
+                            "arguments": args
+                        }
+                    })
+                tool_calls = converted_calls
 
             # --- Cap tool calls BEFORE building history ---
             if tool_calls:
