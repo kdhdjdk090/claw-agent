@@ -76,8 +76,9 @@ DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
 OLLAMA_BASE = "http://localhost:11434"
 
 # Auto-detect: Use DeepSeek API if key is set, otherwise fall back to Ollama
+# Uses deepseek-reasoner (largest/most capable model) for cloud mode
 DEFAULT_BASE_URL = DEEPSEEK_API_BASE if DEEPSEEK_API_KEY else OLLAMA_BASE
-DEFAULT_MODEL = "deepseek-chat" if DEEPSEEK_API_KEY else "deepseek-v3.1:671b-cloud"
+DEFAULT_MODEL = "deepseek-reasoner" if DEEPSEEK_API_KEY else "deepseek-v3.1:671b-cloud"
 
 # When total token count exceeds this, auto-compact the conversation
 MAX_CONTEXT_TOKENS = 200_000
