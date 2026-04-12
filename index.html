@@ -238,7 +238,7 @@
     <div class="container">
         <div class="header">
             <h1>🦅 Claw AI Chat</h1>
-            <p>Powered by advanced AI reasoning engine</p>
+            <p id="status">⚡ Powered by DeepSeek API</p>
         </div>
 
         <div class="chat-container" id="chatContainer">
@@ -266,6 +266,7 @@
         const chatContainer = document.getElementById('chatContainer');
         const userInput = document.getElementById('userInput');
         const sendBtn = document.getElementById('sendBtn');
+        const statusEl = document.getElementById('status');
 
         let isFirstMessage = true;
 
@@ -279,7 +280,7 @@
 
         async function sendMessage() {
             const message = userInput.value.trim();
-            if (!message) return;
+            if (!message || sendBtn.disabled) return;
 
             // Clear input
             userInput.value = '';
@@ -295,6 +296,8 @@
 
             // Disable send button
             sendBtn.disabled = true;
+            const originalText = sendBtn.textContent;
+            sendBtn.textContent = 'Thinking...';
 
             try {
                 // Send to API
@@ -306,17 +309,26 @@
                     body: JSON.stringify({ message })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to get response');
-                }
-
                 const data = await response.json();
-                addMessage(data.reply, 'assistant');
+                
+                if (!response.ok) {
+                    if (data.error && data.error.includes('not configured')) {
+                        addMessage('❌ Error: DeepSeek API key not configured\n\nPlease set DEEPSEEK_API_KEY in Vercel environment variables', 'system');
+                    } else {
+                        addMessage(`❌ Error: ${data.error}`, 'system');
+                    }
+                } else {
+                    addMessage(data.reply, 'assistant');
+                    if (data.usage) {
+                        addMessage(`📊 Tokens: ${data.usage.prompt_tokens} input, ${data.usage.completion_tokens} output`, 'system');
+                    }
+                }
             } catch (error) {
                 console.error('Error:', error);
-                addMessage('Sorry, I encountered an error. Please try again.', 'system');
+                addMessage('Sorry, cannot connect to the API. Please try again.', 'system');
             } finally {
                 sendBtn.disabled = false;
+                sendBtn.textContent = originalText;
                 userInput.focus();
             }
         }
