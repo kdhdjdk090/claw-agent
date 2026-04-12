@@ -131,27 +131,3 @@ module.exports = (req, res) => {
 
   res.status(200).end(html);
 };
-
-// Serve index.html
-function serveIndex(res) {
-  try {
-    const indexPath = path.join(__dirname, '..', 'index.html');
-    const content = fs.readFileSync(indexPath, 'utf-8');
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(content);
-  } catch (err) {
-    console.error('Error reading index.html:', err);
-    return res.status(404).send('<h1>404 - Not Found</h1>');
-  }
-}
-
-// Main handler
-export default async (req, res) => {
-  // Handle chat API
-  if (req.url === '/api/chat' || req.url.startsWith('/api/chat')) {
-    return handleChat(req, res);
-  }
-
-  // Serve HTML for all other paths
-  return serveIndex(res);
-};
