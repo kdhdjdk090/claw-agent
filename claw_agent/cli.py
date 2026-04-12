@@ -838,19 +838,28 @@ def main():
     )
     args = parser.parse_args()
 
-    # Check Ollama
-    if not check_ollama():
-        console.print(Panel(
-            "[claw.error]Ollama is not running![/claw.error]\n\n"
-            "  1. Install: [cyan]https://ollama.com/download[/cyan]\n"
-            "  2. Start:   [cyan]ollama serve[/cyan]\n"
-            "  3. Pull:    [cyan]ollama pull deepseek-v3.1:671b-cloud[/cyan]",
-            title="Setup Required", border_style="red",
-        ))
-        sys.exit(1)
+    # Auto-detect: Use DeepSeek API if key is set, otherwise require Ollama
+    from .agent import DEEPSEEK_API_KEY, DEFAULT_MODEL, DEFAULT_BASE_URL
+    use_cloud = bool(DEEPSEEK_API_KEY)
 
-    models = list_models()
-    model = args.model or pick_model(models)
+    if use_cloud:
+        # Cloud mode - no Ollama needed
+        model = args.model or DEFAULT_MODEL
+        console.print("[bold green]✓ Cloud Mode[/bold green] [dim](using DeepSeek API)[/dim]")
+    else:
+        # Local mode - check Ollama
+        if not check_ollama():
+            console.print(Panel(
+                "[claw.error]Ollama is not running![/claw.error]\n\n"
+                "  1. Install: [cyan]https://ollama.com/download[/cyan]\n"
+                "  2. Start:   [cyan]ollama serve[/cyan]\n"
+                "  3. Pull:    [cyan]ollama pull deepseek-v3.1:671b-cloud[/cyan]\n\n"
+                "  Or set DEEPSEEK_API_KEY environment variable to use cloud mode instead.",
+                title="Setup Required", border_style="red",
+            ))
+            sys.exit(1)
+        models = list_models()
+        model = args.model or pick_model(models)
 
     # Permission mode from CLI
     if getattr(args, 'dangerously_skip_permissions', False):

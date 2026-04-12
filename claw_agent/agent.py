@@ -70,7 +70,15 @@ CRITICAL RULES:
 """
 
 MAX_ITERATIONS = 200
+# Support both local Ollama and DeepSeek Cloud API
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
 OLLAMA_BASE = "http://localhost:11434"
+
+# Auto-detect: Use DeepSeek API if key is set, otherwise fall back to Ollama
+DEFAULT_BASE_URL = DEEPSEEK_API_BASE if DEEPSEEK_API_KEY else OLLAMA_BASE
+DEFAULT_MODEL = "deepseek-chat" if DEEPSEEK_API_KEY else "deepseek-v3.1:671b-cloud"
+
 # When total token count exceeds this, auto-compact the conversation
 MAX_CONTEXT_TOKENS = 200_000
 # Start compacting at 50% of the hard context ceiling to avoid overflow.
@@ -190,16 +198,18 @@ class Agent:
 
     def __init__(
         self,
-        model: str = "deepseek-v3.1:671b-cloud",
-        base_url: str = OLLAMA_BASE,
+        model: str = None,
+        base_url: str = None,
         permissions: PermissionContext | None = None,
         session: Session | None = None,
         on_tool_call: Callable[[str, dict], None] | None = None,
         on_tool_result: Callable[[str, str], None] | None = None,
         confirm_fn: Callable[[], bool] | None = None,
     ):
-        self.model = model
-        self.base_url = base_url.rstrip("/")
+        # Auto-detect: Use DeepSeek API if key is set, otherwise Ollama
+        self.model = model or DEFAULT_MODEL
+        self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        self.is_cloud = DEEPSEEK_API_KEY and not base_url
         self.client = httpx.Client(timeout=300)
         self.permissions = permissions or PermissionContext.default()
         self.session = session or Session(model=model)
@@ -208,8 +218,7 @@ class Agent:
         self._hooks = HookRunner.load()  # Cache hooks once at init (M1)
 
         # Determine mode label for system prompt
-        is_local_ollama = "localhost" in self.base_url or "127.0.0.1" in self.base_url
-        self._mode_label = "via local Ollama" if is_local_ollama else "via Cloud API"
+        self._mode_label = "via Cloud API" if self.is_cloud else "via local Ollama"
 
         # H4: Load and apply .claw project config
         claw_config = _load_claw_config()
@@ -334,13 +343,29 @@ class Agent:
 
             start = time.time()
 
-            # --- Streaming request to Ollama ---
-            payload = {
-                "model": self.model,
-                "messages": self.messages,
-                "tools": OLLAMA_TOOL_DEFINITIONS,
-                "stream": True,
-            }
+            # --- Streaming request to API ---
+            if self.is_cloud:
+                # DeepSeek Cloud API (OpenAI-compatible)
+                payload = {
+                    "model": self.model,
+                    "messages": self.messages,
+                    "stream": True,
+                }
+                api_url = f"{self.base_url}/chat/completions"
+                extra_headers = {
+                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                    "Content-Type": "application/json",
+                }
+            else:
+                # Local Ollama
+                payload = {
+                    "model": self.model,
+                    "messages": self.messages,
+                    "tools": OLLAMA_TOOL_DEFINITIONS,
+                    "stream": True,
+                }
+                api_url = f"{self.base_url}/api/chat"
+                extra_headers = None
 
             collected_content = ""
             tool_calls: list[dict] = []
@@ -348,7 +373,7 @@ class Agent:
             completion_tokens = 0
 
             with self.client.stream(
-                "POST", f"{self.base_url}/api/chat", json=payload, timeout=300
+                "POST", api_url, json=payload, headers=extra_headers, timeout=300
             ) as response:
                 response.raise_for_status()
                 for line in response.iter_lines():
@@ -359,27 +384,44 @@ class Agent:
                     except json.JSONDecodeError:
                         continue
 
-                    msg = chunk.get("message", {})
-
-                    # Accumulate text content + stream deltas
-                    delta = msg.get("content", "")
-                    if delta:
-                        collected_content += delta
-                        yield TextDelta(delta)
-
-                    # Detect repetitive text (model stuck in generation loop)
-                    if _is_repetitive(collected_content):
-                        collected_content = collected_content[:-(40 * 2)]  # trim repeated tail
-                        break
-
-                    # Accumulate tool calls
-                    if msg.get("tool_calls"):
-                        tool_calls.extend(msg["tool_calls"])
-
-                    # Final chunk has done=true with token counts
-                    if chunk.get("done"):
-                        prompt_tokens = chunk.get("prompt_eval_count", 0)
-                        completion_tokens = chunk.get("eval_count", 0)
+                    if self.is_cloud:
+                        # OpenAI/DeepSeek streaming format
+                        choice = chunk.get("choices", [{}])[0]
+                        delta = choice.get("delta", {})
+                        content = delta.get("content", "")
+                        tool_calls_delta = delta.get("tool_calls", [])
+                        
+                        if content:
+                            collected_content += content
+                            yield TextDelta(content)
+                        
+                        if tool_calls_delta:
+                            tool_calls.extend(tool_calls_delta)
+                        
+                        # Final chunk has usage or finish_reason
+                        if chunk.get("usage"):
+                            prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
+                            completion_tokens = chunk["usage"].get("completion_tokens", 0)
+                    else:
+                        # Ollama format
+                        msg = chunk.get("message", {})
+                        
+                        delta = msg.get("content", "")
+                        if delta:
+                            collected_content += delta
+                            yield TextDelta(delta)
+                        
+                        # Detect repetitive text (model stuck in generation loop)
+                        if _is_repetitive(collected_content):
+                            collected_content = collected_content[:-(40 * 2)]
+                            break
+                        
+                        if msg.get("tool_calls"):
+                            tool_calls.extend(msg["tool_calls"])
+                        
+                        if chunk.get("done"):
+                            prompt_tokens = chunk.get("prompt_eval_count", 0)
+                            completion_tokens = chunk.get("eval_count", 0)
 
             duration_ms = (time.time() - start) * 1000
 
