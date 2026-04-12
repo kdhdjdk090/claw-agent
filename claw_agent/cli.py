@@ -238,6 +238,20 @@ def print_help():
         ("/bug", "Debug information"),
     ])
     
+    _section("Skills & MCP", "", [
+        ("/skills", "List installed skills"),
+        ("/skill install <name>", "Install a skill (web-dev, data-science, etc.)"),
+        ("/skill uninstall <name>", "Remove a skill"),
+        ("/mcp", "List MCP servers"),
+        ("/mcp add <name> <cmd>", "Add MCP server"),
+        ("/mcp remove <name>", "Remove MCP server"),
+    ])
+    
+    _section("Settings", "⚙️", [
+        ("/approval <mode>", "Set approval mode (auto/default/ask)"),
+        ("/permissions [mode]", "Permission mode"),
+    ])
+    
     _section("Control", "⌨️", [
         ("/clear", "Clear conversation"),
         ("/quit", "Exit (also /exit, /q)"),
@@ -671,6 +685,163 @@ def cmd_memory(agent: Agent):
     console.print()
 
 
+# --- Skills Commands ---
+
+def cmd_skills(arg: str):
+    """List or manage skills."""
+    from .skills import list_skills, install_skill, uninstall_skill, format_skills_table
+    
+    if not arg or arg.strip() == "list":
+        # List all skills
+        skills = list_skills()
+        console.print()
+        console.print("[bold cyan] Installed Skills[/bold cyan]")
+        console.print()
+        
+        if not skills:
+            console.print("  [dim]No skills installed.[/dim]")
+            console.print("  [dim]Install with: /skill install <name>[/dim]")
+        else:
+            # Group by type
+            builtin = [s for s in skills if s.is_builtin]
+            custom = [s for s in skills if not s.is_builtin]
+            
+            if custom:
+                console.print("  [bold]Custom Skills[/bold]")
+                for s in custom:
+                    console.print(f"    [green]✓[/green] [bold]{s.name}[/bold] v{s.version} - {s.description}")
+                console.print()
+            
+            if builtin:
+                console.print("  [bold]Built-in Skills[/bold]")
+                for s in builtin:
+                    console.print(f"    [cyan]○[/cyan] [bold]{s.name}[/bold] v{s.version} - {s.description}")
+                console.print()
+            
+            console.print("  [dim]Install: /skill install <name>[/dim]")
+            console.print("  [dim]Remove: /skill uninstall <name>[/dim]")
+    else:
+        console.print(f"  [dim]Unknown skill command: {arg}[/dim]")
+        console.print("  [dim]Try: /skills or /skill list[/dim]")
+
+
+def cmd_skill_manage(arg: str):
+    """Install or uninstall a skill."""
+    from .skills import install_skill, uninstall_skill, list_skills
+    
+    if not arg:
+        console.print("  [dim]Usage: /skill <install|uninstall> <name>[/dim]")
+        console.print("  [dim]Example: /skill install web-dev[/dim]")
+        return
+    
+    parts = arg.strip().split(maxsplit=1)
+    action = parts[0].lower()
+    name = parts[1] if len(parts) > 1 else ""
+    
+    if action == "install":
+        if not name:
+            console.print("  [dim]Usage: /skill install <name>[/dim]")
+            console.print("  [dim]Available: web-dev, data-science, devops, security, api-dev[/dim]")
+            return
+        result = install_skill(name)
+        console.print(f"  {result}")
+    
+    elif action == "uninstall":
+        if not name:
+            console.print("  [dim]Usage: /skill uninstall <name>[/dim]")
+            return
+        result = uninstall_skill(name)
+        console.print(f"  {result}")
+    
+    elif action == "list":
+        cmd_skills("")
+    
+    else:
+        console.print(f"  [dim]Unknown action: {action}[/dim]")
+        console.print("  [dim]Try: install, uninstall, or list[/dim]")
+
+
+# --- MCP Commands ---
+
+def cmd_mcp(arg: str):
+    """Manage MCP servers."""
+    from .mcp import load_mcp_config, add_mcp_server, remove_mcp_server, list_mcp_servers
+    
+    servers = load_mcp_config()
+    
+    if not arg or arg.strip() == "list":
+        # List MCP servers
+        console.print()
+        console.print("[bold cyan]🔌 MCP Servers[/bold cyan]")
+        console.print()
+        
+        if not servers:
+            console.print("  [dim]No MCP servers configured.[/dim]")
+            console.print("  [dim]Add with: /mcp add <name> <command>[/dim]")
+        else:
+            console.print(f"  {'Name':<20} {'Command':<30} {'Transport':<12} {'Status'}")
+            console.print("  " + "─" * 75)
+            for name, server in servers.items():
+                status = "[green]enabled[/green]" if server.enabled else "[dim]disabled[/dim]"
+                console.print(f"  {name:<20} {server.command:<30} {server.transport:<12} {status}")
+            console.print()
+            console.print("  [dim]Add: /mcp add <name> <command>[/dim]")
+            console.print("  [dim]Remove: /mcp remove <name>[/dim]")
+    else:
+        parts = arg.strip().split(maxsplit=2)
+        action = parts[0].lower()
+        
+        if action == "add" and len(parts) >= 3:
+            name = parts[1]
+            command = parts[2]
+            result = add_mcp_server(name, command)
+            console.print(f"  {result}")
+        elif action == "remove" and len(parts) >= 2:
+            name = parts[1]
+            result = remove_mcp_server(name)
+            console.print(f"  {result}")
+        else:
+            console.print("  [dim]Usage: /mcp [list|add <name> <cmd>|remove <name>][/dim]")
+
+
+# --- Approval Mode (Claude-like) ---
+
+def cmd_approval(arg: str, agent: Agent):
+    """Set approval mode (like Claude Code)."""
+    if not arg:
+        console.print()
+        console.print("[bold cyan]⚙️ Approval Mode[/bold cyan]")
+        console.print()
+        current = "AUTO" if agent.permissions.auto_approve else "DEFAULT"
+        console.print(f"  Current: [bold]{current}[/bold]")
+        console.print()
+        console.print("  Available modes:")
+        console.print("    [bold]auto[/bold]     - Auto-approve all tool calls (yolo mode)")
+        console.print("    [bold]default[/bold]  - Ask for confirmation on dangerous tools")
+        console.print("    [bold]ask[/bold]      - Always ask for confirmation")
+        console.print()
+        console.print("  [dim]Set with: /approval <mode>[/dim]")
+        return
+    
+    mode = arg.strip().lower()
+    
+    if mode == "auto":
+        agent.permissions.auto_approve = True
+        console.print("  [bold yellow]⚠ Approval mode: AUTO[/bold yellow]")
+        console.print("  [dim]All tool calls will be auto-approved[/dim]")
+    elif mode == "default":
+        agent.permissions.auto_approve = False
+        console.print("  [bold green]✓ Approval mode: DEFAULT[/bold green]")
+        console.print("  [dim]Dangerous tools will require confirmation[/dim]")
+    elif mode == "ask":
+        agent.permissions.auto_approve = False
+        console.print("  [bold blue]ℹ Approval mode: ASK[/bold blue]")
+        console.print("  [dim]All tool calls will require confirmation[/dim]")
+    else:
+        console.print(f"  [dim]Unknown mode: {mode}[/dim]")
+        console.print("  [dim]Try: auto, default, or ask[/dim]")
+
+
 def cmd_undo():
     """Undo file changes using git checkout. Reverts ALL changed files."""
     import subprocess
@@ -1003,6 +1174,17 @@ def main():
                 cmd_bug(agent)
             elif cmd == "/delete":
                 cmd_delete(cmd_arg)
+            # Skills commands
+            elif cmd == "/skills":
+                cmd_skills(cmd_arg)
+            elif cmd == "/skill":
+                cmd_skill_manage(cmd_arg)
+            # MCP commands
+            elif cmd == "/mcp":
+                cmd_mcp(cmd_arg)
+            # Approval mode (Claude-like)
+            elif cmd == "/approval":
+                cmd_approval(cmd_arg, agent)
             else:
                 console.print(f"  [dim]Unknown: {cmd} — try /help[/dim]")
             continue

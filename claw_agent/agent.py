@@ -248,13 +248,26 @@ class Agent:
         # Build system prompt from template + project files (MEMORY.md, SOUL.md, .claw)
         project_ctx = _load_project_context()
         system_content = SYSTEM_PROMPT_TEMPLATE.format(
-            cwd=os.getcwd(), 
-            model=self.model, 
+            cwd=os.getcwd(),
+            model=self.model,
             platform=sys.platform,
             mode_label=self._mode_label
         )
         if project_ctx:
             system_content += "\n\nPROJECT CONTEXT (loaded from workspace files):" + project_ctx
+        
+        # Add skills context
+        from .skills import get_all_skills_context
+        skills_ctx = get_all_skills_context()
+        if skills_ctx:
+            system_content += "\n\nSKILLS & CAPABILITIES:" + skills_ctx
+        
+        # Add MCP context
+        from .mcp import get_mcp_context
+        mcp_ctx = get_mcp_context()
+        if mcp_ctx:
+            system_content += "\n\nMCP SERVERS:" + mcp_ctx
+        
         self.messages: list[dict[str, Any]] = [
             {"role": "system", "content": system_content},
         ]
