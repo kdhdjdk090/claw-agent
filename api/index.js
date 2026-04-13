@@ -40,7 +40,8 @@ const ALIBABA_MODELS = [
 
 const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
 
-// Smart model priority chain - fastest/most reliable first
+// Model chains - DeepSeek V3 is primary (fast + powerful 671B)
+// R1 is removed from auto-routing (too slow — internal chain-of-thought takes 30s+)
 const FAST_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
   { model: 'qwen/qwen3-80b', provider: 'openrouter' },
@@ -49,15 +50,17 @@ const FAST_MODELS = [
 ];
 
 const REASONING_MODELS = [
-  { model: 'deepseek/deepseek-r1', provider: 'openrouter' },
-  { model: 'qwen3-235b-a22b', provider: 'alibaba' },
-  { model: 'qwen3.5-397b-a17b', provider: 'alibaba' },
+  { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen/qwen3-80b', provider: 'openrouter' },
+  { model: 'qwen3-max', provider: 'alibaba' },
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
+  { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
   { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
-  { model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' },
-  { model: 'qwen3-coder-plus', provider: 'alibaba' },
+  { model: 'qwen/qwen3-80b', provider: 'openrouter' },
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
 // System prompt - universal structured reasoning methodology
@@ -380,18 +383,18 @@ async function handleChat(req, res) {
       const needsCoding = /\b(code|function|program|script|debug|refactor|implement|algorithm|class|api|write a |build a |def |const |import |return |for loop|while loop|array|list|dict|regex|database|query|schema|endpoint|server|client|component|module|package|library|framework|test case|unit test)|\b(python|javascript|java|rust|go|typescript|c\+\+|html|css|sql|react|vue|node|express|django|flask|fastapi)\b/i.test(message);
       const isHeavy = message.length > 500 || /\b(part \d|step \d|section|phase|first.*then|complex|comprehensive|detailed|thorough|exhaustive|complete guide|full|in-depth|everything about)\b/i.test(lc);
       
-      // Select model chain based on intent
+      // Select model chain based on intent — DeepSeek V3 always first (fast + 671B)
       let modelChain;
       if (model) {
         // User specified a model
         const provider = ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter';
         modelChain = [{ model, provider }];
       } else if (needsCoding) {
-        modelChain = [...CODING_MODELS, ...FAST_MODELS];
+        modelChain = CODING_MODELS;
       } else if (needsReasoning || isHeavy) {
-        modelChain = [...REASONING_MODELS, ...FAST_MODELS];
+        modelChain = REASONING_MODELS;
       } else {
-        modelChain = [...FAST_MODELS, ...REASONING_MODELS.slice(0, 1)];
+        modelChain = FAST_MODELS;
       }
 
       // Try models in order until one succeeds (fallback chain)
@@ -622,7 +625,7 @@ function callAPI(apiBase, payload, headers) {
         ...headers,
         'Content-Length': Buffer.byteLength(payload),
       },
-      timeout: 30000,
+      timeout: 15000,
     };
 
     const request = https.request(options, (apiRes) => {
