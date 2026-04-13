@@ -168,6 +168,15 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .pill:not(.pill-m){display:none}
 .sb-foot{font-size:10px}
 }
+/* Conversation history */
+.sb-convos{overflow-y:auto;padding-bottom:4px}.sb-date{font-size:10px;font-weight:600;color:var(--text-3);padding:8px 16px 4px;text-transform:uppercase;letter-spacing:.5px}
+.sb-convo{display:flex;align-items:center;padding:6px 12px 6px 16px;cursor:pointer;border-radius:6px;margin:1px 8px;transition:background .12s;gap:8px}.sb-convo:hover{background:var(--surface-alt)}.sb-convo.active{background:var(--accent-bg)}
+.sb-convo-title{flex:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-2)}
+.sb-convo.active .sb-convo-title{color:var(--accent);font-weight:500}
+.sb-convo-del{display:none;width:18px;height:18px;border:none;background:none;color:var(--text-3);cursor:pointer;flex-shrink:0;padding:0;border-radius:4px;align-items:center;justify-content:center}
+.sb-convo:hover .sb-convo-del{display:flex}
+.sb-convo-del:hover{color:var(--red);background:rgba(220,38,38,.1)}
+.sb-convo-del svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
 </style>
 </head>
 <body>
@@ -187,6 +196,9 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 </div>
 <div class="sb-sep"></div>
 <div class="sb-scroll">
+<div class="sb-label">Recent Chats</div>
+<div class="sb-convos" id="convo-list"></div>
+<div class="sb-sep"></div>
 <div class="sb-label">Council</div>
 <div class="sb-nav">
 <button class="sb-item" onclick="sc('/council')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>Force Council</button>
@@ -289,17 +301,49 @@ const SK=[
 {id:'networking',d:'WebSocket, gRPC, DNS'},{id:'microservices',d:'Service mesh, API gateway'},
 {id:'rust-dev',d:'Cargo, async, WebAssembly'},{id:'python-dev',d:'FastAPI, Django, packaging'}
 ];
-let H=[],CM=true,AF=null;
+let H=[],CM=true,AF=null,CID=null,CONVOS=[];
 
-/* Storage */
-function ss(){try{localStorage.setItem('claw_h',JSON.stringify(H))}catch(e){}}
-function lss(){try{const s=localStorage.getItem('claw_h');if(s){H=JSON.parse(s);return H.length>0}}catch(e){}return false}
+/* Storage & Conversations */
+function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function getTitle(msgs){const u=msgs.find(m=>m.role==='u');if(!u)return'New chat';const t=u.content.slice(0,40);return t.length<u.content.length?t+'\u2026':t}
+function loadConvos(){try{const s=localStorage.getItem('claw_convos');if(s)CONVOS=JSON.parse(s)}catch(e){CONVOS=[]}}
+function saveConvos(){try{localStorage.setItem('claw_convos',JSON.stringify(CONVOS))}catch(e){}}
+function saveConvo(){if(!CID||!H.length)return;
+try{localStorage.setItem('claw_c_'+CID,JSON.stringify(H))}catch(e){}
+const title=getTitle(H);const idx=CONVOS.findIndex(c=>c.id===CID);if(idx>=0){CONVOS[idx].title=title;CONVOS[idx].updated=Date.now()}
+else{CONVOS.unshift({id:CID,title,updated:Date.now()})}saveConvos();renderConvos();}
+function ss(){saveConvo()}
+function lss(){loadConvos();
+if(CONVOS.length){const last=CONVOS[0];try{const s=localStorage.getItem('claw_c_'+last.id);if(s){H=JSON.parse(s);CID=last.id;return H.length>0}}catch(e){}}
+try{const s=localStorage.getItem('claw_h');if(s){H=JSON.parse(s);if(H.length){CID=genId();saveConvo();localStorage.removeItem('claw_h');return true}}}catch(e){}
+return false;}
+function newConvo(){if(CID&&H.length)saveConvo();
+H=[];CID=genId();const old=document.getElementById('ma');if(old)old.remove();const wl=document.getElementById('wl');if(wl){wl.style.display='';updGreet()}
+renderConvos();if(window.innerWidth<768)tSide();}
+function loadConvo(id){if(id===CID)return;
+if(CID&&H.length)saveConvo();try{const s=localStorage.getItem('claw_c_'+id);if(s){H=JSON.parse(s);CID=id;const old=document.getElementById('ma');if(old)old.remove();const wl=document.getElementById('wl');if(wl)wl.style.display='none';
+H.forEach(m=>renderMsg(m));renderConvos();
+if(window.innerWidth<768)tSide()}}catch(e){}
+}
+function delConvo(id,ev){ev.stopPropagation();try{localStorage.removeItem('claw_c_'+id)}catch(e){}
+CONVOS=CONVOS.filter(c=>c.id!==id);saveConvos();
+if(id===CID)newConvo();else renderConvos();
+}
+function renderConvos(){const el=document.getElementById('convo-list');if(!el)return;
+if(!CONVOS.length){el.innerHTML='<div style="padding:4px 16px;font-size:11px;color:var(--text-3)">No conversations yet</div>';return}
+const now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime();const yesterday=today-86400000,week=today-604800000;
+const groups=[{l:'Today',i:[]},{l:'Yesterday',i:[]},{l:'Previous 7 Days',i:[]},{l:'Older',i:[]}];CONVOS.forEach(c=>{const u=c.updated||0;if(u>=today)groups[0].i.push(c);else if(u>=yesterday)groups[1].i.push(c);else if(u>=week)groups[2].i.push(c);else groups[3].i.push(c)});let h='';
+groups.forEach(g=>{if(!g.i.length)return;h+='<div class="sb-date">'+g.l+'</div>';
+g.i.forEach(c=>{h+='<div class="sb-convo'+(c.id===CID?' active':'')+'" onclick="loadConvo(\''+c.id+'\')"><span class="sb-convo-title">'+esc(c.title||'New chat')+'</span><button class="sb-convo-del" onclick="delConvo(\''+c.id+'\',event)" title="Delete"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'})});
+el.innerHTML=h;
+}
 
 /* Init */
 function init(){
 initTheme();rS();
 if(lss()&&H.length){document.getElementById('wl').style.display='none';H.forEach(m=>renderMsg(m))}
-fetchSt();
+else{CID=genId()}
+renderConvos();fetchSt();
 }
 function rS(){document.getElementById('ss').innerHTML=SK.map(s=>'<span class="sb-skill" onclick="sc(\'/'+s.id+'\')">'+esc(s.id)+'</span>').join('')}
 async function fetchSt(){
@@ -475,11 +519,7 @@ if(sk){if(arg){am('u',t);callC('Using '+cmd.slice(1)+' skill: '+arg)}else{ae('**
 else{ae('Unknown command: '+cmd+'. Type /help')}
 }}
 
-function doClear(){
-H=[];ss();const ch=document.getElementById('ch');
-const old=document.getElementById('ma');if(old)old.remove();
-const wl=document.getElementById('wl');if(wl){wl.style.display='';updGreet()}
-}
+function doClear(){newConvo()}
 
 async function callC(t){
 const area=ensureArea();
