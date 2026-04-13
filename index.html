@@ -809,7 +809,7 @@ try{
 const url=CM?'/api/council':'/api/chat';
 let body={message:t,history:H.filter(m=>m.role==='u'||m.role==='a').slice(-20)};
 if(AF){try{const c=await rft(AF);body.message=t+'\n\n--- File: '+AF.name+' ---\n'+c}catch(e){}}
-const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:abortCtrl?.signal});
+const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:abortCtrl?.signal});
 const d=await r.json();think.remove();
 if(!r.ok){ae('Error: '+(d.error||'Server error'))}
 else if(d.council){

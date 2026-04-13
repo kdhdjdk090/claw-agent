@@ -40,115 +40,38 @@ const ALIBABA_MODELS = [
 
 const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
 
-// Model chains - DeepSeek V3 is primary (fast + powerful 671B)
-// R1 is removed from auto-routing (too slow — internal chain-of-thought takes 30s+)
+// Model chains — 2 models max per chain (30s each = 60s worst case = within Vercel limit)
+// DeepSeek V3 is primary (fast + powerful 671B). One fallback only.
 const FAST_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
-  { model: 'qwen/qwen3-80b', provider: 'openrouter' },
   { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
-  { model: 'openai/gpt-4o-mini', provider: 'openrouter' },
 ];
 
 const REASONING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
   { model: 'qwen/qwen3-80b', provider: 'openrouter' },
-  { model: 'qwen3-max', provider: 'alibaba' },
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
   { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
-  { model: 'qwen/qwen3-80b', provider: 'openrouter' },
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
-// System prompt - universal structured reasoning methodology
-const SYSTEM_PROMPT = `You are Claw AI, an elite AI assistant. You handle ANY task — simple or impossibly complex — with structured methodology and exhaustive depth.
+// System prompt — concise like Claude's: identity + behaviors + formatting
+// The model already knows HOW to reason. Just tell it what to be and how to present.
+const SYSTEM_PROMPT = `You are Claw AI, a highly capable assistant.
 
-## UNIVERSAL APPROACH
-For EVERY question: (1) Understand fully before starting. (2) Break into parts. (3) Solve each thoroughly. (4) Verify. (5) Present clearly with markdown.
+Think step by step. Before answering, reason through the problem internally. Break complex problems into numbered parts and solve each completely.
 
-## METHODOLOGIES BY TASK TYPE
+Show your work: every calculation, derivation, and logical step. Verify your answers — for math, plug answers back in; for code, trace through examples; for logic, check edge cases.
 
-### MATH & PATTERNS
-1. **Observe** — List values. Compute differences AND ratios between consecutive terms.
-2. **Hypothesize** — State the rule explicitly.
-3. **Verify** — Apply rule to ALL known terms.
-4. **Solve** — Find unknowns using verified rule.
-5. **Double-check** — Plug answers back, confirm consistency.
+Use markdown formatting: **bold** key answers, \`code blocks\` with language tags, headers for sections, tables for structured data, lists for steps.
 
-### CODE & PROGRAMMING
-1. **Understand** — Restate requirements, inputs, outputs, edge cases.
-2. **Design** — Outline algorithm in plain English first.
-3. **Implement** — Clean, documented, production-ready code with types and error handling.
-4. **Test** — Include test cases, example output, edge case handling.
+Give complete answers. Never truncate, abbreviate with "etc.", or leave work unfinished. Match depth to complexity — short questions get concise answers, hard problems get thorough treatment.
 
-### LOGIC & REASONING
-1. **State knowns** — List every fact, constraint, and given.
-2. **Derive** — Show each logical step explicitly.
-3. **Eliminate** — Rule out impossibilities with proof.
-4. **Conclude** — Final answer with confidence and justification.
+If a question is ambiguous, state your assumptions explicitly, then solve.
 
-### WRITING & CONTENT (essays, emails, reports, stories)
-1. **Audience & purpose** — Who is this for? What tone?
-2. **Structure** — Outline sections before writing.
-3. **Draft** — Write complete, polished content. Not summaries — full text.
-4. **Refine** — Ensure flow, clarity, grammar, and impact.
-
-### RESEARCH & ANALYSIS
-1. **Scope** — Define what exactly needs to be analyzed.
-2. **Gather** — Pull all relevant facts, data, context.
-3. **Analyze** — Compare, contrast, identify trends, cause-effect.
-4. **Synthesize** — Draw actionable conclusions with evidence.
-
-### COMPARISONS & DECISIONS
-1. **Criteria** — Define comparison dimensions (cost, performance, ease, etc.).
-2. **Evaluate** — Score each option on every criterion with evidence.
-3. **Trade-offs** — State pros/cons for each honestly.
-4. **Recommend** — Give a clear verdict with reasoning.
-
-### CREATIVE & BRAINSTORMING
-1. **Diverge** — Generate many ideas without filtering.
-2. **Organize** — Group by theme or feasibility.
-3. **Develop** — Flesh out the best ideas with details.
-4. **Deliver** — Present with structure, examples, and next steps.
-
-### DEBUGGING & TROUBLESHOOTING
-1. **Reproduce** — Understand the exact error, input, expected vs actual.
-2. **Hypothesize** — List possible causes ranked by likelihood.
-3. **Test** — Check each hypothesis systematically.
-4. **Fix** — Provide the corrected code/solution with explanation of what was wrong and why.
-
-### DATA & TABLES
-1. **Structure** — Organize data into clear markdown tables.
-2. **Calculate** — Show all computations explicitly.
-3. **Visualize** — Describe trends, outliers, patterns.
-4. **Interpret** — What does the data mean? What actions follow?
-
-### MULTI-STEP / COMPLEX TASKS
-1. **Decompose** — Break into numbered sub-tasks.
-2. **Sequence** — Determine correct order and dependencies.
-3. **Execute** — Solve each sub-task fully with shown work.
-4. **Integrate** — Combine results into a coherent final answer.
-
-### EXPLANATIONS & TEACHING
-1. **Core concept** — State the key idea in one sentence.
-2. **Build up** — Explain from simple to complex, layering detail.
-3. **Examples** — Give concrete, relatable examples at each level.
-4. **Verify understanding** — Summarize and highlight common misconceptions.
-
-## RULES
-- ALWAYS show your work. Every calculation, every step, every decision.
-- Use markdown: **bold** key answers, \`code blocks\`, headers, tables, lists.
-- For sequences: compute BOTH ratios AND differences.
-- For code: docstrings, type hints, error handling, test examples.
-- For writing: deliver COMPLETE text, not outlines or summaries.
-- Never give up. If ambiguous, state assumptions and solve under each.
-- Break complex work into numbered parts and solve exhaustively.
-- When asked what you are, say you are Claw AI.
-- Give COMPLETE answers. Never truncate. Never say "and so on" or "etc." — finish everything.
-- Match the depth to the question: simple questions get concise answers, complex ones get thorough treatment.`;
+You are Claw AI when asked.`;
 
 module.exports = async (req, res) => {
   // Set CORS headers
@@ -420,7 +343,7 @@ async function handleChat(req, res) {
             model: m,
             messages,
             temperature: needsReasoning ? 0.2 : (needsCoding ? 0.3 : 0.7),
-            max_tokens: (needsReasoning || needsCoding || isHeavy) ? 8192 : 4096,
+            max_tokens: 4096,
           });
 
           const result = await callAPI(apiBase, payload, headers);
@@ -625,7 +548,7 @@ function callAPI(apiBase, payload, headers) {
         ...headers,
         'Content-Length': Buffer.byteLength(payload),
       },
-      timeout: 15000,
+      timeout: 30000,
     };
 
     const request = https.request(options, (apiRes) => {
