@@ -676,6 +676,7 @@ div.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2
 +'<div class="msg-actions">'
 +'<button class="msg-btn" onclick="copyMsg('+idx+',this)" title="Copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>'
 +'<button class="msg-btn" onclick="retryMsg('+idx+')" title="Retry"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></button>'
++'<button class="msg-btn" onclick="resumeFromMsg('+idx+')" title="Continue from here"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>'
 +'<button class="msg-btn" onclick="delMsg('+idx+')" title="Delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>'
 +'</div>';
 }else{
@@ -877,8 +878,21 @@ _streamBuf='';_streamIdx=-1;
 
 function continueStream(idx){
 const prev=H[idx];if(!prev)return;
-const text='Continue from where you left off. Here is what you wrote so far:\n\n'+prev.content.slice(-1000);
-resendFrom(text);
+const text='Continue from where you left off.';
+const body={message:text,history:H.filter(m=>m.role==='u'||m.role==='a').slice(0,idx+1).slice(-20),stream:true};
+_streamChat(text,body);
+}
+
+/* Resume from any AI message — picks up conversation from that point */
+function resumeFromMsg(idx){
+const m=H[idx];if(!m||m.role!=='a')return;
+const inp=document.getElementById('mi');
+inp.value='Continue from where you left off';
+inp.focus();
+// Pre-fill but let user edit or just press Enter
+showToast('Press Enter to continue from message #'+(idx+1)+', or type a follow-up');
+// Store the resume index so sm() can use it
+window._resumeFromIdx=idx;
 }
 
 async function sm(){
@@ -908,7 +922,14 @@ am('a',c||'No response',true,d.consensus_percentage);
 finally{btn.disabled=false;document.getElementById('mi').focus();document.getElementById('stopBtn').classList.remove('vis');abortCtrl=null}
 }else{
 // Streaming mode
-let body={message:t,history:H.filter(m=>m.role==='u'||m.role==='a').slice(-20)};
+let histSlice = H.filter(m=>m.role==='u'||m.role==='a').slice(-20);
+// If resuming from a specific point, use history up to that message
+if(window._resumeFromIdx !== undefined && window._resumeFromIdx >= 0){
+const ri = window._resumeFromIdx;
+histSlice = H.filter(m=>m.role==='u'||m.role==='a').slice(0, ri+1).slice(-20);
+window._resumeFromIdx = undefined;
+}
+let body={message:t,history:histSlice};
 if(AF){try{const c=await rft(AF);body.message=t+'\n\n--- File: '+AF.name+' ---\n'+c}catch(e){}}
 await _streamChat(t,body);
 }
@@ -923,7 +944,7 @@ async function hc(t){
 const p=t.split(' '),cmd=p[0].toLowerCase(),arg=p.slice(1).join(' ').trim();
 switch(cmd){
 case'/help':
-am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n**/install** — Installation guides\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
+am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n**/install** — Installation guides\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/continue** — Resume last AI response\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Tips:**\n- Click ▶ on any AI message to resume from that point\n- Say "continue" to pick up incomplete responses\n- Complex prompts auto-activate UltraThink mode\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
 case'/models':
 try{const r=await fetch('/api/models');const d=await r.json();
 const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI');
@@ -992,6 +1013,9 @@ case'/permissions':
 ae('**Permission System**\n\n**Gated tools** (require approval in CLI):\n- run_command\n- write_file\n- replace_in_file\n- multi_edit_file\n- insert_at_line\n- powershell\n\n**Dangerous patterns** (22 blocked):\n- rm -rf, sudo, chmod 777, mkfs, dd if=\n- DROP TABLE, DELETE FROM, shutdown\n- curl|sh, eval(), exec()\n\n**Web UI:** All requests go through the API which has its own safety layer');break;
 case'/undo':
 if(H.length>=2){H.pop();H.pop();ss();document.getElementById('ch').innerHTML='<div class="welcome" id="wl" style="display:none"></div>';var ma3=document.getElementById('ma');if(ma3)ma3.remove();if(H.length){H.forEach((m,i)=>renderMsg(m,i))}else{document.getElementById('wl').style.display=''}ae('Last exchange undone')}else{ae('Nothing to undo')}break;
+case'/continue':case'/cont':
+var lastAiIdx=-1;for(var ci=H.length-1;ci>=0;ci--){if(H[ci].role==='a'){lastAiIdx=ci;break}}
+if(lastAiIdx>=0){resumeFromMsg(lastAiIdx);sm()}else{ae('No AI response to continue from')}break;
 case'/init':
 ae('**Project Init**\n\nTo initialize Claw in a project directory, run in terminal:\n```\npip install -e .\nclaw init\n```\nThis creates `.claw-agent/` config in your project with:\n- `config.json` — Agent settings\n- `sessions/` — Chat history\n- `skills/` — Custom skills\n- `mcp/` — MCP server configs');break;
 case'/install':showInstall();break;

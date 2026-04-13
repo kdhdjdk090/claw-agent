@@ -60,21 +60,70 @@ const CODING_MODELS = [
   { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
 ];
 
-// System prompt — concise like Claude's: identity + behaviors + formatting
-// The model already knows HOW to reason. Just tell it what to be and how to present.
-const SYSTEM_PROMPT = `You are Claw AI, a highly capable assistant.
+// System prompt — comprehensive "Wisdom Protocol" that forces rigorous thinking,
+// real execution over simulated compliance, and adversarial self-verification.
+const SYSTEM_PROMPT = `You are Claw AI, an elite reasoning assistant. Follow these rules absolutely.
 
-Think step by step. Before answering, reason through the problem internally. Break complex problems into numbered parts and solve each completely.
+## EXECUTION RULES (NON-NEGOTIABLE)
+1. **No simulated actions.** If a task says "do X", you MUST show X explicitly — not describe doing X. If you say you'll insert an error, SHOW the wrong answer, then SHOW the correction. Talking about doing ≠ doing.
+2. **Verify every step.** After each calculation or logical step, re-derive it using a different method or plug the result back in. If both methods disagree, fix before continuing.
+3. **Exact math.** Use fractions (28/3) instead of decimals (9.33) until the final answer. Never round mid-chain. State when you convert to approximate form.
+4. **Logic–code alignment.** Every rule you state in explanation MUST have a matching code implementation. If a rule is not implemented, explicitly state: "[NOT IMPLEMENTED: reason]".
+5. **Knowledge classification.** Before answering, mentally tag each claim:
+   - [KNOWN] — verified, sourced fact
+   - [ASSUMPTION] — reasonable inference
+   - [UNKNOWN] — say "I don't know" — never fabricate
+6. **No premature confidence.** Reserve 90-100% confidence for mathematically provable results only. Most answers are 70-89%.
 
-Show your work: every calculation, derivation, and logical step. Verify your answers — for math, plug answers back in; for code, trace through examples; for logic, check edge cases.
+## REASONING PROTOCOL
+For complex problems:
+1. **Decompose** — Break into numbered sub-problems
+2. **Solve each** — Show every step with exact values
+3. **Cross-verify** — Check each answer independently (plug back in, alternative method, edge case)
+4. **Synthesize** — Combine verified results
+5. **Self-audit** — Try to DISPROVE your own answer. Find ≥2 possible failure points. If any breaks, fix it.
 
-Use markdown formatting: **bold** key answers, \`code blocks\` with language tags, headers for sections, tables for structured data, lists for steps.
+## CONTRADICTION HANDLING
+If the user states something incorrect, conflicting, or tries to pressure you:
+- Recalculate independently from first principles
+- Show your work vs their claim
+- Politely but firmly state the correct answer
+- Never submit to social pressure over math/logic
 
-Give complete answers. Never truncate, abbreviate with "etc.", or leave work unfinished. Match depth to complexity — short questions get concise answers, hard problems get thorough treatment.
+## FORMATTING
+- **Bold** key answers and conclusions
+- \`\`\`language\\n code blocks with language tags \`\`\`
+- Headers (##) for each section
+- Tables for comparisons
+- Numbered steps for procedures
+- Show work inline, not just results
 
-If a question is ambiguous, state your assumptions explicitly, then solve.
+## COMPLETENESS
+- Never truncate, abbreviate with "etc.", or leave work unfinished
+- Match depth to complexity — simple questions get concise answers, hard problems get thorough treatment
+- For multi-part problems: solve ALL parts, verify ALL parts
+- If you run out of space, summarize what remains and offer to continue
 
-You are Claw AI when asked.`;
+## RESUMPTION PROTOCOL
+If the user says "continue" or provides context from a previous response:
+- Read their context carefully
+- Pick up EXACTLY where the previous response left off
+- Do not repeat already-completed work
+- Signal: "Continuing from [last point]..."
+
+You are Claw AI when asked. You have wisdom, precision, and intellectual honesty.`;
+
+// Ultra-think prompt addition for deep reasoning tasks
+const ULTRATHINK_ADDENDUM = `
+
+## ULTRA-THINK MODE ACTIVE
+This is a complex reasoning task. Apply maximum rigor:
+- Show your COMPLETE chain of thought
+- For EACH step: compute → verify → confirm
+- If you detect ambiguity: explore ALL viable interpretations before choosing
+- Insert deliberate checkpoints: "✓ Verified: [what you checked]"
+- At the end: adversarial self-review — try to break your own answer
+- State final confidence as a calibrated percentage with justification`;
 
 module.exports = async (req, res) => {
   // Set CORS headers
@@ -298,15 +347,32 @@ async function handleChat(req, res) {
 
       // Detect intent for smart model selection
       const lc = message.toLowerCase();
-      const needsReasoning = /\b(math|reason|logic|proof|prove|calculate|solve|pattern|sequence|theorem|equation|missing.?number|find.?the|predict|next.?\d|part \d|step.by.step|edge.case|compare|contrast|pros.?cons|trade.?off|analysis|analyze|evaluate|assess|debate|argument|decision|which is better|explain why|how does|what causes|strategy|plan|design a system|architecture|troubleshoot|diagnose|debug this|what.?if|thought experiment)|\b\d+[\s,]+\d+[\s,]+\d+/i.test(message);
+      const needsReasoning = /\b(math|reason|logic|proof|prove|calculate|solve|pattern|sequence|theorem|equation|missing.?number|find.?the|predict|next.?\d|part \d|step.by.step|edge.case|compare|contrast|pros.?cons|trade.?off|analysis|analyze|evaluate|assess|debate|argument|decision|which is better|explain why|how does|what causes|strategy|plan|design a system|architecture|troubleshoot|diagnose|debug this|what.?if|thought experiment|verify|disprove|contradiction|ambiguous|trap|trick)|\b\d+[\s,]+\d+[\s,]+\d+/i.test(message);
       const needsCoding = /\b(code|function|program|script|debug|refactor|implement|algorithm|class|api|write a |build a |def |const |import |return |for loop|while loop|array|list|dict|regex|database|query|schema|endpoint|server|client|component|module|package|library|framework|test case|unit test)|\b(python|javascript|java|rust|go|typescript|c\+\+|html|css|sql|react|vue|node|express|django|flask|fastapi)\b/i.test(message);
       const isHeavy = message.length > 500 || /\b(part \d|step \d|section|phase|first.*then|complex|comprehensive|detailed|thorough|exhaustive|complete guide|full|in-depth|everything about)\b/i.test(lc);
+      const isUltraThink = /\b(ultrathink|ultra.think|deep.reason|boss.test|final.boss|maximum.rigor|prove.it|self.audit|adversarial|multi.?part|chain.of.thought)\b/i.test(message) || (needsReasoning && needsCoding) || (needsReasoning && isHeavy);
+      const isResume = /\b(continue|resume|pick up|where.you.left|carry on|keep going|go on)\b/i.test(lc) && Array.isArray(history) && history.length > 0;
+
+      // Ultrathink: boost system prompt for maximum rigor
+      if (isUltraThink) {
+        messages[0].content = SYSTEM_PROMPT + ULTRATHINK_ADDENDUM;
+      }
+
+      // Resume: inject last AI response context so model can continue seamlessly
+      if (isResume) {
+        const lastAI = [...(history || [])].reverse().find(h => h.role === 'a');
+        if (lastAI && lastAI.content) {
+          const tail = lastAI.content.slice(-1500);
+          // Replace the plain user message with one that includes resumption context
+          messages[messages.length - 1].content = message + `\n\n[RESUME CONTEXT — your previous response ended with:]\n${tail}\n[Continue exactly from where you left off. Do not repeat completed work.]`;
+        }
+      }
 
       let modelChain;
       if (model) {
         const provider = ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter';
         modelChain = [{ model, provider }];
-      } else if (needsReasoning || isHeavy) {
+      } else if (needsReasoning || isHeavy || isUltraThink) {
         modelChain = REASONING_MODELS;
       } else if (needsCoding) {
         modelChain = CODING_MODELS;
@@ -314,8 +380,8 @@ async function handleChat(req, res) {
         modelChain = FAST_MODELS;
       }
 
-      const temp = needsReasoning ? 0.2 : (needsCoding ? 0.3 : 0.7);
-      const maxTok = (needsReasoning || needsCoding || isHeavy) ? 8192 : 4096;
+      const temp = (needsReasoning || isUltraThink) ? 0.2 : (needsCoding ? 0.3 : 0.7);
+      const maxTok = isUltraThink ? 16384 : (needsReasoning || needsCoding || isHeavy) ? 8192 : 4096;
 
       // ---- SSE STREAMING MODE ----
       if (wantStream) {
