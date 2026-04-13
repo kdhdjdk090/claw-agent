@@ -140,7 +140,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .btn-send{width:32px;height:32px;border-radius:10px;border:none;background:var(--accent);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .btn-send:hover{background:var(--accent-h)}.btn-send:disabled{opacity:.25;cursor:not-allowed}
 .btn-send svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2}
-.input-foot{display:flex;align-items:center;justify-content:space-between;padding:0 16px 8px;font-size:11px;color:var(--text-3)}
+.input-foot{display:flex;align-items:center;justify-content:space-between;padding:0 16px 8px;font-size:11px;color:var(--text-3);letter-spacing:.1px}
 
 /* Overlay + Mobile */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:99;backdrop-filter:blur(2px)}.overlay.show{display:block}
@@ -255,7 +255,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="btn-send" id="sb2" onclick="sm()" title="Send"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
 </div>
 </div>
-<div class="input-foot"><span>Claw AI</span><span id="modeLabel"></span></div>
+<div class="input-foot"><span id="modelInfo">Claw AI · 14 Models</span><span id="modeLabel"></span></div>
 </div>
 </div>
 </div>
@@ -268,14 +268,15 @@ function updGreet(){const h=new Date().getHours(),g=h<12?'Good morning':h<18?'Go
 
 /* Data */
 const MD=[
-{n:'DeepSeek V3',u:'Most Powerful 600B',p:'OR'},{n:'Qwen3 80B',u:'Best Balance',p:'OR'},
-{n:'Llama 3.3 70B',u:'Most Stable',p:'OR'},{n:'Qwen Coder 32B',u:'Coding King',p:'OR'},
-{n:'DeepSeek R1',u:'Reasoning',p:'OR'},{n:'Gemma 3 12B',u:'Fastest',p:'OR'},
-{n:'GPT-4o-mini',u:'Reliable',p:'OR'},{n:'Claude 3 Haiku',u:'Natural Chat',p:'OR'},
-{n:'Qwen3 Coder 480B',u:'Best Coder 480B',p:'ALI'},{n:'Qwen3.5 397B',u:'Most Powerful',p:'ALI'},
-{n:'Qwen3 Max',u:'Flagship',p:'ALI'},{n:'Qwen3 235B',u:'Reasoning 235B',p:'ALI'},
-{n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI'},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI'}
+{n:'DeepSeek V3',u:'Most Powerful',p:'OR',b:671,ctx:128},{n:'Qwen3 80B',u:'Best Balance',p:'OR',b:80,ctx:128},
+{n:'Llama 3.3 70B',u:'Most Stable',p:'OR',b:70,ctx:128},{n:'Qwen Coder 32B',u:'Coding King',p:'OR',b:32,ctx:128},
+{n:'DeepSeek R1',u:'Reasoning',p:'OR',b:671,ctx:128},{n:'Gemma 3 12B',u:'Fastest',p:'OR',b:12,ctx:32},
+{n:'GPT-4o-mini',u:'Reliable',p:'OR',b:8,ctx:128},{n:'Claude 3 Haiku',u:'Natural Chat',p:'OR',b:20,ctx:200},
+{n:'Qwen3 Coder 480B',u:'Best Coder',p:'ALI',b:480,ctx:256},{n:'Qwen3.5 397B',u:'Most Powerful',p:'ALI',b:397,ctx:128},
+{n:'Qwen3 Max',u:'Flagship',p:'ALI',b:72,ctx:128},{n:'Qwen3 235B',u:'Reasoning',p:'ALI',b:235,ctx:128},
+{n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI',b:32,ctx:128},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI',b:72,ctx:128}
 ];
+const TOTAL_B=MD.reduce((s,m)=>s+m.b,0),MAX_CTX=Math.max(...MD.map(m=>m.ctx));
 const SK=[
 {id:'code',d:'Generate, edit & debug code'},{id:'analyze',d:'Research & data analysis'},
 {id:'write',d:'Essays, emails, reports'},{id:'summarize',d:'Condense docs & articles'},
@@ -333,8 +334,16 @@ renderConvos();fetchSt();
 }
 function rS(){document.getElementById('ss').innerHTML=SK.map(s=>'<span class="sb-skill" onclick="sc(\'/'+s.id+'\')">'+esc(s.id)+'</span>').join('')}
 async function fetchSt(){
-try{const r=await fetch('/api/status');const d=await r.json();if(d.status==='operational'){document.getElementById('ts').textContent='Ready · v'+d.version}}
-catch(e){document.getElementById('ts').textContent='Ready'}
+try{const r=await fetch('/api/status');const d=await r.json();
+if(d.status==='operational'){document.getElementById('ts').textContent='Ready · v'+d.version}
+const mi=document.getElementById('modelInfo');
+const tb=(TOTAL_B/1000).toFixed(1);
+mi.textContent='Claw AI · '+d.models+' Models · '+tb+'T Parameters · '+MAX_CTX+'K Context';
+}catch(e){
+document.getElementById('ts').textContent='Ready';
+const mi=document.getElementById('modelInfo');const tb=(TOTAL_B/1000).toFixed(1);
+mi.textContent='Claw AI · '+MD.length+' Models · '+tb+'T Parameters · '+MAX_CTX+'K Context';
+}
 }
 
 /* Helpers */
@@ -441,9 +450,10 @@ switch(cmd){
 case'/help':
 am('a','**Claw AI — All Commands**\n\n**Core:** /help · /clear · /status · /version · /doctor · /models\n\n**Session:** /save · /export · /sessions · /resume · /delete · /compact\n\n**System:** /tools · /permissions · /mcp · /cost · /config · /memory · /diff · /undo · /init · /bug · /approval\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
 case'/models':
-try{const r=await fetch('/api/models');const d=await r.json();const ml=d.models||[];
+try{const r=await fetch('/api/models');const d=await r.json();
 const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI');
-am('a','**Available Models ('+d.model_count+')**\n\n**OpenRouter ('+d.openrouter_models+'):**\n'+orn.map(x=>'- **'+x.n+'** — '+x.u).join('\n')+'\n\n**Alibaba Cloud ('+d.alibaba_models+'):**\n'+aln.map(x=>'- **'+x.n+'** — '+x.u).join('\n')+'\n\n**Status:** '+(d.api_key_set?'✓ OpenRouter connected':'✗ OpenRouter not configured')+' · '+(d.alibaba_key_set?'✓ DashScope connected':'✗ DashScope not configured'))
+const tb=(TOTAL_B/1000).toFixed(1);
+am('a','**Available Models ('+d.model_count+') · '+tb+'T Combined Parameters · '+MAX_CTX+'K Max Context**\n\n**OpenRouter ('+d.openrouter_models+'):**\n'+orn.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n')+'\n\n**Alibaba Cloud ('+d.alibaba_models+'):**\n'+aln.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n')+'\n\n**Status:** '+(d.api_key_set?'✓ OpenRouter connected':'✗ OpenRouter not configured')+' · '+(d.alibaba_key_set?'✓ DashScope connected':'✗ DashScope not configured'))
 }catch(e){ae('Failed to load models')}break;
 case'/skills':
 try{const r=await fetch('/api/skills');const d=await r.json();
