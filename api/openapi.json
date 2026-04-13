@@ -1,6 +1,477 @@
 {
   "openapi": "3.0.3",
   "info": {
+    "title": "Claw AI API",
+    "description": "REST API for Claw AI — a multi-model AI assistant that queries OpenRouter and Alibaba Cloud (DashScope) models and returns intelligent responses.\n\n## Architecture\n- **14 models**: 8 via OpenRouter + 6 via Alibaba Cloud DashScope\n- **Multi-model mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via OpenRouter\n- **Providers**: OpenRouter (openrouter.ai), Alibaba Cloud (dashscope.aliyuncs.com)\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `OPENROUTER_API_KEY` — OpenRouter API key\n- `DASHSCOPE_API_KEY` — Alibaba Cloud DashScope API key\n\nNo client-side authentication is required for the public endpoints.",
+    "version": "2.1.0",
+    "contact": {
+      "name": "Claw AI",
+      "url": "https://github.com/claw-agent"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://clean-claw-ai.vercel.app",
+      "description": "Production (Vercel)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    }
+  ],
+  "paths": {
+    "/api/chat": {
+      "post": {
+        "operationId": "sendChatMessage",
+        "summary": "Send a chat message",
+        "description": "Send a message to the AI. By default queries multiple models in parallel and returns the best response. Set `use_council: false` and specify a `model` to use a single model.",
+        "tags": ["Chat"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              },
+              "examples": {
+                "default": {
+                  "summary": "Multi-model (default)",
+                  "value": {
+                    "message": "Explain the difference between REST and GraphQL"
+                  }
+                },
+                "single": {
+                  "summary": "Single model",
+                  "value": {
+                    "message": "Write a Python hello world",
+                    "model": "deepseek/deepseek-v3",
+                    "use_council": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/MultiModelResponse" },
+                    { "$ref": "#/components/schemas/SingleResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing or invalid message",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body too large (max 100KB)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error — API key not configured or all models failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "operationId": "listModels",
+        "summary": "List all available models",
+        "description": "Returns the full list of models, their providers, and API configuration status.",
+        "tags": ["Models"],
+        "responses": {
+          "200": {
+            "description": "Model listing",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ModelsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "operationId": "getStatus",
+        "summary": "System status",
+        "description": "Returns detailed system status including uptime, model count, provider status, and available endpoints.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "System status",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StatusResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "description": "Returns API health status, version, and whether API keys are configured.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tools": {
+      "get": {
+        "operationId": "listTools",
+        "summary": "List available tools",
+        "description": "Returns all 26 tools grouped by category (file, shell, search, edit, web, agent, task, notebook, context, utility).",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Tool listing",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ToolsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "summary": "List available skills",
+        "description": "Returns all 18 skills with IDs, names, and descriptions.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Skills listing",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SkillsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/config": {
+      "get": {
+        "operationId": "getConfig",
+        "summary": "Get configuration",
+        "description": "Returns current system configuration including version, model count, providers, limits, and key status.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "Configuration",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConfigResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The user's message to send to the AI",
+            "maxLength": 32000,
+            "example": "Explain the difference between REST and GraphQL"
+          },
+          "model": {
+            "type": "string",
+            "description": "Specific model to use (bypasses multi-model mode). Must be an OpenRouter model ID.",
+            "example": "deepseek/deepseek-v3"
+          },
+          "use_council": {
+            "type": "boolean",
+            "description": "Force multi-model mode on/off. Default: true when no model specified.",
+            "default": true
+          }
+        }
+      },
+      "MultiModelResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string",
+            "description": "The best answer selected from all model responses"
+          },
+          "council": {
+            "type": "boolean",
+            "description": "True when multi-model mode was used",
+            "example": true
+          },
+          "models_queried": {
+            "type": "integer",
+            "description": "Number of models queried",
+            "example": 14
+          },
+          "successful_responses": {
+            "type": "integer",
+            "description": "Number of models that responded successfully",
+            "example": 12
+          },
+          "failed_responses": {
+            "type": "integer",
+            "description": "Number of models that failed",
+            "example": 2
+          },
+          "consensus_percentage": {
+            "type": "string",
+            "description": "Agreement percentage among models (0-100)",
+            "example": "85"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "description": "Total tokens used across all models",
+            "example": 45230
+          },
+          "all_responses": {
+            "type": "array",
+            "description": "Summary of each model's response (truncated to 100 chars)",
+            "items": {
+              "$ref": "#/components/schemas/ModelResponseSummary"
+            }
+          }
+        }
+      },
+      "SingleResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string",
+            "description": "The model's response"
+          },
+          "usage": {
+            "type": "object",
+            "description": "Token usage from the API",
+            "properties": {
+              "prompt_tokens": { "type": "integer" },
+              "completion_tokens": { "type": "integer" },
+              "total_tokens": { "type": "integer" }
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "The model that was used",
+            "example": "deepseek/deepseek-v3"
+          },
+          "council": {
+            "type": "boolean",
+            "description": "Always false for single-model responses",
+            "example": false
+          }
+        }
+      },
+      "ModelsResponse": {
+        "type": "object",
+        "properties": {
+          "models": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Full list of model IDs"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether multi-model mode is available"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["multi", "deepseek", "ollama"],
+            "description": "Current API mode"
+          },
+          "api_key_set": { "type": "boolean" },
+          "alibaba_key_set": { "type": "boolean" },
+          "providers": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["OpenRouter", "Alibaba Cloud (DashScope)"]
+          },
+          "openrouter_models": { "type": "integer", "example": 8 },
+          "alibaba_models": { "type": "integer", "example": 6 },
+          "model_count": { "type": "integer", "example": 14 }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "operational" },
+          "version": { "type": "string", "example": "2.0.0" },
+          "uptime": { "type": "number", "description": "Server uptime in seconds" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "models": { "type": "integer", "example": 14 },
+          "providers": { "type": "integer", "example": 2 },
+          "skills": { "type": "integer", "example": 18 },
+          "keys_configured": {
+            "type": "object",
+            "properties": {
+              "openrouter": { "type": "boolean" },
+              "dashscope": { "type": "boolean" }
+            }
+          },
+          "endpoints": {
+            "type": "object",
+            "description": "Map of available endpoint names to paths"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "version": { "type": "string", "example": "2.0.0" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "keys_configured": {
+            "type": "object",
+            "properties": {
+              "openrouter": { "type": "boolean" },
+              "dashscope": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "ToolsResponse": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer", "example": 26 },
+          "categories": {
+            "type": "object",
+            "description": "Tools grouped by category",
+            "additionalProperties": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      },
+      "SkillsResponse": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer", "example": 18 },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string", "example": "code" },
+                "name": { "type": "string", "example": "Code" },
+                "description": { "type": "string", "example": "Generate, edit & debug code" }
+              }
+            }
+          }
+        }
+      },
+      "ConfigResponse": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string", "example": "2.0.0" },
+          "models": { "type": "integer", "example": 14 },
+          "providers": { "type": "array", "items": { "type": "string" } },
+          "skills": { "type": "integer", "example": 18 },
+          "tools": { "type": "integer", "example": 26 },
+          "keys": {
+            "type": "object",
+            "properties": {
+              "openrouter": { "type": "boolean" },
+              "dashscope": { "type": "boolean" }
+            }
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "max_message_length": { "type": "integer", "example": 32000 },
+              "max_body_size": { "type": "string", "example": "100KB" },
+              "max_tokens": { "type": "integer", "example": 2048 },
+              "temperature": { "type": "number", "example": 0.7 }
+            }
+          }
+        }
+      },
+      "ModelResponseSummary": {
+        "type": "object",
+        "properties": {
+          "model": { "type": "string", "example": "deepseek/deepseek-v3" },
+          "content": { "type": "string", "description": "First 100 chars of response" },
+          "error": { "type": "string", "nullable": true }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "instructions": { "type": "string" },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": { "type": "string" },
+                "error": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Chat",
+      "description": "Send messages — automatically routes to single or multi-model mode"
+    },
+    {
+      "name": "Models",
+      "description": "List and inspect available AI models"
+    },
+    {
+      "name": "System",
+      "description": "Health checks, status, tools, skills, and configuration"
+    }
+  ]
+}
+{
+  "openapi": "3.0.3",
+  "info": {
     "title": "Claw AI - Multi-Model Council API",
     "description": "REST API for Claw AI, a 14-model council system that queries OpenRouter and Alibaba Cloud (DashScope) models in parallel and returns consensus-validated responses.\n\n## Architecture\n- **14 models**: 8 via OpenRouter + 6 via Alibaba Cloud DashScope\n- **Council mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via OpenRouter\n- **Providers**: OpenRouter (openrouter.ai), Alibaba Cloud (dashscope.aliyuncs.com)\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `OPENROUTER_API_KEY` — OpenRouter API key\n- `DASHSCOPE_API_KEY` — Alibaba Cloud DashScope API key\n\nNo client-side authentication is required for the public endpoints.",
     "version": "2.0.0",

@@ -109,18 +109,112 @@ module.exports = async (req, res) => {
     return handleCouncil(req, res);
   }
 
-  // GET /api/models - List available council models
+  // GET /api/models - List available models
   if (req.url.startsWith('/api/models') && req.method === 'GET') {
     return res.status(200).json({
-      council: COUNCIL_MODELS,
-      council_enabled: COUNCIL_ENABLED,
-      mode: COUNCIL_ENABLED ? 'council' : (process.env.DEEPSEEK_API_KEY ? 'deepseek' : 'ollama'),
+      models: COUNCIL_MODELS,
+      enabled: COUNCIL_ENABLED,
+      mode: COUNCIL_ENABLED ? 'multi' : (process.env.DEEPSEEK_API_KEY ? 'deepseek' : 'ollama'),
       api_key_set: !!OPENROUTER_API_KEY,
       alibaba_key_set: !!DASHSCOPE_API_KEY,
       providers: ['OpenRouter', 'Alibaba Cloud (DashScope)'],
       openrouter_models: OPENROUTER_MODELS.length,
       alibaba_models: ALIBABA_MODELS.length,
       model_count: COUNCIL_MODELS.length
+    });
+  }
+
+  // GET /api/status - Real system status
+  if (req.url.startsWith('/api/status') && req.method === 'GET') {
+    return res.status(200).json({
+      status: 'operational',
+      version: '2.0.0',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
+      models: COUNCIL_MODELS.length,
+      providers: 2,
+      skills: 18,
+      keys_configured: {
+        openrouter: !!OPENROUTER_API_KEY,
+        dashscope: !!DASHSCOPE_API_KEY,
+      },
+      endpoints: {
+        chat: '/api/chat',
+        models: '/api/models',
+        health: '/api/health',
+        docs: '/api/docs',
+        status: '/api/status',
+        tools: '/api/tools',
+        skills: '/api/skills',
+        config: '/api/config'
+      }
+    });
+  }
+
+  // GET /api/tools - Real tool listing
+  if (req.url.startsWith('/api/tools') && req.method === 'GET') {
+    return res.status(200).json({
+      total: 26,
+      categories: {
+        file: ['read_file', 'write_file', 'list_directory', 'find_files'],
+        shell: ['run_command'],
+        search: ['grep_search'],
+        edit: ['replace_in_file', 'multi_edit_file', 'insert_at_line', 'diff_files'],
+        web: ['web_fetch', 'web_search'],
+        agent: ['run_subagent', 'plan_and_execute'],
+        task: ['task_create', 'task_update', 'task_list', 'task_get'],
+        notebook: ['notebook_run'],
+        context: ['get_workspace_context', 'git_diff', 'git_log'],
+        utility: ['sleep', 'config_get', 'config_set', 'powershell']
+      }
+    });
+  }
+
+  // GET /api/skills - Real skills listing
+  if (req.url.startsWith('/api/skills') && req.method === 'GET') {
+    return res.status(200).json({
+      total: 18,
+      skills: [
+        {id:'code',name:'Code',description:'Generate, edit & debug code'},
+        {id:'analyze',name:'Analyze',description:'Research & data analysis'},
+        {id:'write',name:'Write',description:'Essays, emails, reports'},
+        {id:'summarize',name:'Summarize',description:'Condense docs & articles'},
+        {id:'translate',name:'Translate',description:'Any language pair'},
+        {id:'math',name:'Math',description:'Calculations & reasoning'},
+        {id:'reason',name:'Reason',description:'Logic & problem solving'},
+        {id:'brainstorm',name:'Brainstorm',description:'Ideas & creative thinking'},
+        {id:'explain',name:'Explain',description:'Simplify complex topics'},
+        {id:'extract',name:'Extract',description:'Structure data from text'},
+        {id:'vision',name:'Vision',description:'Describe images & diagrams'},
+        {id:'debug',name:'Debug',description:'Find & fix bugs'},
+        {id:'refactor',name:'Refactor',description:'Improve code quality'},
+        {id:'review',name:'Review',description:'Code review & feedback'},
+        {id:'test',name:'Test',description:'Write tests & QA'},
+        {id:'docs',name:'Docs',description:'Generate documentation'},
+        {id:'design',name:'Design',description:'System architecture'},
+        {id:'search',name:'Search',description:'Web research & lookup'}
+      ]
+    });
+  }
+
+  // GET /api/config - Real config
+  if (req.url.startsWith('/api/config') && req.method === 'GET') {
+    return res.status(200).json({
+      version: '2.0.0',
+      models: COUNCIL_MODELS.length,
+      providers: ['OpenRouter', 'Alibaba Cloud (DashScope)'],
+      skills: 18,
+      tools: 26,
+      keys: {
+        openrouter: !!OPENROUTER_API_KEY,
+        dashscope: !!DASHSCOPE_API_KEY,
+      },
+      limits: {
+        max_message_length: 32000,
+        max_body_size: '100KB',
+        max_tokens: 2048,
+        temperature: 0.7
+      }
     });
   }
 
@@ -179,7 +273,7 @@ async function handleChat(req, res) {
       const payload = JSON.stringify({
         model: selectedModel,
         messages: [
-          { role: 'system', content: 'You are Claw AI, an expert autonomous AI coding agent. You act decisively and never ask questions. When asked what model you are, say you are Claw running via OpenRouter Council.' },
+          { role: 'system', content: 'You are Claw AI, a helpful, accurate, and thoughtful AI assistant. You provide clear, well-structured responses. When asked what you are, say you are Claw AI.' },
           { role: 'user', content: message }
         ],
         temperature: 0.7,
@@ -247,7 +341,7 @@ async function handleCouncilRequest(res, message) {
         payload = JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: 'You are Claw AI, an expert autonomous AI coding agent. You act decisively and never ask questions.' },
+            { role: 'system', content: 'You are Claw AI, a helpful, accurate, and thoughtful AI assistant. You provide clear, well-structured responses.' },
             { role: 'user', content: message }
           ],
           temperature: 0.7,
@@ -263,7 +357,7 @@ async function handleCouncilRequest(res, message) {
         payload = JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: 'You are Claw AI, an expert autonomous AI coding agent. You act decisively and never ask questions.' },
+            { role: 'system', content: 'You are Claw AI, a helpful, accurate, and thoughtful AI assistant. You provide clear, well-structured responses.' },
             { role: 'user', content: message }
           ],
           temperature: 0.7,
@@ -274,7 +368,7 @@ async function handleCouncilRequest(res, message) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'HTTP-Referer': 'https://github.com/claw-agent',
-          'X-Title': 'Claw AI Council',
+          'X-Title': 'Claw AI',
         };
       }
 
@@ -414,7 +508,7 @@ function callOpenRouterAPI(apiKey, payload) {
         'Content-Length': Buffer.byteLength(payload),
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://github.com/claw-agent',
-        'X-Title': 'Claw AI Council',
+        'X-Title': 'Claw AI',
       },
       timeout: 120000,
     };
