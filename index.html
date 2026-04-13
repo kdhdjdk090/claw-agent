@@ -225,7 +225,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <div class="sb-label">Skills &middot; 18</div>
 <div style="padding:4px 12px" id="ss"></div>
 </div>
-<div class="sb-foot"><span>14 Models &middot; 2 Providers</span><span>v2.0</span></div>
+<div class="sb-foot"><span>Claw AI</span><span>v2.0</span></div>
 </div>
 <div class="main">
 <div class="topbar">
@@ -234,9 +234,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <span class="tb-status" id="ts">Loading...</span>
 </div>
 <div class="tb-r">
-<span class="pill pill-m" id="bc">14 Models</span>
-<span class="pill pill-s">18 Skills</span>
-<span class="pill pill-f">FREE</span>
+<span class="pill pill-m" id="bc">Council</span>
 <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme"><span class="icon" id="themeIcon"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
 </div>
 </div>
@@ -265,7 +263,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="btn-send" id="sb2" onclick="sm()" title="Send"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
 </div>
 </div>
-<div class="input-foot"><span>Claw AI &middot; 14-Model Council</span><span id="modeLabel">Council mode</span></div>
+<div class="input-foot"><span>Claw AI</span><span id="modeLabel">Council mode</span></div>
 </div>
 </div>
 </div>
@@ -343,7 +341,7 @@ renderConvos();fetchSt();
 }
 function rS(){document.getElementById('ss').innerHTML=SK.map(s=>'<span class="sb-skill" onclick="sc(\'/'+s.id+'\')">'+esc(s.id)+'</span>').join('')}
 async function fetchSt(){
-try{const r=await fetch('/api/models');const d=await r.json();if(d.council_enabled){document.getElementById('ts').textContent=d.model_count+' models \u00b7 2 providers \u00b7 ready';document.getElementById('bc').textContent=d.model_count+' Models'}}
+try{const r=await fetch('/api/models');const d=await r.json();if(d.council_enabled){document.getElementById('ts').textContent='Ready';document.getElementById('bc').textContent='Council'}}
 catch(e){document.getElementById('ts').textContent='Ready'}
 }
 
@@ -451,7 +449,7 @@ switch(cmd){
 case'/help':
 am('a','**Claw AI \u2014 All Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version \u00b7 /doctor\n\n**Council:** /council \u00b7 /nocouncil \u00b7 /models\n\n**Session:** /save \u00b7 /export \u00b7 /sessions \u00b7 /resume \u00b7 /delete \u00b7 /compact\n\n**System:** /tools \u00b7 /permissions \u00b7 /mcp \u00b7 /cost \u00b7 /config \u00b7 /memory \u00b7 /diff \u00b7 /undo \u00b7 /init \u00b7 /bug \u00b7 /approval\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n'));break;
 case'/council':
-if(arg){CM=true;am('u',t);callC(arg)}else{CM=true;document.getElementById('modeLabel').textContent='Council mode';ae('Council enabled \u2014 14 models will collaborate')}break;
+if(arg){CM=true;am('u',t);callC(arg)}else{CM=true;document.getElementById('modeLabel').textContent='Council mode';ae('Council mode enabled')}break;
 case'/nocouncil':
 if(arg){CM=false;am('u',t);callS(arg)}else{CM=false;document.getElementById('modeLabel').textContent='Single model';ae('Single model mode enabled')}break;
 case'/models':
