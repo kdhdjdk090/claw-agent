@@ -1,717 +1,840 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Claw AI Chat</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Claw AI - Multi-Model Council</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
-            color: #e0e0e0;
-            height: 100vh;
-            overflow: hidden;
-        }
+/* ── Light Theme (default) ── */
+:root, [data-theme="light"] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-dim: #94a3b8;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-bg: #eef2ff;
+  --accent-border: #c7d2fe;
+  --green: #059669;
+  --green-bg: #ecfdf5;
+  --green-border: #a7f3d0;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --blue-border: #bfdbfe;
+  --amber: #d97706;
+  --amber-bg: #fffbeb;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 14px rgba(0,0,0,0.08);
+  --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+  --user-msg-bg: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --user-msg-text: #ffffff;
+  --sidebar-bg: var(--surface);
+  --input-bg: var(--surface-alt);
+  --code-bg: #f1f5f9;
+  --scrollbar: #cbd5e1;
+  --scrollbar-hover: #94a3b8;
+}
 
-        .container {
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            background: #1e1e2e;
-        }
+/* ── Dark Theme ── */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #1a2332;
+  --border: #334155;
+  --border-hover: #475569;
+  --text: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-dim: #64748b;
+  --accent: #818cf8;
+  --accent-light: #a5b4fc;
+  --accent-bg: rgba(99,102,241,0.15);
+  --accent-border: rgba(99,102,241,0.3);
+  --green: #34d399;
+  --green-bg: rgba(16,185,129,0.1);
+  --green-border: rgba(16,185,129,0.3);
+  --red: #f87171;
+  --red-bg: rgba(239,68,68,0.1);
+  --red-border: rgba(239,68,68,0.3);
+  --blue: #60a5fa;
+  --blue-bg: rgba(59,130,246,0.1);
+  --blue-border: rgba(59,130,246,0.3);
+  --amber: #fbbf24;
+  --amber-bg: rgba(245,158,11,0.1);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-lg: 0 4px 14px rgba(0,0,0,0.4);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #8b5cf6 100%);
+  --user-msg-bg: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --user-msg-text: #ffffff;
+  --sidebar-bg: #1a2332;
+  --input-bg: #1a2332;
+  --code-bg: #0f172a;
+  --scrollbar: #475569;
+  --scrollbar-hover: #64748b;
+}
 
-        .header {
-            background: linear-gradient(90deg, #2d2d44 0%, #3d3d5c 100%);
-            padding: 20px;
-            border-bottom: 1px solid #4d4d6c;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
 
-        .header h1 {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 24px;
-            font-weight: 600;
-            color: #61dafb;
-        }
+/* ── Sidebar ── */
+.sidebar {
+  width: 280px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 4px }
+.sidebar::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px }
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover) }
 
-        .header p {
-            font-size: 12px;
-            color: #999;
-            margin-top: 5px;
-        }
+.side-hdr {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--gradient);
+  color: #fff;
+}
+.side-hdr h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; font-weight: 700 }
+.side-hdr p { font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 4px }
 
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            background: #1e1e2e;
-        }
+.side-sec {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.side-sec h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
 
-        .chat-container::-webkit-scrollbar {
-            width: 8px;
-        }
+.mdl {
+  background: var(--surface-alt);
+  padding: 7px 10px;
+  border-radius: 8px;
+  margin-bottom: 3px;
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.mdl:hover { background: var(--accent-bg) }
+.mdl .r { min-width: 20px; text-align: center; font-size: 13px }
+.mdl .n { flex: 1; font-weight: 600; color: var(--text) }
+.mdl .u { color: var(--text-dim); font-size: 10px; white-space: nowrap }
 
-        .chat-container::-webkit-scrollbar-track {
-            background: #2d2d44;
-        }
+.cbtn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  width: 100%;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cbtn:hover { background: var(--accent-bg); border-color: var(--accent-border); transform: translateX(2px) }
+.cbtn code { color: var(--accent); font-weight: 700; font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace }
+.cbtn span { color: var(--text-dim); margin-left: 4px; font-size: 10.5px }
 
-        .chat-container::-webkit-scrollbar-thumb {
-            background: #4d4d6c;
-            border-radius: 4px;
-        }
+.skill-tag {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 5px 11px;
+  border-radius: 16px;
+  margin: 3px;
+  font-size: 10.5px;
+  cursor: pointer;
+  color: var(--green);
+  transition: all 0.15s;
+  display: inline-block;
+  font-weight: 500;
+}
+.skill-tag:hover { background: var(--green-bg); border-color: var(--green-border) }
 
-        .message {
-            display: flex;
-            gap: 12px;
-            animation: slideIn 0.3s ease-out;
-        }
+/* ── Main Area ── */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0 }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+.top {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.top-l { display: flex; align-items: center; gap: 10px; min-width: 0 }
+.top-l h2 { font-size: 15px; font-weight: 700 }
+.top-l p { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 
-        .message.user {
-            justify-content: flex-end;
-        }
+.top-r { display: flex; align-items: center; gap: 8px; flex-shrink: 0 }
 
-        .message-content {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            word-wrap: break-word;
-            line-height: 1.4;
-        }
+.badges { display: flex; gap: 6px }
+.bdg {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+.bdg-c { background: var(--gradient); color: #fff }
+.bdg-s { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border) }
+.bdg-f { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border) }
 
-        .message.assistant .message-content {
-            background: #2d2d44;
-            border-left: 3px solid #61dafb;
-            color: #e0e0e0;
-        }
+.theme-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.theme-btn:hover { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent) }
 
-        .message.user .message-content {
-            background: #61dafb;
-            color: #1e1e2e;
-            border-radius: 12px;
-        }
+.menu-btn {
+  display: none;
+  width: 34px;
+  height: 34px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.menu-btn:hover { background: var(--surface-alt) }
 
-        .message.system {
-            justify-content: center;
-        }
+/* ── Chat Area ── */
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-behavior: smooth;
+  background: var(--bg);
+}
+.chat::-webkit-scrollbar { width: 6px }
+.chat::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px }
+.chat::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover) }
 
-        .message.system .message-content {
-            background: transparent;
-            border: 1px solid #4d4d6c;
-            color: #999;
-            font-size: 12px;
-            padding: 8px 12px;
-            max-width: 90%;
-        }
+/* ── Welcome Screen ── */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  gap: 16px;
+  padding: 24px;
+}
+.welcome-icon { font-size: 52px; margin-bottom: 4px }
+.welcome h2 { font-size: 22px; font-weight: 700 }
+.welcome p { font-size: 13.5px; color: var(--text-secondary); max-width: 420px; line-height: 1.7 }
 
-        .input-area {
-            padding: 20px;
-            border-top: 1px solid #4d4d6c;
-            background: #1e1e2e;
-            display: flex;
-            gap: 10px;
-        }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 600px }
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
 
-        .input-wrapper {
-            flex: 1;
-            display: flex;
-            gap: 10px;
-        }
+.qbtns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px }
+.qb {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+.qb:hover { border-color: var(--accent-border); background: var(--accent-bg); transform: translateY(-1px); box-shadow: var(--shadow) }
 
-        input[type="text"] {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid #4d4d6c;
-            border-radius: 8px;
-            background: #2d2d44;
-            color: #e0e0e0;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s;
-        }
+/* ── Messages ── */
+.msg { display: flex; gap: 10px; animation: msgIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) }
+@keyframes msgIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+.msg.u { justify-content: flex-end }
+.mc {
+  max-width: 82%;
+  padding: 14px 18px;
+  border-radius: 16px;
+  line-height: 1.7;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.a .mc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.msg.u .mc {
+  background: var(--user-msg-bg);
+  color: var(--user-msg-text);
+  box-shadow: var(--shadow);
+}
+.msg.s .mc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
 
-        input[type="text"]:focus {
-            border-color: #61dafb;
-        }
+.ctag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--gradient);
+  color: #fff;
+  padding: 3px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.cresp { white-space: pre-wrap; line-height: 1.7; color: var(--text) }
+.cresp b { color: var(--accent) }
+.cresp code {
+  background: var(--code-bg);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  border: 1px solid var(--border);
+}
+.err {
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  color: var(--red);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  margin: 4px 0;
+}
+.err b { display: block; margin-bottom: 4px }
+.retry {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-top: 8px;
+  transition: all 0.15s;
+}
+.retry:hover { background: var(--accent); color: #fff; border-color: var(--accent) }
 
-        input[type="text"]::placeholder {
-            color: #666;
-        }
+/* ── Input Area ── */
+.inp {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 -1px 4px rgba(0,0,0,0.03);
+}
+.fprev {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11.5px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+.fprev.show { display: flex }
+.fprev .rm { cursor: pointer; color: var(--red); font-weight: 700; margin-left: auto; font-size: 14px }
+.fprev .rm:hover { opacity: 0.7 }
 
-        button {
-            padding: 12px 20px;
-            background: #61dafb;
-            color: #1e1e2e;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 14px;
-        }
+.irow { display: flex; gap: 8px; align-items: flex-end }
+.iwrap { flex: 1 }
 
-        button:hover {
-            background: #45e0f5;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(97, 218, 251, 0.3);
-        }
+#mi {
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+  resize: none;
+  min-height: 44px;
+  max-height: 140px;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#mi:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg) }
+#mi::placeholder { color: var(--text-dim) }
 
-        button:active {
-            transform: translateY(0);
-        }
+.send-btn {
+  padding: 11px 24px;
+  background: var(--gradient);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+.send-btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: var(--shadow-lg) }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none }
 
-        button:disabled {
-            background: #4d4d6c;
-            cursor: not-allowed;
-            opacity: 0.6;
-            transform: none;
-        }
+.attach-btn {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.attach-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-bg) }
 
-        .loading {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #61dafb;
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
+/* ── Overlay ── */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; backdrop-filter: blur(2px) }
+.overlay.show { display: block }
 
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.5;
-            }
-        }
-
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            color: #666;
-            text-align: center;
-            gap: 15px;
-        }
-
-        .empty-state-icon {
-            font-size: 48px;
-            opacity: 0.5;
-        }
-
-        .empty-state h2 {
-            font-size: 20px;
-            color: #999;
-        }
-
-        .empty-state p {
-            font-size: 14px;
-            color: #666;
-            max-width: 300px;
-        }
-
-        /* Slash command help modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal {
-            background: #2d2d44;
-            border-radius: 12px;
-            padding: 30px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal h2 {
-            color: #61dafb;
-            margin-bottom: 20px;
-            font-size: 20px;
-        }
-
-        .modal-section {
-            margin-bottom: 20px;
-        }
-
-        .modal-section h3 {
-            color: #999;
-            font-size: 14px;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-
-        .modal-command {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid #4d4d6c;
-        }
-
-        .modal-command:last-child {
-            border-bottom: none;
-        }
-
-        .modal-command code {
-            background: #1e1e2e;
-            padding: 4px 8px;
-            border-radius: 4px;
-            color: #61dafb;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-
-        .modal-command span {
-            color: #999;
-            font-size: 13px;
-        }
-
-        .modal-close {
-            background: #61dafb;
-            color: #1e1e2e;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        .command-hint {
-            position: absolute;
-            bottom: 100%;
-            left: 0;
-            right: 0;
-            background: #2d2d44;
-            border: 1px solid #4d4d6c;
-            border-radius: 8px 8px 0 0;
-            padding: 10px;
-            display: none;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .command-hint.active {
-            display: block;
-        }
-
-        .command-item {
-            padding: 6px 10px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
-
-        .command-item:hover {
-            background: #3d3d5c;
-        }
-
-        .command-item code {
-            color: #61dafb;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-
-        .command-item span {
-            color: #999;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-    </style>
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; transform: translateX(-100%); width: 280px; box-shadow: var(--shadow-lg) }
+  .sidebar.open { transform: translateX(0) }
+  .menu-btn { display: flex }
+  .mc { max-width: 92% }
+  .top { padding: 10px 14px }
+  .top-l p { display: none }
+  .inp { padding: 10px 14px }
+  .badges { gap: 4px }
+  .bdg { font-size: 9.5px; padding: 3px 8px }
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🦅 Claw AI Chat</h1>
-            <p id="status">⚡ Powered by DeepSeek API | Type /help for commands</p>
-        </div>
-
-        <div class="chat-container" id="chatContainer">
-            <div class="empty-state">
-                <div class="empty-state-icon">💬</div>
-                <h2>Start a conversation</h2>
-                <p>Ask me anything about coding, debugging, or ideas. I'm here to help!</p>
-                <p style="font-size: 12px; margin-top: 10px;">Type <code style="background: #2d2d44; padding: 2px 6px; border-radius: 3px; color: #61dafb;">/help</code> to see all commands</p>
-            </div>
-        </div>
-
-        <div class="input-area" style="position: relative;">
-            <div class="command-hint" id="commandHint"></div>
-            <div class="input-wrapper">
-                <input
-                    type="text"
-                    id="userInput"
-                    placeholder="Type your message... (or /help for commands)"
-                    autocomplete="off"
-                >
-            </div>
-            <button id="sendBtn" onclick="sendMessage()">Send</button>
-        </div>
+<div class="overlay" id="ov" onclick="tSide()"></div>
+<div class="sidebar" id="sb">
+  <div class="side-hdr">
+    <h1>🦞 Claw AI</h1>
+    <p>14-Model Council &bull; 2 Providers</p>
+  </div>
+  <div class="side-sec" id="ms"></div>
+  <div class="side-sec">
+    <h3>⚡ Commands</h3>
+    <button class="cbtn" onclick="sc('/help')"><code>/help</code><span>All commands</span></button>
+    <button class="cbtn" onclick="sc('/council')"><code>/council</code><span>Force council</span></button>
+    <button class="cbtn" onclick="sc('/nocouncil')"><code>/nocouncil</code><span>Single model</span></button>
+    <button class="cbtn" onclick="sc('/models')"><code>/models</code><span>List models</span></button>
+    <button class="cbtn" onclick="sc('/skills')"><code>/skills</code><span>List skills</span></button>
+    <button class="cbtn" onclick="sc('/clear')"><code>/clear</code><span>Clear chat</span></button>
+    <button class="cbtn" onclick="sc('/status')"><code>/status</code><span>Status</span></button>
+  </div>
+  <div class="side-sec">
+    <h3>🛠️ Skills</h3>
+    <div id="ss"></div>
+  </div>
+</div>
+<div class="main">
+  <div class="top">
+    <div class="top-l">
+      <button class="menu-btn" onclick="tSide()">☰</button>
+      <h2>💬 Chat</h2>
+      <p id="ts">Loading...</p>
     </div>
-
-    <!-- Help Modal -->
-    <div class="modal-overlay" id="helpModal">
-        <div class="modal">
-            <h2>🦅 Claw AI - Commands</h2>
-            
-            <div class="modal-section">
-                <h3>Core</h3>
-                <div class="modal-command"><code>/help</code><span>Show this help</span></div>
-                <div class="modal-command"><code>/clear</code><span>Clear conversation</span></div>
-                <div class="modal-command"><code>/model &lt;name&gt;</code><span>Switch model</span></div>
-                <div class="modal-command"><code>/models</code><span>List available models</span></div>
-                <div class="modal-command"><code>/status</code><span>Show current model & status</span></div>
-                <div class="modal-command"><code>/tools</code><span>List all 26 tools</span></div>
-                <div class="modal-command"><code>/cost</code><span>Show token usage</span></div>
-            </div>
-
-            <div class="modal-section">
-                <h3>Session</h3>
-                <div class="modal-command"><code>/save</code><span>Save conversation</span></div>
-                <div class="modal-command"><code>/export</code><span>Export to markdown</span></div>
-            </div>
-
-            <div class="modal-section">
-                <h3>Info</h3>
-                <div class="modal-command"><code>/version</code><span>Show version info</span></div>
-                <div class="modal-command"><code>/config</code><span>Show configuration</span></div>
-                <div class="modal-command"><code>/permissions</code><span>Show permissions</span></div>
-                <div class="modal-command"><code>/memory</code><span>Context window usage</span></div>
-            </div>
-
-            <div class="modal-section">
-                <h3>Examples</h3>
-                <div class="modal-command"><code>What is 2+2?</code><span>Ask a question</span></div>
-                <div class="modal-command"><code>Write a Python function...</code><span>Generate code</span></div>
-                <div class="modal-command"><code>Explain recursion</code><span>Get an explanation</span></div>
-            </div>
-
-            <button class="modal-close" onclick="closeHelpModal()">Got it!</button>
-        </div>
+    <div class="top-r">
+      <div class="badges">
+        <span class="bdg bdg-c" id="bc">🏛️ Council</span>
+        <span class="bdg bdg-s">14 Skills</span>
+        <span class="bdg bdg-f">FREE</span>
+      </div>
+      <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
     </div>
+  </div>
+  <div class="chat" id="ch">
+    <div class="welcome" id="wl">
+      <div class="welcome-icon">🦞</div>
+      <h2>Welcome to Claw AI</h2>
+      <p>14 AI models from OpenRouter &amp; Alibaba Cloud working together for consensus-validated answers</p>
+      <div class="chips" id="wc"></div>
+      <div class="qbtns">
+        <button class="qb" onclick="qs('What is 2+2?')">🧪 Test Council</button>
+        <button class="qb" onclick="qs('/skills')">🛠️ Skills</button>
+        <button class="qb" onclick="qs('/models')">🤖 Models</button>
+        <button class="qb" onclick="sc('/help')">❓ Help</button>
+      </div>
+    </div>
+  </div>
+  <div class="inp">
+    <div class="fprev" id="fp"><span id="fn"></span><span class="rm" onclick="rf()">✕</span></div>
+    <div class="irow">
+      <button class="attach-btn" onclick="document.getElementById('fi').click()" title="Attach file">📎</button>
+      <input type="file" id="fi" style="display:none" onchange="hf(event)">
+      <div class="iwrap"><textarea id="mi" rows="1" placeholder="Ask anything... (/help for commands)" onkeydown="hk(event)" oninput="ar(this)"></textarea></div>
+      <button class="send-btn" id="sb2" onclick="sm()">Send</button>
+    </div>
+  </div>
+</div>
+<script>
+/* ── Theme Toggle ── */
+function initTheme() {
+  const saved = localStorage.getItem('claw_theme');
+  const theme = saved || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeIcon(theme);
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('claw_theme', next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme) {
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
 
-    <script>
-        const chatContainer = document.getElementById('chatContainer');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const statusEl = document.getElementById('status');
-        const commandHint = document.getElementById('commandHint');
-        const helpModal = document.getElementById('helpModal');
+/* ── Data ── */
+const MD = [
+  {n:'DeepSeek V3',r:'🥇',u:'Most Powerful 600B',p:'OR'},
+  {n:'Qwen3 80B',r:'🥈',u:'Best Balance',p:'OR'},
+  {n:'Llama 3.3 70B',r:'🥉',u:'Most Stable',p:'OR'},
+  {n:'Qwen Coder 32B',r:'⭐',u:'Coding King',p:'OR'},
+  {n:'DeepSeek R1',r:'🧮',u:'Reasoning',p:'OR'},
+  {n:'Gemma 3 12B',r:'⚡',u:'Fastest',p:'OR'},
+  {n:'GPT-4o-mini',r:'🎯',u:'Reliable',p:'OR'},
+  {n:'Claude 3 Haiku',r:'🎭',u:'Natural Chat',p:'OR'},
+  {n:'Qwen3 Coder 480B',r:'🏆',u:'Best Coder 480B',p:'ALI'},
+  {n:'Qwen3.5 397B',r:'🥇',u:'Most Powerful',p:'ALI'},
+  {n:'Qwen3 Max',r:'🥈',u:'Flagship',p:'ALI'},
+  {n:'Qwen3 235B',r:'🧮',u:'Reasoning 235B',p:'ALI'},
+  {n:'Qwen3 Coder+',r:'⭐',u:'Coding Expert',p:'ALI'},
+  {n:'Qwen Plus',r:'⚡',u:'Fast Balanced',p:'ALI'}
+];
 
-        let isFirstMessage = true;
-        let currentModel = 'deepseek-r1:671b';
-        let conversationHistory = [];
+const SK = [
+  {id:'web-dev',d:'React, Vue, Next.js'},{id:'data-science',d:'pandas, numpy, ML'},
+  {id:'devops',d:'Docker, K8s, CI/CD'},{id:'security',d:'Audits, scanning'},
+  {id:'code-review',d:'Refactoring, patterns'},{id:'testing',d:'Unit, e2e, TDD'},
+  {id:'database',d:'SQL, NoSQL'},{id:'api-dev',d:'REST, GraphQL'},
+  {id:'mobile-dev',d:'React Native, Flutter'},{id:'ml-ops',d:'ML training'},
+  {id:'documentation',d:'README, API docs'},{id:'git-workflow',d:'Branching'},
+  {id:'blockchain',d:'Solidity, Web3'},{id:'game-dev',d:'Unity, Godot'}
+];
 
-        // Available slash commands (expanded to match CLI)
-        const slashCommands = [
-            { cmd: '/help', desc: 'Show all commands' },
-            { cmd: '/clear', desc: 'Clear conversation' },
-            { cmd: '/model', desc: 'Switch model (e.g., /model deepseek-chat)' },
-            { cmd: '/models', desc: 'List available models' },
-            { cmd: '/status', desc: 'Show current model & status' },
-            { cmd: '/tools', desc: 'List all available tools' },
-            { cmd: '/cost', desc: 'Show token usage' },
-            { cmd: '/save', desc: 'Save conversation' },
-            { cmd: '/export', desc: 'Export to markdown' },
-            { cmd: '/version', desc: 'Show version info' },
-            { cmd: '/config', desc: 'Show configuration' },
-            { cmd: '/permissions', desc: 'Show permissions' },
-            { cmd: '/memory', desc: 'Context window usage' },
-        ];
+let H = [], CM = true, AF = null;
 
-        // Handle slash command input
-        userInput.addEventListener('input', (e) => {
-            const value = e.target.value.trim();
-            
-            if (value.startsWith('/')) {
-                showCommandHints(value);
-            } else {
-                hideCommandHints();
-            }
-        });
+/* ── Storage ── */
+function ss() { try { localStorage.setItem('claw_h', JSON.stringify(H)) } catch(e) {} }
+function ls() { try { const s = localStorage.getItem('claw_h'); if (s) { H = JSON.parse(s); return H.length > 0 } } catch(e) {} return false }
 
-        function showCommandHints(input) {
-            const matches = slashCommands.filter(sc => 
-                sc.cmd.startsWith(input.toLowerCase()) || input === '/'
-            );
+/* ── Init ── */
+function init() {
+  initTheme();
+  rM(); rS(); rC();
+  if (ls() && H.length) {
+    document.getElementById('wl').style.display = 'none';
+    H.forEach(m => am(m.role, m.content, m.c, m.p));
+  }
+  fs();
+}
 
-            if (matches.length === 0) {
-                hideCommandHints();
-                return;
-            }
+function rM() {
+  document.getElementById('ms').innerHTML =
+    '<h3>🏛️ Council Models (14)</h3>' +
+    MD.map(m => '<div class="mdl"><span class="r">' + m.r + '</span><span class="n">' + esc(m.n) + '</span><span class="u">' + esc(m.u) + '</span></div>').join('');
+}
+function rS() {
+  document.getElementById('ss').innerHTML =
+    SK.map(s => '<span class="skill-tag" onclick="sc(\'/' + s.id + '\')">' + esc(s.id) + '</span>').join('');
+}
+function rC() {
+  document.getElementById('wc').innerHTML =
+    MD.map(m => '<span class="chip">' + esc(m.n) + '</span>').join('');
+}
 
-            commandHint.innerHTML = matches.map(sc => 
-                `<div class="command-item" onclick="selectCommand('${sc.cmd}')">
-                    <code>${sc.cmd}</code>
-                    <span>${sc.desc}</span>
-                </div>`
-            ).join('');
-            commandHint.classList.add('active');
-        }
+async function fs() {
+  try {
+    const r = await fetch('/api/models');
+    const d = await r.json();
+    if (d.council_enabled) {
+      document.getElementById('ts').textContent = d.model_count + ' models \u2022 2 providers';
+      document.getElementById('bc').textContent = '\uD83C\uDFDB\uFE0F ' + d.model_count + ' Models';
+    }
+  } catch(e) {
+    document.getElementById('ts').textContent = 'Connecting...';
+  }
+}
 
-        function hideCommandHints() {
-            commandHint.classList.remove('active');
-        }
+function tSide() {
+  document.getElementById('sb').classList.toggle('open');
+  document.getElementById('ov').classList.toggle('show');
+}
+function ar(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px' }
+function hk(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sm() } }
+function hf(e) {
+  const f = e.target.files[0]; if (!f) return;
+  AF = f;
+  document.getElementById('fn').textContent = '\uD83D\uDCCE ' + esc(f.name) + ' (' + (f.size / 1024).toFixed(1) + 'KB)';
+  document.getElementById('fp').classList.add('show');
+}
+function rf() { AF = null; document.getElementById('fp').classList.remove('show'); document.getElementById('fi').value = '' }
+function sc(t) { document.getElementById('mi').value = t + ' '; document.getElementById('mi').focus(); if (window.innerWidth < 768) tSide() }
+function qs(m) { document.getElementById('mi').value = m; sm() }
 
-        function selectCommand(cmd) {
-            userInput.value = cmd + ' ';
-            userInput.focus();
-            hideCommandHints();
-        }
+/* ── XSS-safe text escaping ── */
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
 
-        // Close modal functions
-        function closeHelpModal() {
-            helpModal.classList.remove('active');
-            userInput.focus();
-        }
+/* ── Send Message ── */
+async function sm() {
+  const inp = document.getElementById('mi'), t = inp.value.trim();
+  if (!t) return;
+  inp.value = ''; inp.style.height = 'auto'; rf();
+  document.getElementById('wl').style.display = 'none';
+  if (t.startsWith('/')) { hc(t); return }
+  am('u', t);
+  const sb = document.getElementById('sb2');
+  sb.disabled = true; sb.textContent = '\u23F3 Thinking...';
+  try {
+    const url = CM ? '/api/council' : '/api/chat';
+    let body = { message: t };
+    if (AF) { try { const c = await rft(AF); body.message = t + '\n\n--- File: ' + AF.name + ' ---\n' + c } catch(e) {} }
+    const r = await fw(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) {
+      ae('\u274C Error: ' + (d.error || 'Unknown error'));
+    } else if (d.council) {
+      let clean = (d.reply || '').replace(/\[Council Consensus.*?\]\n?/g, '').trim();
+      if (!clean) { for (const resp of (d.all_responses || [])) { if (resp.content && resp.content.trim()) { clean = resp.content.trim(); break } } }
+      am('a', clean || 'No response', true, d.consensus_percentage);
+    } else {
+      am('a', d.reply || 'No response');
+    }
+  } catch(e) {
+    console.error(e);
+    ae('\u274C Network error. Please check your connection and try again.');
+  } finally {
+    sb.disabled = false; sb.textContent = 'Send'; ss(); document.getElementById('mi').focus();
+  }
+}
 
-        // Close modal when clicking outside
-        helpModal.addEventListener('click', (e) => {
-            if (e.target === helpModal) {
-                closeHelpModal();
-            }
-        });
+/* ── Fetch with retry ── */
+async function fw(url, opts, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch(url, opts);
+      if (r.ok || i === retries - 1) return r;
+      await new Promise(s => setTimeout(s, 1000 * Math.pow(2, i)));
+    } catch(e) {
+      if (i === retries - 1) throw e;
+      await new Promise(s => setTimeout(s, 1000 * Math.pow(2, i)));
+    }
+  }
+}
 
-        // Handle Enter key
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+/* ── Read file as text ── */
+function rft(f) {
+  return new Promise((res, rej) => {
+    if (f.type.startsWith('text/') || f.name.match(/\.(js|py|json|md|html|css|txt|xml|yaml|yml|toml|cfg|ini|log|csv|ts|tsx|jsx|sql|sh|bat|rb|go|rs|java|cpp|c|h|hpp)$/i)) {
+      const rd = new FileReader();
+      rd.onload = () => res(rd.result);
+      rd.onerror = () => rej(new Error('Read failed'));
+      rd.readAsText(f);
+    } else {
+      res('[Binary file: ' + f.name + ', ' + (f.size / 1024).toFixed(1) + 'KB]');
+    }
+  });
+}
 
-        // Handle Escape key
-        userInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (helpModal.classList.contains('active')) {
-                    closeHelpModal();
-                } else {
-                    hideCommandHints();
-                }
-            }
-        });
+/* ── Slash Commands ── */
+function hc(t) {
+  const p = t.split(' '), cmd = p[0].toLowerCase(), arg = p.slice(1).join(' ').trim();
+  document.getElementById('wl').style.display = 'none';
+  switch (cmd) {
+    case '/help':
+      let h = '<b>\uD83E\uDD9E CLAW AI - All Commands</b>\n\n';
+      h += '<b>Core:</b> /help /clear /status /version\n\n';
+      h += '<b>Council:</b> /council /nocouncil /models\n\n';
+      h += '<b>Skills (14):</b>\n';
+      SK.forEach(s => h += '  <b>/' + esc(s.id) + '</b> - ' + esc(s.d) + '\n');
+      h += '\n<b>Session:</b> /save /export /config /memory';
+      am('a', h); break;
+    case '/council':
+      if (arg) { CM = true; am('u', arg); scm(arg) } else { CM = true; ae('\uD83C\uDFDB\uFE0F Council enabled - 14 models') } break;
+    case '/nocouncil':
+      if (arg) { CM = false; am('u', arg); ssm(arg) } else { CM = false; ae('\u26A1 Council disabled - single model') } break;
+    case '/models':
+      let m = '<b>\uD83C\uDFDB\uFE0F Council Models (14)</b>\n\n<b>OpenRouter (8):</b>\n';
+      MD.filter(x => x.p === 'OR').forEach(x => m += '  ' + x.r + ' <b>' + esc(x.n) + '</b> - ' + esc(x.u) + '\n');
+      m += '\n<b>Alibaba Cloud (6):</b>\n';
+      MD.filter(x => x.p === 'ALI').forEach(x => m += '  ' + x.r + ' <b>' + esc(x.n) + '</b> - ' + esc(x.u) + '\n');
+      am('a', m); break;
+    case '/skills':
+      let s = '<b>\uD83D\uDEE0\uFE0F Available Skills (14)</b>\n\n';
+      SK.forEach(x => s += '<b>/' + esc(x.id) + '</b> - ' + esc(x.d) + '\n');
+      am('a', s); break;
+    case '/clear':
+      H = []; ss();
+      document.getElementById('ch').innerHTML = '<div class="welcome" id="wl" style="display:flex"><div class="welcome-icon">\uD83E\uDD9E</div><h2>Chat cleared</h2><p>Start a new conversation</p></div>';
+      break;
+    case '/status':
+      ae('\uD83D\uDCCA Status\n\u2022 Council: ' + (CM ? 'Active (14 models)' : 'Disabled') + '\n\u2022 Providers: OpenRouter + Alibaba Cloud\n\u2022 Skills: 14 loaded\n\u2022 Cost: FREE\n\u2022 Messages: ' + H.length);
+      break;
+    case '/version':
+      ae('\uD83E\uDD9E Claw AI v2.0\n\u2022 14 models (OpenRouter + Alibaba)\n\u2022 14 skills\n\u2022 Session persistence\n\u2022 File upload\n\u2022 Mobile responsive\n\u2022 Light/Dark theme');
+      break;
+    case '/save': ss(); ae('\u2705 Session saved to browser'); break;
+    case '/export':
+      let md = '# Claw AI Chat\n\n';
+      H.forEach(m => md += '## ' + m.role + '\n' + m.content + '\n\n');
+      const bl = new Blob([md], { type: 'text/markdown' }), ur = URL.createObjectURL(bl), a = document.createElement('a');
+      a.href = ur; a.download = 'claw-' + Date.now() + '.md'; a.click();
+      URL.revokeObjectURL(ur);
+      ae('\u2705 Exported as markdown'); break;
+    case '/config':
+      ae('\u2699\uFE0F Config\n\u2022 Council: ' + (CM ? 'On' : 'Off') + '\n\u2022 Models: 14\n\u2022 Providers: 2\n\u2022 API: OpenRouter + Alibaba');
+      break;
+    case '/memory':
+      let ch = H.reduce((s, m) => s + (m.content?.length || 0), 0), tk = Math.round(ch / 4), pc = Math.min(100, tk / 2000).toFixed(1);
+      ae('\uD83E\uDDE0 Context\n\u2022 Tokens: ~' + tk.toLocaleString() + '\n\u2022 Max: 200,000\n\u2022 Usage: ' + pc + '%');
+      break;
+    default:
+      if (SK.some(x => '/' + x.id === cmd)) {
+        if (arg) { am('u', t); scm('Using ' + cmd + ' skill: ' + arg) }
+        else { const sk = SK.find(x => '/' + x.id === cmd); ae('\uD83D\uDEE0\uFE0F <b>' + esc(cmd.slice(1)) + '</b> - ' + (sk ? esc(sk.d) : '') + '\n\nUsage: ' + esc(cmd) + ' <action>') }
+      } else { ae('\u274C Unknown command. Type /help') }
+  }
+}
 
-        async function sendMessage() {
-            const input = userInput.value.trim();
-            if (!input || sendBtn.disabled) return;
+/* ── API calls (council / single) ── */
+async function scm(t) {
+  const sb = document.getElementById('sb2'); sb.disabled = true; sb.textContent = '\u23F3 Thinking...';
+  try {
+    const r = await fw('/api/council', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: t }) });
+    const d = await r.json();
+    if (!r.ok) ae('\u274C ' + (d.error || 'Error'));
+    else {
+      let c = (d.reply || '').replace(/\[Council Consensus.*?\]\n?/g, '').trim();
+      if (!c) { for (const resp of (d.all_responses || [])) { if (resp.content && resp.content.trim()) { c = resp.content.trim(); break } } }
+      am('a', c || 'No response', true, d.consensus_percentage);
+    }
+  } catch(e) { ae('\u274C Network error. Please try again.') }
+  finally { sb.disabled = false; sb.textContent = 'Send'; ss() }
+}
+async function ssm(t) {
+  const sb = document.getElementById('sb2'); sb.disabled = true; sb.textContent = '\u23F3 Thinking...';
+  try {
+    const r = await fw('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: t }) });
+    const d = await r.json();
+    if (!r.ok) ae('\u274C ' + (d.error || 'Error')); else am('a', d.reply || 'No response');
+  } catch(e) { ae('\u274C Network error. Please try again.') }
+  finally { sb.disabled = false; sb.textContent = 'Send'; ss() }
+}
 
-            // Clear input
-            userInput.value = '';
-            hideCommandHints();
+/* ── Add message / system event to chat ── */
+function am(role, content, council, consensus) {
+  const ch = document.getElementById('ch'), d = document.createElement('div');
+  d.className = 'msg ' + (role === 'u' ? 'u' : role === 'a' ? 'a' : 's');
+  let inner = '';
+  if (council && consensus) {
+    inner += '<div class="ctag">\uD83C\uDFDB\uFE0F Council Consensus (' + esc(String(consensus)) + '%)</div>\n';
+  }
+  inner += '<div class="cresp">' + fm(content) + '</div>';
+  d.innerHTML = '<div class="mc">' + inner + '</div>';
+  ch.appendChild(d);
+  ch.scrollTop = ch.scrollHeight;
+  H.push({ role, content, c: council || false, p: consensus || 0 });
+}
 
-            // Check for slash commands
-            if (input.startsWith('/')) {
-                handleSlashCommand(input);
-                return;
-            }
+function ae(text) {
+  const ch = document.getElementById('ch'), d = document.createElement('div');
+  d.className = 'msg s';
+  d.innerHTML = '<div class="mc" style="white-space:pre-wrap;line-height:1.6">' + fm(text) + '</div>';
+  ch.appendChild(d);
+  ch.scrollTop = ch.scrollHeight;
+  H.push({ role: 's', content: text });
+}
 
-            // Clear empty state on first message
-            if (isFirstMessage) {
-                chatContainer.innerHTML = '';
-                isFirstMessage = false;
-            }
+/* ── Minimal markdown formatting ── */
+function fm(t) {
+  if (!t) return '';
+  return t
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.+?)\*/g, '<i>$1</i>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
 
-            // Add user message to UI
-            addMessage(input, 'user');
-            conversationHistory.push({ role: 'user', content: input });
-
-            // Disable send button
-            sendBtn.disabled = true;
-            const originalText = sendBtn.textContent;
-            sendBtn.textContent = 'Thinking...';
-            statusEl.textContent = '⏳ Processing...';
-
-            try {
-                // Send to API
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        message: input,
-                        model: currentModel
-                    })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    if (data.error && data.error.includes('not configured')) {
-                        addMessage('❌ Error: API key not configured\n\nPlease set DEEPSEEK_API_KEY in environment variables', 'system');
-                    } else {
-                        addMessage(`❌ Error: ${data.error}`, 'system');
-                    }
-                } else {
-                    addMessage(data.reply, 'assistant');
-                    conversationHistory.push({ role: 'assistant', content: data.reply });
-                    
-                    if (data.usage) {
-                        addMessage(`📊 Tokens: ${data.usage.prompt_tokens} input, ${data.usage.completion_tokens} output`, 'system');
-                    }
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                addMessage('Sorry, cannot connect to the API. Please try again.', 'system');
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send';
-                statusEl.textContent = `⚡ Powered by DeepSeek API | Model: ${currentModel} | Type /help for commands`;
-                userInput.focus();
-            }
-        }
-
-        function handleSlashCommand(input) {
-            const parts = input.split(' ');
-            const cmd = parts[0].toLowerCase();
-            const arg = parts.slice(1).join(' ').trim();
-            let totalTokens = conversationHistory.reduce((sum, msg) => sum + (msg.content?.length || 0) / 4, 0);
-
-            switch (cmd) {
-                case '/help':
-                    helpModal.classList.add('active');
-                    break;
-
-                case '/clear':
-                    chatContainer.innerHTML = `
-                        <div class="empty-state">
-                            <div class="empty-state-icon">💬</div>
-                            <h2>Conversation cleared</h2>
-                            <p>Start a new conversation</p>
-                        </div>
-                    `;
-                    conversationHistory = [];
-                    isFirstMessage = true;
-                    addMessage('✓ Conversation cleared', 'system');
-                    break;
-
-                case '/model':
-                    if (arg) {
-                        currentModel = arg;
-                        addMessage(`✓ Model switched to: ${currentModel}`, 'system');
-                        statusEl.textContent = `⚡ Powered by DeepSeek API | Model: ${currentModel} | Type /help for commands`;
-                    } else {
-                        addMessage(`Current model: ${currentModel}\n\nAvailable models:\n- deepseek-reasoner (largest, default)\n- deepseek-chat (fast)\n- deepseek-coder (code specialist)\n\nUse /model <name> to switch`, 'system');
-                    }
-                    break;
-
-                case '/models':
-                    addMessage(`Available models:\n\n1. deepseek-reasoner ⭐\n   - Largest, most capable\n   - Best for complex tasks\n   - Default model\n\n2. deepseek-chat\n   - Fast responses\n   - Great for general coding\n\n3. deepseek-coder\n   - Code specialist\n   - Best for programming tasks\n\nUse /model <name> to switch`, 'system');
-                    break;
-
-                case '/status':
-                    addMessage(`📊 Status:\n• Model: ${currentModel}\n• Messages: ${conversationHistory.length}\n• Estimated tokens: ~${Math.round(totalTokens).toLocaleString()}\n• Platform: Web UI\n• API: DeepSeek Cloud`, 'system');
-                    break;
-
-                case '/tools':
-                    addMessage(`🛠️ Available Tools (26):\n\n📁 File: read_file, write_file, list_directory, find_files\n💻 Shell: run_command, powershell\n🔍 Search: grep_search\n✏️ Edit: replace_in_file, multi_edit_file, insert_at_line, diff_files\n🌐 Web: web_fetch, web_search\n🤖 Agent: run_subagent, plan_and_execute\n📋 Tasks: task_create, task_update, task_list, task_get\n💻 Code: notebook_run\n📍 Context: get_workspace_context, git_diff, git_log\n⚙️ Utility: sleep, config_get, config_set`, 'system');
-                    break;
-
-                case '/cost':
-                    addMessage(`📊 Token Usage:\n• Estimated tokens: ~${Math.round(totalTokens).toLocaleString()}\n• Messages: ${conversationHistory.length}\n• Cost: FREE (using DeepSeek API)\n\nNote: Exact token counts available in CLI mode`, 'system');
-                    break;
-
-                case '/save':
-                    try {
-                        localStorage.setItem('claw-conversation', JSON.stringify(conversationHistory));
-                        addMessage('✓ Conversation saved to browser storage', 'system');
-                    } catch (e) {
-                        addMessage('✗ Could not save: ' + e.message, 'system');
-                    }
-                    break;
-
-                case '/export':
-                    let md = `# Claw AI Conversation\n\nModel: ${currentModel}\nDate: ${new Date().toISOString()}\n\n`;
-                    conversationHistory.forEach(msg => {
-                        md += `## ${msg.role === 'user' ? '👤 You' : '🤖 Claw'}\n\n${msg.content}\n\n`;
-                    });
-                    const blob = new Blob([md], { type: 'text/markdown' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `claw-export-${Date.now()}.md`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    addMessage('✓ Conversation exported as markdown', 'system');
-                    break;
-
-                case '/version':
-                    addMessage(`🦅 Claw AI v0.2.0\n• Platform: Web UI\n• API: DeepSeek Cloud\n• Model: ${currentModel}\n• Features: Skills, MCP, Approval modes\n• GitHub: kdhdjdk090/claw-agent`, 'system');
-                    break;
-
-                case '/config':
-                    addMessage(`⚙️ Configuration:\n• Model: ${currentModel}\n• API: DeepSeek Cloud\n• Base URL: https://api.deepseek.com/v1\n• Mode: Cloud (no Ollama needed)\n• Tools: 26 available`, 'system');
-                    break;
-
-                case '/permissions':
-                    addMessage(`🔒 Permissions:\n• Mode: Cloud API (auto-approved)\n• Tools: All 26 tools enabled\n• Safety: Dangerous commands blocked\n\nNote: Full permission control available in CLI mode with /approval command`, 'system');
-                    break;
-
-                case '/memory':
-                    let pct = Math.min(100, (totalTokens / 200000 * 100));
-                    let bar = '█'.repeat(Math.round(pct / 5)) + '░'.repeat(20 - Math.round(pct / 5));
-                    addMessage(`🧠 Context Window:\n• Used: ~${Math.round(totalTokens).toLocaleString()} tokens\n• Max: 200,000 tokens\n• Usage: [${bar}] ${pct.toFixed(1)}%\n• Messages: ${conversationHistory.length}`, 'system');
-                    break;
-
-                default:
-                    addMessage(`❌ Unknown command: ${cmd}\n\nType /help to see available commands`, 'system');
-            }
-        }
-
-        function addMessage(content, role) {
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${role}`;
-            messageElement.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
-            chatContainer.appendChild(messageElement);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // Focus input on load
-        userInput.focus();
-    </script>
+document.addEventListener('DOMContentLoaded', init);
+</script>
 </body>
 </html>

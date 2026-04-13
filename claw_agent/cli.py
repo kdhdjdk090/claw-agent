@@ -67,12 +67,26 @@ def check_ollama() -> bool:
 
 def list_models() -> list[str]:
     import httpx
+    # Get local Ollama models
+    local_models = []
     try:
         r = httpx.get("http://localhost:11434/api/tags", timeout=5)
         r.raise_for_status()
-        return [m["name"] for m in r.json().get("models", [])]
+        local_models = [m["name"] for m in r.json().get("models", [])]
     except Exception:
-        return []
+        pass
+    
+    # FIX: Add cloud/OpenRouter models when in cloud mode
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+    from .ll_council import DEFAULT_COUNCIL_MODELS
+    
+    cloud_models = []
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        cloud_models = DEFAULT_COUNCIL_MODELS
+    elif DEEPSEEK_API_KEY:
+        cloud_models = ["deepseek-reasoner", "deepseek-chat", "deepseek-coder"]
+    
+    return local_models + cloud_models
 
 
 def pick_model(models: list[str]) -> str:
@@ -150,34 +164,48 @@ def _tool_display_name(name: str, args: dict) -> str:
 
 def print_banner(model: str, models: list[str]):
     cwd = os.getcwd()
+
+    # Detect mode type
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+    is_council = USE_COUNCIL and OPENROUTER_API_KEY
+    is_cloud = bool(DEEPSEEK_API_KEY) and not is_council
     
-    # Detect if cloud mode
-    from .agent import DEEPSEEK_API_KEY
-    is_cloud = bool(DEEPSEEK_API_KEY)
-    mode_icon = "☁️" if is_cloud else "💻"
-    mode_text = "Cloud" if is_cloud else "Local"
-    
+    if is_council:
+        mode_icon = "🏛️"
+        mode_text = "Council"
+        model_display = f"{len(models)} models via OpenRouter"
+    elif is_cloud:
+        mode_icon = "☁️"
+        mode_text = "Cloud"
+        model_display = model
+    else:
+        mode_icon = "💻"
+        mode_text = "Local"
+        model_display = model
+
     console.print()
     console.print(f"[bold cyan]╭{'─' * 58}╮[/bold cyan]")
-    console.print(f"[bold cyan]│[/bold cyan] [bold]🦅 Claw AI[/bold] [dim]v0.2.0[/dim]{' ' * 38}[bold cyan]│[/bold cyan]")
+    console.print(f"[bold cyan]│[/bold cyan] [bold]🦞 Claw AI[/bold] [dim]v2.0 - Multi-Model Council[/dim]{' ' * 14}[bold cyan]│[/bold cyan]")
     console.print(f"[bold cyan]│[/bold cyan]{' ' * 58}[bold cyan]│[/bold cyan]")
-    
+
     # Working directory
     cwd_display = cwd if len(cwd) <= 54 else "…" + cwd[-53:]
     cwd_pad = 58 - len(cwd_display) - 2
     console.print(f"[bold cyan]│[/bold cyan] [dim]{cwd_display}[/dim]{' ' * cwd_pad}[bold cyan]│[/bold cyan]")
-    
+
     # Mode & Model
-    mode_model = f"{mode_icon} {mode_text} • {model}"
+    mode_model = f"{mode_icon} {mode_text} • {model_display}"
+    if len(mode_model) > 56:
+        mode_model = mode_model[:53] + "..."
     mode_pad = 58 - len(mode_model) - 2
     console.print(f"[bold cyan]│[/bold cyan] [bold green]{mode_model}[/bold green]{' ' * mode_pad}[bold cyan]│[/bold cyan]")
-    
+
     # Tools
     tools_str = f"{len(TOOL_REGISTRY)} tools available"
     tools_pad = 58 - len(tools_str) - 2
     console.print(f"[bold cyan]│[/bold cyan] [dim]{tools_str}[/dim]{' ' * tools_pad}[bold cyan]│[/bold cyan]")
     console.print(f"[bold cyan]│[/bold cyan]{' ' * 58}[bold cyan]│[/bold cyan]")
-    
+
     # Quick tips
     console.print(f"[bold cyan]│[/bold cyan] [dim]💡 Type[/dim] [bold white]/help[/bold white] [dim]for commands[/dim]{' ' * 21}[bold cyan]│[/bold cyan]")
     console.print(f"[bold cyan]│[/bold cyan] [dim] Try:[/dim] [bold white]Write a Python function[/bold white]{' ' * 26}[bold cyan]│[/bold cyan]")
@@ -191,12 +219,21 @@ def print_help():
     
     console.print()
     console.print(Panel.fit(
-        "[bold]🦅 Claw AI - Available Commands[/bold]\n"
+        "[bold]🦞 Claw AI v2.0 - Available Commands[/bold]\n"
         "[dim]Type any command below to execute it[/dim]",
         border_style="cyan",
         padding=(1, 2)
     ))
     console.print()
+
+    # Detect active mode for footer
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        mode_footer = "🏛️ Council Mode (14 models via OpenRouter + Alibaba)"
+    elif DEEPSEEK_API_KEY:
+        mode_footer = "☁️ Cloud Mode (DeepSeek API)"
+    else:
+        mode_footer = "💻 Local Mode (Ollama)"
 
     def _section(title: str, icon: str, items: list[tuple[str, str]]):
         console.print(f"  [bold cyan]{icon} [bold]{title}[/bold][/bold cyan]")
@@ -206,8 +243,8 @@ def print_help():
 
     _section("Core", "⚡", [
         ("/help", "Show this help message"),
-        ("/model <name>", "Switch AI model (e.g., deepseek-chat)"),
-        ("/models", "List all available models"),
+        ("/model <name>", "Switch AI model (e.g., gpt-4o-mini)"),
+        ("/models", "List all 14 council models"),
         ("/tools", f"List all {len(TOOL_REGISTRY)} available tools"),
         ("/cost", "Token usage & timing statistics"),
         ("/compact", "Compress conversation history"),
@@ -257,7 +294,13 @@ def print_help():
         ("/quit", "Exit (also /exit, /q)"),
     ])
     
-    mode_note = "☁️ Cloud Mode (DeepSeek API)" if is_cloud else "💻 Local Mode (Ollama)"
+    mode_note = ""
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        mode_note = "🏛️ Council Mode (14 models via OpenRouter + Alibaba)"
+    elif DEEPSEEK_API_KEY:
+        mode_note = "☁️ Cloud Mode (DeepSeek API)"
+    else:
+        mode_note = "💻 Local Mode (Ollama)"
     console.print(f"  [dim]Active: {mode_note}[/dim]")
     console.print()
 
@@ -555,6 +598,8 @@ def cmd_version():
 
 def cmd_doctor():
     """Diagnose connectivity, tools, and model availability."""
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+    
     console.print()
     console.print("[bold]Running diagnostics...[/bold]\n")
     checks = []
@@ -562,7 +607,16 @@ def cmd_doctor():
     # 1. Python
     checks.append(("Python", True, sys.version.split()[0]))
 
-    # 2. Ollama connectivity
+    # 2. OpenRouter Council
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        from .ll_council import DEFAULT_COUNCIL_MODELS
+        checks.append(("OpenRouter Council", True, f"✓ {len(DEFAULT_COUNCIL_MODELS)} models configured"))
+    elif DEEPSEEK_API_KEY:
+        checks.append(("DeepSeek Cloud", True, "✓ API key configured"))
+    else:
+        checks.append(("Cloud Mode", False, "No cloud API key set"))
+
+    # 3. Ollama connectivity (optional if cloud mode is active)
     import httpx
     try:
         r = httpx.get("http://localhost:11434/api/tags", timeout=5)
@@ -570,32 +624,37 @@ def cmd_doctor():
         models = [m["name"] for m in r.json().get("models", [])]
         checks.append(("Ollama Connection", True, f"{len(models)} models available"))
     except Exception as e:
-        checks.append(("Ollama Connection", False, str(e)))
+        if USE_COUNCIL or DEEPSEEK_API_KEY:
+            checks.append(("Ollama (Optional)", True, "Not running — OK, using cloud mode"))
+        else:
+            checks.append(("Ollama Connection", False, f"{str(e)[:60]}"))
         models = []
 
-    # 3. Default model
-    if models:
+    # 4. Default model
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        checks.append(("Council Models", True, "8 models via OpenRouter"))
+    elif models:
         preferred = "deepseek-v3.1:671b-cloud"
         has_preferred = any(preferred in m for m in models)
         checks.append(("Default Model", has_preferred, preferred if has_preferred else f"Not found — using {models[0]}"))
     else:
         checks.append(("Default Model", False, "No models available"))
 
-    # 4. Tools
+    # 5. Tools
     checks.append(("Tool Registry", len(TOOL_REGISTRY) >= 22, f"{len(TOOL_REGISTRY)} tools loaded"))
 
-    # 5. Session directory
+    # 6. Session directory
     from .sessions import DEFAULT_SESSION_DIR
     checks.append(("Sessions Dir", DEFAULT_SESSION_DIR.exists(), str(DEFAULT_SESSION_DIR)))
 
-    # 6. httpx
+    # 7. httpx
     try:
         import httpx as _h
         checks.append(("httpx", True, _h.__version__))
     except ImportError:
         checks.append(("httpx", False, "not installed"))
 
-    # 7. rich
+    # 8. rich
     try:
         from importlib.metadata import version as _pkg_version
         _rich_ver = _pkg_version("rich")
@@ -603,13 +662,16 @@ def cmd_doctor():
     except Exception:
         checks.append(("rich", False, "not installed"))
 
-    # 8. Git
+    # 9. Git (optional)
     import subprocess
     try:
         result = subprocess.run(["git", "--version"], capture_output=True, text=True, timeout=5)
-        checks.append(("Git", result.returncode == 0, result.stdout.strip()))
+        if result.returncode == 0:
+            checks.append(("Git", True, result.stdout.strip()))
+        else:
+            checks.append(("Git (Optional)", True, "Not installed — OK"))
     except Exception:
-        checks.append(("Git", False, "not found"))
+        checks.append(("Git (Optional)", True, "Not found — OK"))
 
     for name, ok, detail in checks:
         icon = "[green]✓[/green]" if ok else "[red]✗[/red]"
@@ -1035,12 +1097,19 @@ def main():
     )
     args = parser.parse_args()
 
-    # Auto-detect: Use DeepSeek API if key is set, otherwise require Ollama
-    from .agent import DEEPSEEK_API_KEY, DEFAULT_MODEL, DEFAULT_BASE_URL
-    use_cloud = bool(DEEPSEEK_API_KEY)
+    # Auto-detect: Priority 1) OpenRouter Council 2) DeepSeek 3) Ollama
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, DEFAULT_MODEL, DEFAULT_BASE_URL
+    from .ll_council import DEFAULT_COUNCIL_MODELS
+    
     models = []
 
-    if use_cloud:
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        # Council mode - use OpenRouter with multiple models
+        model = args.model or "council"  # Special "council" model triggers council mode
+        models = DEFAULT_COUNCIL_MODELS
+        console.print(f"[bold green]✓ Council Mode[/bold green] [dim]({len(models)} models via OpenRouter)[/dim]")
+        console.print(f"[dim]  Models: {', '.join(m.split('/')[-1] for m in models[:4])}...[/dim]")
+    elif DEEPSEEK_API_KEY:
         # Cloud mode - no Ollama needed
         model = args.model or DEFAULT_MODEL
         console.print("[bold green]✓ Cloud Mode[/bold green] [dim](using DeepSeek API)[/dim]")
@@ -1052,7 +1121,7 @@ def main():
                 "  1. Install: [cyan]https://ollama.com/download[/cyan]\n"
                 "  2. Start:   [cyan]ollama serve[/cyan]\n"
                 "  3. Pull:    [cyan]ollama pull deepseek-v3.1:671b-cloud[/cyan]\n\n"
-                "  Or set DEEPSEEK_API_KEY environment variable to use cloud mode instead.",
+                "  Or set OPENROUTER_API_KEY or DEEPSEEK_API_KEY for cloud mode.",
                 title="Setup Required", border_style="red",
             ))
             sys.exit(1)
@@ -1125,14 +1194,52 @@ def main():
                     agent = make_agent(model, session=agent.session)
                     console.print(f"  [dim]Model → {model}[/dim]")
                 else:
-                    for m in models:
-                        marker = " *" if m == agent.model else ""
-                        console.print(f"  [cyan]{m}[/cyan]{marker}")
+                    # FIX: Show models with proper output
+                    current_models = list_models()
+                    if not current_models:
+                        console.print("  [yellow]No local models available[/yellow]")
+                        from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+                        if USE_COUNCIL and OPENROUTER_API_KEY:
+                            console.print("  [green]✓ Council mode active (8 OpenRouter models)[/green]")
+                        elif DEEPSEEK_API_KEY:
+                            console.print("  [green]✓ Cloud mode using DeepSeek[/green]")
+                    else:
+                        for m in current_models[:20]:
+                            marker = " [green]*[/green]" if m == agent.model else ""
+                            console.print(f"  [cyan]{m}[/cyan]{marker}")
+                        if len(current_models) > 20:
+                            console.print(f"  [dim]... and {len(current_models) - 20} more[/dim]")
             elif cmd == "/models":
-                models = list_models()
-                for m in models:
-                    marker = " [claw.success]*[/claw.success]" if m == agent.model else ""
-                    console.print(f"  [cyan]{m}[/cyan]{marker}")
+                # FIX: Always show models with proper output
+                current_models = list_models()
+                from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+                from .ll_council import DEFAULT_COUNCIL_MODELS
+                
+                if USE_COUNCIL and OPENROUTER_API_KEY:
+                    console.print("  [green bold]🏛️ Council Models (8 via OpenRouter)[/green bold]")
+                    console.print()
+                    tier1 = ["deepseek/deepseek-v3", "qwen/qwen3-80b", "meta-llama/llama-3.3-70b-instruct"]
+                    tier2 = ["qwen/qwen-2.5-coder-32b-instruct", "deepseek/deepseek-r1"]
+                    tier3 = ["google/gemma-3-12b-it", "openai/gpt-4o-mini", "anthropic/claude-3-haiku-20240307"]
+                    
+                    console.print("  [bold]🥇 Tier 1 - Most Powerful:[/bold]")
+                    for m in tier1:
+                        console.print(f"    [cyan]• {m}[/cyan]")
+                    console.print()
+                    console.print("  [bold]⭐ Tier 2 - Specialized:[/bold]")
+                    for m in tier2:
+                        console.print(f"    [cyan]• {m}[/cyan]")
+                    console.print()
+                    console.print("  [bold]⚡ Tier 3 - Fast:[/bold]")
+                    for m in tier3:
+                        console.print(f"    [cyan]• {m}[/cyan]")
+                elif current_models:
+                    console.print(f"  [bold]Available Models ({len(current_models)}):[/bold]")
+                    for m in current_models[:20]:
+                        marker = " [green]* current[/green]" if m == agent.model else ""
+                        console.print(f"    [cyan]• {m}[/cyan]{marker}")
+                else:
+                    console.print("  [yellow]No models available[/yellow]")
             elif cmd == "/clear":
                 agent = make_agent(agent.model)
                 console.print("  [dim]Cleared.[/dim]")

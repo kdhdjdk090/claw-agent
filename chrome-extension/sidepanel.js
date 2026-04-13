@@ -8,7 +8,7 @@
 // ============================================================================
 let messages = [];
 let ollamaUrl = "http://localhost:11434";
-let currentModel = "deepseek-v3.1:671b-cloud";
+let currentModel = "openai/gpt-4o-mini"; // Default to OpenRouter model
 let mode = "act"; // act | suggest | ask
 let customSystemPrompt = "";
 let isStreaming = false;
@@ -16,6 +16,28 @@ let abortController = null;
 let totalTokens = 0;
 let totalTurns = 0;
 let sessionStart = Date.now();
+
+// API Configuration — key loaded from chrome.storage (set in options page)
+let OPENROUTER_API_KEY = "";
+const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
+const USE_CLOUD_API = true; // Set to true to use OpenRouter instead of Ollama
+
+// Load API key from storage on startup
+if (typeof chrome !== 'undefined' && chrome.storage) {
+  chrome.storage.sync.get(['openrouter_api_key'], (result) => {
+    if (result.openrouter_api_key) OPENROUTER_API_KEY = result.openrouter_api_key;
+  });
+}
+
+// Cloud models available
+const CLOUD_MODELS = [
+  "openai/gpt-4o-mini",
+  "anthropic/claude-3-haiku-20240307",
+  "google/gemini-flash-1.5",
+  "qwen/qwen-2.5-coder-32b-instruct",
+  "meta-llama/llama-3.3-70b-instruct",
+  "deepseek/deepseek-v3",
+];
 
 const MAX_ITERATIONS = 50;
 const MAX_TOOLS_PER_ITERATION = 10;   // cap tool calls per single LLM response
@@ -1191,7 +1213,11 @@ async function streamChat(userMessage) {
   sendToTab("show-control-banner", { action: "started controlling this browser" }).catch(() => {});
 
   try {
-    await agentLoop(thinkEl);
+    if (USE_CLOUD_API) {
+      await cloudAgentLoop(thinkEl);
+    } else {
+      await agentLoop(thinkEl);
+    }
   } catch (e) {
     removeEl(thinkEl);
     if (e.name !== "AbortError") {
@@ -1206,6 +1232,129 @@ async function streamChat(userMessage) {
   isStreaming = false;
   sendBtn.disabled = false;
   updateCostBar();
+}
+
+// Cloud API Agent Loop (OpenRouter)
+async function cloudAgentLoop(thinkEl) {
+  const systemMsg = { role: "system", content: getSystemPrompt().replace(/via local Ollama/g, "via Cloud API") };
+  
+  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    const apiMessages = [systemMsg, ...messages.slice(-20)];
+    
+    const payload = {
+      model: currentModel,
+      messages: apiMessages,
+      tools: TOOL_DEFINITIONS,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 4096,
+    };
+
+    try {
+      const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://github.com/claw-agent",
+          "X-Title": "Claw Agent Chrome Extension",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let assistantContent = "";
+      let toolCalls = [];
+      let currentToolCall = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === "data: [DONE]") continue;
+          if (!trimmed.startsWith("data: ")) continue;
+
+          try {
+            const json = JSON.parse(trimmed.slice(6));
+            const choice = json.choices?.[0];
+            if (!choice) continue;
+
+            const delta = choice.delta;
+            if (delta?.content) {
+              assistantContent += delta.content;
+              updateThinkingText(thinkEl, assistantContent);
+            }
+
+            if (delta?.tool_calls) {
+              for (const tc of delta.tool_calls) {
+                if (tc.id) {
+                  currentToolCall = { id: tc.id, function: { name: tc.function?.name || "", arguments: tc.function?.arguments || "" } };
+                  toolCalls.push(currentToolCall);
+                } else if (currentToolCall && tc.function?.arguments) {
+                  currentToolCall.function.arguments += tc.function.arguments;
+                }
+              }
+            }
+
+            if (choice.finish_reason === "stop" || choice.finish_reason === "tool_calls") {
+              break;
+            }
+          } catch (e) { /* skip parse errors */ }
+        }
+      }
+
+      // Build assistant message
+      const assistantMsg = { role: "assistant", content: assistantContent };
+      if (toolCalls.length > 0) {
+        assistantMsg.tool_calls = toolCalls.map(tc => ({
+          id: tc.id,
+          type: "function",
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
+        }));
+      }
+      messages.push(assistantMsg);
+      updateThinkingText(thinkEl, assistantContent);
+
+      // Execute tool calls
+      if (toolCalls.length > 0 && choice.finish_reason !== "stop") {
+        for (const tc of toolCalls) {
+          try {
+            const args = JSON.parse(tc.function.arguments || "{}");
+            const result = await executeTool(tc.function.name, args);
+            messages.push({ role: "tool", content: String(result).substring(0, 8000), tool_call_id: tc.id });
+          } catch (e) {
+            messages.push({ role: "tool", content: `Error: ${e.message}`, tool_call_id: tc.id });
+          }
+        }
+      } else {
+        // No more tools - we're done
+        removeEl(thinkEl);
+        addAssistantBubble(assistantContent);
+        return;
+      }
+    } catch (e) {
+      if (e.name === "AbortError") throw e;
+      throw new Error(`Cloud API error: ${e.message}. Check your internet connection.`);
+    }
+  }
+
+  removeEl(thinkEl);
+  addErrorBubble("Max iterations reached. The model may be stuck.");
 }
 
 async function agentLoop(thinkEl) {

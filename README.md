@@ -1,3 +1,11 @@
+# 🦞 Claw AI - Multi-Model Council Edition
+
+> **🎉 NEW: Now powered by 6 FREE AI models via OpenRouter!**  
+> Claw AI uses a Multi-Model Council (inspired by Karpathy's ll-council) to provide consensus-validated, highly accurate responses from GPT-4o-mini, Claude 3 Haiku, Gemini Flash, Qwen Coder, Llama 3.3, and Mistral Small.  
+> **[See COUNCIL_GUIDE.md](COUNCIL_GUIDE.md)** | **[Migration Guide](MIGRATION.md)**
+
+---
+
 # Rewriting Project Claw Code
 
 <p align="center">

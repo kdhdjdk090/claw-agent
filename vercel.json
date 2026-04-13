@@ -2,14 +2,22 @@
   "version": 2,
   "functions": {
     "api/index.js": {
-      "memory": 128,
-      "maxDuration": 10
+      "memory": 1024,
+      "maxDuration": 60
     }
   },
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
+    { "src": "/api/health", "dest": "/api/index.js" },
+    { "src": "/api/docs", "dest": "/api/index.js" },
+    { "src": "/api/openapi.json", "dest": "/api/index.js" },
+    { "src": "/api/council", "dest": "/api/index.js" },
+    { "src": "/api/models", "dest": "/api/index.js" },
+    { "src": "/api/chat", "dest": "/api/index.js" },
+    { "src": "/(.*)", "dest": "/api/index.js" }
+  ],
+  "build": {
+    "env": {
+      "COUNCIL_THRESHOLD": "0.6"
     }
-  ]
+  }
 }

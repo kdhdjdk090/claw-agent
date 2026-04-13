@@ -21,6 +21,16 @@ DANGEROUS_PATTERNS = (
     "drop table",
     "drop database",
     "truncate table",
+    "delete from",
+    "alter table",
+    "exec(",
+    "eval(",
+    "os.system(",
+    "subprocess.call(",
+    "chmod 777",
+    "curl | sh",
+    "curl | bash",
+    "wget | sh",
 )
 
 # Tools that are always allowed

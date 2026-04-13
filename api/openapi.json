@@ -1,0 +1,424 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Claw AI - Multi-Model Council API",
+    "description": "REST API for Claw AI, a 14-model council system that queries OpenRouter and Alibaba Cloud (DashScope) models in parallel and returns consensus-validated responses.\n\n## Architecture\n- **14 models**: 8 via OpenRouter + 6 via Alibaba Cloud DashScope\n- **Council mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via OpenRouter\n- **Providers**: OpenRouter (openrouter.ai), Alibaba Cloud (dashscope.aliyuncs.com)\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `OPENROUTER_API_KEY` — OpenRouter API key\n- `DASHSCOPE_API_KEY` — Alibaba Cloud DashScope API key\n\nNo client-side authentication is required for the public endpoints.",
+    "version": "2.0.0",
+    "contact": {
+      "name": "Claw AI",
+      "url": "https://github.com/claw-agent"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://clean-claw-ai.vercel.app",
+      "description": "Production (Vercel)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development"
+    }
+  ],
+  "paths": {
+    "/api/chat": {
+      "post": {
+        "operationId": "sendChatMessage",
+        "summary": "Send a chat message",
+        "description": "Send a message to the AI. If `use_council` is true (default when no model specified and OpenRouter key is set), queries all 14 council models in parallel and returns consensus. Otherwise routes to a single model.",
+        "tags": ["Chat"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              },
+              "examples": {
+                "council": {
+                  "summary": "Council mode (default)",
+                  "value": {
+                    "message": "Explain the difference between REST and GraphQL"
+                  }
+                },
+                "single": {
+                  "summary": "Single model mode",
+                  "value": {
+                    "message": "Write a Python hello world",
+                    "model": "deepseek/deepseek-v3",
+                    "use_council": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    { "$ref": "#/components/schemas/CouncilResponse" },
+                    { "$ref": "#/components/schemas/SingleResponse" }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request — missing or invalid message",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body too large (max 100KB)",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error — API key not configured or all models failed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/council": {
+      "post": {
+        "operationId": "sendCouncilMessage",
+        "summary": "Send message to council (explicit)",
+        "description": "Forces council mode — queries all 14 models in parallel, calculates consensus via content similarity grouping, and returns the consensus answer with metrics.",
+        "tags": ["Council"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CouncilRequest"
+              },
+              "example": {
+                "message": "What is the best sorting algorithm?"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Council consensus response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CouncilResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "All models failed or API key not configured",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "operationId": "listModels",
+        "summary": "List all available models",
+        "description": "Returns the full list of 14 council models, their providers, and the current API configuration status.",
+        "tags": ["Models"],
+        "responses": {
+          "200": {
+            "description": "Model listing",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ModelsResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "description": "Returns API health status, version, and whether API keys are configured.",
+        "tags": ["System"],
+        "responses": {
+          "200": {
+            "description": "API is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The user's message to send to the AI",
+            "maxLength": 32000,
+            "example": "Explain the difference between REST and GraphQL"
+          },
+          "model": {
+            "type": "string",
+            "description": "Specific model to use (bypasses council). Must be an OpenRouter model ID.",
+            "example": "deepseek/deepseek-v3"
+          },
+          "use_council": {
+            "type": "boolean",
+            "description": "Force council mode on/off. Default: true when no model specified.",
+            "default": true
+          }
+        }
+      },
+      "CouncilRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The user's message to send to all council models",
+            "maxLength": 32000,
+            "example": "What is the best sorting algorithm?"
+          }
+        }
+      },
+      "CouncilResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string",
+            "description": "The consensus answer from the council"
+          },
+          "council": {
+            "type": "boolean",
+            "description": "Always true for council responses",
+            "example": true
+          },
+          "models_queried": {
+            "type": "integer",
+            "description": "Number of models queried",
+            "example": 14
+          },
+          "successful_responses": {
+            "type": "integer",
+            "description": "Number of models that responded successfully",
+            "example": 12
+          },
+          "failed_responses": {
+            "type": "integer",
+            "description": "Number of models that failed",
+            "example": 2
+          },
+          "consensus_percentage": {
+            "type": "string",
+            "description": "Percentage of models in the consensus group (0-100)",
+            "example": "85"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "description": "Total tokens used across all models",
+            "example": 45230
+          },
+          "all_responses": {
+            "type": "array",
+            "description": "Summary of each model's response (truncated to 100 chars)",
+            "items": {
+              "$ref": "#/components/schemas/ModelResponseSummary"
+            }
+          }
+        }
+      },
+      "SingleResponse": {
+        "type": "object",
+        "properties": {
+          "reply": {
+            "type": "string",
+            "description": "The model's response"
+          },
+          "usage": {
+            "type": "object",
+            "description": "Token usage from the API",
+            "properties": {
+              "prompt_tokens": { "type": "integer" },
+              "completion_tokens": { "type": "integer" },
+              "total_tokens": { "type": "integer" }
+            }
+          },
+          "model": {
+            "type": "string",
+            "description": "The model that was used",
+            "example": "deepseek/deepseek-v3"
+          },
+          "council": {
+            "type": "boolean",
+            "description": "Always false for single-model responses",
+            "example": false
+          }
+        }
+      },
+      "ModelsResponse": {
+        "type": "object",
+        "properties": {
+          "council": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Full list of model IDs in the council"
+          },
+          "council_enabled": {
+            "type": "boolean",
+            "description": "Whether council mode is available"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["council", "deepseek", "ollama"],
+            "description": "Current API mode"
+          },
+          "api_key_set": {
+            "type": "boolean",
+            "description": "Whether an OpenRouter API key is configured"
+          },
+          "alibaba_key_set": {
+            "type": "boolean",
+            "description": "Whether a DashScope API key is configured"
+          },
+          "providers": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["OpenRouter", "Alibaba Cloud (DashScope)"]
+          },
+          "openrouter_models": {
+            "type": "integer",
+            "example": 8
+          },
+          "alibaba_models": {
+            "type": "integer",
+            "example": 6
+          },
+          "model_count": {
+            "type": "integer",
+            "example": 14
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "ok"
+          },
+          "version": {
+            "type": "string",
+            "example": "2.0.0"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "keys_configured": {
+            "type": "object",
+            "properties": {
+              "openrouter": { "type": "boolean" },
+              "dashscope": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "ModelResponseSummary": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Model ID",
+            "example": "deepseek/deepseek-v3"
+          },
+          "content": {
+            "type": "string",
+            "description": "First 100 chars of response + ellipsis if truncated"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true,
+            "description": "Error message if model failed, null otherwise"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "instructions": {
+            "type": "string",
+            "description": "Setup instructions (when API key is missing)"
+          },
+          "details": {
+            "type": "array",
+            "description": "Per-model error details (when all models fail)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": { "type": "string" },
+                "error": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Chat",
+      "description": "Send messages — automatically routes to council or single model"
+    },
+    {
+      "name": "Council",
+      "description": "Force multi-model council consensus voting"
+    },
+    {
+      "name": "Models",
+      "description": "List and inspect available AI models"
+    },
+    {
+      "name": "System",
+      "description": "Health checks and diagnostics"
+    }
+  ]
+}

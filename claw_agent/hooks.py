@@ -83,14 +83,22 @@ class HookRunner:
         return HookResult(allow=True)
 
     def _execute_hook(self, hook: dict, context: dict) -> HookResult:
-        """Execute a single hook command with context as JSON stdin."""
+        """Execute a single hook command with context as JSON stdin.
+        
+        The command is split into args list (no shell=True) to prevent injection.
+        Context is passed as JSON via stdin, not as shell arguments.
+        """
         command = hook.get("command")
         if not command:
             return HookResult(allow=True)
         try:
+            import shlex
+            # Use shlex.split to safely parse the command string into a list
+            # This avoids shell=True and prevents shell injection
+            args = shlex.split(command)
             result = subprocess.run(
-                command,
-                shell=True,
+                args,
+                shell=False,
                 input=json.dumps(context),
                 capture_output=True,
                 text=True,

@@ -19,6 +19,7 @@ from .permissions import PermissionContext, GATED_TOOLS
 from .sessions import Session
 from .cost_tracker import CostTracker
 from .hooks import HookRunner
+from .mcp import MCPManager
 
 SYSTEM_PROMPT_TEMPLATE = """\
 You are Claw, an expert autonomous AI coding agent running on model "{model}".
@@ -70,13 +71,14 @@ CRITICAL RULES:
 """
 
 MAX_ITERATIONS = 200
-# Support both local Ollama and DeepSeek Cloud API
+# Support local Ollama, DeepSeek Cloud API, and OpenRouter Council
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OLLAMA_BASE = "http://localhost:11434"
 
-# Auto-detect: Use DeepSeek API if key is set, otherwise fall back to Ollama
-# Uses deepseek-reasoner (largest/most capable model) for cloud mode
+# Auto-detect: Priority 1) Council 2) DeepSeek 3) Ollama
+USE_COUNCIL = OPENROUTER_API_KEY and not os.environ.get("DISABLE_COUNCIL", "")
 DEFAULT_BASE_URL = DEEPSEEK_API_BASE if DEEPSEEK_API_KEY else OLLAMA_BASE
 DEFAULT_MODEL = "deepseek-reasoner" if DEEPSEEK_API_KEY else "deepseek-v3.1:671b-cloud"
 
@@ -262,9 +264,22 @@ class Agent:
         if skills_ctx:
             system_content += "\n\nSKILLS & CAPABILITIES:" + skills_ctx
         
-        # Add MCP context
-        from .mcp import get_mcp_context
-        mcp_ctx = get_mcp_context()
+        # Initialize MCP tool manager — discover tools from configured servers
+        self._mcp = MCPManager()
+        try:
+            self._mcp.discover()
+        except Exception:
+            self._mcp.load_from_cache()
+
+        # Build combined tool definitions (built-in + MCP)
+        mcp_defs = self._mcp.get_tool_definitions()
+        self._all_tool_definitions = OLLAMA_TOOL_DEFINITIONS + mcp_defs
+
+        # Add MCP context (with actual tool names if discovered)
+        mcp_ctx = self._mcp.get_context() if self._mcp.get_tool_names() else ""
+        if not mcp_ctx:
+            from .mcp import get_mcp_context
+            mcp_ctx = get_mcp_context()
         if mcp_ctx:
             system_content += "\n\nMCP SERVERS:" + mcp_ctx
         
@@ -274,15 +289,42 @@ class Agent:
         self._on_tool_call = on_tool_call
         self._on_tool_result = on_tool_result
 
+        # Initialize council if enabled
+        self.council = None
+        if USE_COUNCIL:
+            from .ll_council import LLCouncil
+            self.council = LLCouncil(
+                system_prompt=system_content,
+                on_response=lambda r: print(f"[Council] {r.model}: {r.latency_ms:.0f}ms"),
+            )
+
     # ---- public: blocking --------------------------------------------------
 
     def chat(self, user_message: str) -> str:
         """Blocking chat - collects all streaming events, returns final text."""
+        # Use council if enabled
+        if self.council and not user_message.startswith("/nocouncil"):
+            result = self.council.query_council(user_message)
+            return result.consensus_answer
+        
+        # Fallback to single model
         final = ""
         for event in self.stream_chat(user_message):
             if isinstance(event, AgentDone):
                 final = event.final_text
         return final
+
+    def council_chat(self, user_message: str) -> str:
+        """Explicit council chat - always uses council even if disabled."""
+        if not self.council:
+            from .ll_council import LLCouncil, DEFAULT_COUNCIL_MODELS
+            self.council = LLCouncil(
+                system_prompt=self.messages[0]["content"],
+                on_response=lambda r: print(f"[Council] {r.model}: {r.latency_ms:.0f}ms"),
+            )
+        
+        result = self.council.query_council(user_message)
+        return result.consensus_answer
 
     # ---- public: streaming -------------------------------------------------
 
@@ -363,7 +405,7 @@ class Agent:
                 payload = {
                     "model": self.model,
                     "messages": self.messages,
-                    "tools": OLLAMA_TOOL_DEFINITIONS,  # Include tools for cloud too!
+                    "tools": self._all_tool_definitions,
                     "stream": True,
                 }
                 api_url = f"{self.base_url}/chat/completions"
@@ -376,7 +418,7 @@ class Agent:
                 payload = {
                     "model": self.model,
                     "messages": self.messages,
-                    "tools": OLLAMA_TOOL_DEFINITIONS,
+                    "tools": self._all_tool_definitions,
                     "stream": True,
                 }
                 api_url = f"{self.base_url}/api/chat"
@@ -472,6 +514,11 @@ class Agent:
                 for tc in tool_calls:
                     fn = tc.get("function", {})
                     name = fn.get("name", "")
+                    # FIX: Skip tool calls with empty/invalid names (prevents 400 errors)
+                    if not name or not name.strip():
+                        continue
+                    if not name.replace("_", "").isalnum():
+                        continue
                     args_str = fn.get("arguments", "{}")
                     try:
                         args = json.loads(args_str) if isinstance(args_str, str) else args_str
@@ -669,6 +716,18 @@ class Agent:
             yield from self._run_single_tool(name, arguments)
 
     def _run_single_tool(self, name: str, arguments: dict) -> Generator[StreamEvent, None, None]:
+        # FIX: Reject empty or invalid tool names immediately (prevents crashes)
+        if not name or not name.strip():
+            yield ToolCallStart(name or "(empty)", arguments)
+            yield ToolCallEnd(name or "(empty)", "Error: empty tool name rejected", 0)
+            self.messages.append({"role": "tool", "content": "Error: empty tool name"})
+            return
+        if not name.replace("_", "").replace("-", "").isalnum():
+            yield ToolCallStart(name, arguments)
+            yield ToolCallEnd(name, f"Error: invalid tool name '{name}'", 0)
+            self.messages.append({"role": "tool", "content": f"Error: invalid tool name"})
+            return
+
         # Guard: reject tool calls with hallucinated/spam arguments
         for v in arguments.values():
             sv = str(v)
@@ -751,7 +810,7 @@ class Agent:
         results = []
         for match in _TOOL_CALL_RE.finditer(text):
             name = match.group(1)
-            if name in TOOL_REGISTRY:
+            if name in TOOL_REGISTRY or self._mcp.has_tool(name):
                 try:
                     args = json.loads(match.group(2))
                     results.append((name, args))
@@ -761,13 +820,27 @@ class Agent:
 
     def _execute_tool(self, name: str, arguments: dict) -> str:
         handler = TOOL_REGISTRY.get(name)
-        if handler is None:
-            return f"Error: unknown tool '{name}'"
-        try:
-            result = handler(**arguments)
-            text = str(result)
-            if len(text) > 30_000:
-                text = text[:30_000] + "\n... [truncated]"
-            return text
-        except Exception as exc:
-            return f"Error running {name}: {exc}"
+        if handler is not None:
+            try:
+                result = handler(**arguments)
+                text = str(result)
+                if len(text) > 30_000:
+                    text = text[:30_000] + "\n... [truncated]"
+                return text
+            except Exception as exc:
+                return f"Error running {name}: {exc}"
+        # Fall back to MCP tool routing
+        if self._mcp.has_tool(name):
+            try:
+                result = self._mcp.call_tool(name, arguments)
+                if len(result) > 30_000:
+                    result = result[:30_000] + "\n... [truncated]"
+                return result
+            except Exception as exc:
+                return f"Error running MCP tool {name}: {exc}"
+        return f"Error: unknown tool '{name}'"
+
+    def close(self):
+        """Clean up resources (HTTP client, MCP server connections)."""
+        self.client.close()
+        self._mcp.shutdown()
