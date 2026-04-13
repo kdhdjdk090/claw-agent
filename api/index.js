@@ -40,20 +40,23 @@ const ALIBABA_MODELS = [
 
 const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
 
-// Model chains — 2 models max per chain (30s each = 60s worst case = within Vercel limit)
-// DeepSeek V3 is primary (fast + powerful 671B). One fallback only.
+// Model chains — 3 models per chain: OpenRouter primary + Alibaba DashScope fallbacks
+// DeepSeek V3 primary (fast 671B), then Alibaba powerhouses, then OpenRouter backup
 const FAST_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen-plus', provider: 'alibaba' },
   { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
 const REASONING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen3-235b-a22b', provider: 'alibaba' },
   { model: 'qwen/qwen3-80b', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' },
   { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
 ];
 
@@ -303,10 +306,10 @@ async function handleChat(req, res) {
       if (model) {
         const provider = ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter';
         modelChain = [{ model, provider }];
-      } else if (needsCoding) {
-        modelChain = CODING_MODELS;
       } else if (needsReasoning || isHeavy) {
         modelChain = REASONING_MODELS;
+      } else if (needsCoding) {
+        modelChain = CODING_MODELS;
       } else {
         modelChain = FAST_MODELS;
       }
@@ -407,7 +410,7 @@ function callAPIStreaming(apiBase, payload, headers, clientRes, modelName, provi
       path: url.pathname,
       method: 'POST',
       headers: { ...headers, 'Content-Length': Buffer.byteLength(payload) },
-      timeout: 55000, // 55s — within Vercel's 60s limit
+      timeout: 18000, // 18s per model — 3 models × 18s = 54s (within 60s Vercel limit)
     };
 
     const request = https.request(options, (apiRes) => {
