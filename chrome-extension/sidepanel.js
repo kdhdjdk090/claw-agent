@@ -20,7 +20,8 @@ let sessionStart = Date.now();
 // API Configuration — key loaded from chrome.storage (set in options page)
 let OPENROUTER_API_KEY = "";
 const OPENROUTER_API_BASE = "https://openrouter.ai/api/v1";
-const USE_CLOUD_API = true; // Set to true to use OpenRouter instead of Ollama
+const CLAW_API_BASE = "https://clean-claw-ai.vercel.app";
+const USE_CLOUD_API = true; // Set to true to use Cloud API instead of Ollama
 
 // Load API key from storage on startup
 if (typeof chrome !== 'undefined' && chrome.storage) {
@@ -595,7 +596,8 @@ const TOOL_DEFINITIONS = [
 // System Prompt
 // ============================================================================
 function getSystemPrompt() {
-  let prompt = `You are Claw, an elite autonomous AI browser agent running "${currentModel}" via local Ollama. You think strategically, act precisely, and PERSIST until the task is done.
+  const backend = USE_CLOUD_API ? 'Cloud API' : 'local Ollama';
+  let prompt = `You are Claw, an elite autonomous AI browser agent running "${currentModel}" via ${backend}. You think strategically, act precisely, and PERSIST until the task is done.
 
 TOOLS (40):
   Page: read_page, extract_links, extract_code, extract_forms, extract_tables
@@ -643,7 +645,7 @@ INTERACTION STYLE:
 - When reporting findings, structure them clearly with bullet points
 - If you can't complete a task, explain exactly what blocked you, not generic summaries
 - NEVER fabricate content — only report what tools actually returned
-- When asked what model you are, say Claw running "${currentModel}" via local Ollama
+- When asked what model you are, say Claw running "${currentModel}" via ${backend}
 
 HARD LIMITS:
 - You have ~50 turns maximum. Budget them wisely but don't stop early if the task isn't done.
@@ -1234,6 +1236,14 @@ async function streamChat(userMessage) {
   updateCostBar();
 }
 
+// Cloud API: convert thinking bubble to streaming output
+function updateThinkingText(el, text) {
+  if (!el) return;
+  el.className = 'msg assistant';
+  el.innerHTML = renderMarkdown(text);
+  scrollToBottom();
+}
+
 // Cloud API Agent Loop (OpenRouter)
 async function cloudAgentLoop(thinkEl) {
   const systemMsg = { role: "system", content: getSystemPrompt().replace(/via local Ollama/g, "via Cloud API") };
@@ -1331,7 +1341,7 @@ async function cloudAgentLoop(thinkEl) {
       updateThinkingText(thinkEl, assistantContent);
 
       // Execute tool calls
-      if (toolCalls.length > 0 && choice.finish_reason !== "stop") {
+      if (toolCalls.length > 0) {
         for (const tc of toolCalls) {
           try {
             const args = JSON.parse(tc.function.arguments || "{}");
@@ -1341,10 +1351,18 @@ async function cloudAgentLoop(thinkEl) {
             messages.push({ role: "tool", content: `Error: ${e.message}`, tool_call_id: tc.id });
           }
         }
-      } else {
-        // No more tools - we're done
+        // Continue loop to let model process tool results
         removeEl(thinkEl);
-        addAssistantBubble(assistantContent);
+        thinkEl = addThinkingBubble();
+        continue;
+      } else {
+        // No tool calls — we're done
+        removeEl(thinkEl);
+        if (assistantContent) {
+          const el = addAssistantBubble();
+          el.innerHTML = renderMarkdown(assistantContent);
+          scrollToBottom();
+        }
         return;
       }
     } catch (e) {
@@ -1976,7 +1994,7 @@ function renderMarkdown(text) {
 
 function updateCostBar() {
   const elapsed = ((Date.now() - sessionStart) / 1000).toFixed(1);
-  costBar.textContent = `Turns: ${totalTurns} | Tokens: ${totalTokens.toLocaleString()} | Time: ${elapsed}s | Cost: FREE (local Ollama)`;
+  costBar.textContent = `Turns: ${totalTurns} | Tokens: ${totalTokens.toLocaleString()} | Time: ${elapsed}s | Cost: FREE` + (USE_CLOUD_API ? ' (Cloud)' : ' (Ollama)');
 }
 
 // ============================================================================
@@ -1993,21 +2011,28 @@ const SLASH_COMMANDS = {
     costBar.textContent = "";
     messagesEl.innerHTML = `
       <div class="welcome">
-        <div class="welcome-icon">⚡</div>
+        <div class="welcome-icon">🦞</div>
         <h2>Claw Agent</h2>
-        <p>Local AI assistant powered by Ollama</p>
+        <p>AI browser agent · 40 tools</p>
       </div>`;
   },
   "/models": async () => {
-    try {
-      const resp = await fetch(`${ollamaUrl}/api/tags`);
-      const data = await resp.json();
-      const names = (data.models || []).map((m) =>
-        m.name === currentModel ? `**${m.name}** ← current` : m.name
+    if (USE_CLOUD_API) {
+      const list = CLOUD_MODELS.map((m) =>
+        m === currentModel ? `**${m}** ← current` : m
       ).join("\n  ");
-      addAssistantBubble().innerHTML = renderMarkdown(`**Available models:**\n  ${names}`);
-    } catch (e) {
-      addErrorBubble(`Cannot reach Ollama: ${e.message}`);
+      addAssistantBubble().innerHTML = renderMarkdown(`**Cloud Models (${CLOUD_MODELS.length}):**\n  ${list}`);
+    } else {
+      try {
+        const resp = await fetch(`${ollamaUrl}/api/tags`);
+        const data = await resp.json();
+        const names = (data.models || []).map((m) =>
+          m.name === currentModel ? `**${m.name}** ← current` : m.name
+        ).join("\n  ");
+        addAssistantBubble().innerHTML = renderMarkdown(`**Available models:**\n  ${names}`);
+      } catch (e) {
+        addErrorBubble(`Cannot reach Ollama: ${e.message}`);
+      }
     }
   },
   "/model": () => {
@@ -2111,7 +2136,7 @@ const SLASH_COMMANDS = {
 - Tokens: ${totalTokens.toLocaleString()}
 - Messages in context: ${messages.length}
 - Elapsed: ${elapsed}s
-- Cost: FREE (local Ollama)
+- Cost: FREE` + (USE_CLOUD_API ? ' (Cloud)' : ' (Ollama)') + `
 - Model: ${currentModel}`
     );
   },
@@ -2126,7 +2151,7 @@ const SLASH_COMMANDS = {
   },
   "/version": () => {
     addAssistantBubble().innerHTML = renderMarkdown(
-      `**Claw Agent** v0.1.0\nChrome Extension (MV3)\nModel: ${currentModel}\nOllama: ${ollamaUrl}`
+      `**Claw Agent** v2.0.0\nChrome Extension (MV3)\nModel: ${currentModel}\n` + (USE_CLOUD_API ? `Cloud: ${OPENROUTER_API_BASE}` : `Ollama: ${ollamaUrl}`)
     );
   },
   "/save": async () => {
@@ -2319,6 +2344,23 @@ document.getElementById("modelSelect").onchange = (e) => {
 
 // Fetch available models
 document.getElementById("fetchModelsBtn").onclick = async () => {
+  if (USE_CLOUD_API) {
+    const select = document.getElementById("modelSelect");
+    const current = currentModel;
+    select.innerHTML = "";
+    CLOUD_MODELS.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      const short = m.split("/").pop();
+      opt.textContent = short.length > 25 ? short.substring(0, 22) + "..." : short;
+      select.appendChild(opt);
+    });
+    if (select.querySelector(`option[value="${current}"]`)) {
+      select.value = current;
+    }
+    addAssistantBubble().innerHTML = renderMarkdown(`**Models refreshed** — ${CLOUD_MODELS.length} cloud models available.`);
+    return;
+  }
   try {
     const resp = await fetch(`${ollamaUrl}/api/tags`);
     const data = await resp.json();
@@ -2505,29 +2547,53 @@ chrome.storage.local.get(["ollamaUrl", "customSystemPrompt", "mode", "currentMod
   }
 });
 
-// Check Ollama connectivity on load
+// Check connectivity on load
 (async () => {
-  try {
-    const resp = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    if (resp.ok) {
-      const data = await resp.json();
-      const select = document.getElementById("modelSelect");
-      const current = currentModel;
-      select.innerHTML = "";
-      (data.models || []).forEach((m) => {
-        const opt = document.createElement("option");
-        opt.value = m.name;
-        opt.textContent = m.name.length > 25 ? m.name.substring(0, 22) + "..." : m.name;
-        select.appendChild(opt);
-      });
-      if (select.querySelector(`option[value="${current}"]`)) {
-        select.value = current;
-      } else if (select.options.length) {
-        currentModel = select.options[0].value;
-      }
+  if (USE_CLOUD_API) {
+    // Cloud mode — populate model dropdown with cloud models
+    const select = document.getElementById("modelSelect");
+    const current = currentModel;
+    select.innerHTML = "";
+    CLOUD_MODELS.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      const short = m.split("/").pop();
+      opt.textContent = short.length > 25 ? short.substring(0, 22) + "..." : short;
+      select.appendChild(opt);
+    });
+    if (select.querySelector(`option[value="${current}"]`)) {
+      select.value = current;
+    } else if (select.options.length) {
+      currentModel = select.options[0].value;
+      select.value = currentModel;
     }
-  } catch {
-    addErrorBubble("Cannot connect to Ollama. Make sure it's running at " + ollamaUrl);
+    // Update UI for cloud mode
+    const banner = document.getElementById("riskBanner");
+    if (banner) banner.innerHTML = '<strong>CLOUD MODE:</strong> Connected to Claw AI council via OpenRouter. 14 models available.';
+  } else {
+    // Local Ollama mode
+    try {
+      const resp = await fetch(`${ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+      if (resp.ok) {
+        const data = await resp.json();
+        const select = document.getElementById("modelSelect");
+        const current = currentModel;
+        select.innerHTML = "";
+        (data.models || []).forEach((m) => {
+          const opt = document.createElement("option");
+          opt.value = m.name;
+          opt.textContent = m.name.length > 25 ? m.name.substring(0, 22) + "..." : m.name;
+          select.appendChild(opt);
+        });
+        if (select.querySelector(`option[value="${current}"]`)) {
+          select.value = current;
+        } else if (select.options.length) {
+          currentModel = select.options[0].value;
+        }
+      }
+    } catch {
+      addErrorBubble("Cannot connect to Ollama. Make sure it's running at " + ollamaUrl);
+    }
   }
 })();
 

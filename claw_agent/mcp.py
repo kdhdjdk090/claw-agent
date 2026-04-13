@@ -76,8 +76,8 @@ def save_mcp_config(servers: dict[str, MCPServer]):
 def add_mcp_server(
     name: str,
     command: str,
-    args: list[str] = None,
-    env: dict[str, str] = None,
+    args: list[str] | None = None,
+    env: dict[str, str] | None = None,
     transport: str = "stdio",
 ) -> str:
     """Add an MCP server configuration."""
@@ -188,7 +188,8 @@ class MCPClientConnection:
         """Terminate the server process."""
         if self._process:
             try:
-                self._process.stdin.close()
+                if self._process.stdin:
+                    self._process.stdin.close()
             except Exception:
                 pass
             try:
@@ -211,10 +212,12 @@ class MCPClientConnection:
     def _read_line(self, timeout: float = 30) -> str | None:
         """Read one line from stdout with a timeout (cross-platform)."""
         result: list[str | None] = [None]
+        proc = self._process
 
         def _reader():
             try:
-                result[0] = self._process.stdout.readline()
+                if proc and proc.stdout:
+                    result[0] = proc.stdout.readline()
             except Exception:
                 pass
 
@@ -232,6 +235,8 @@ class MCPClientConnection:
         if params is not None:
             msg["params"] = params
         try:
+            if not self._process.stdin:
+                return None
             self._process.stdin.write(json.dumps(msg) + "\n")
             self._process.stdin.flush()
         except (BrokenPipeError, OSError):
@@ -258,6 +263,8 @@ class MCPClientConnection:
         if params is not None:
             msg["params"] = params
         try:
+            if not self._process.stdin:
+                return
             self._process.stdin.write(json.dumps(msg) + "\n")
             self._process.stdin.flush()
         except (BrokenPipeError, OSError):

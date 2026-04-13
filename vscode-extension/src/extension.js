@@ -419,7 +419,7 @@ class ClawChatViewProvider {
 <body>
   <!-- Header -->
   <div class="header">
-    <span class="title">⚡ Claw Agent</span>
+    <span class="title">🦞 Claw Agent</span>
     <span class="status" id="status">Starting...</span>
     <div class="header-actions">
       <button class="icon-btn" id="newChatBtn" title="New Chat">✚</button>
@@ -431,9 +431,9 @@ class ClawChatViewProvider {
   <!-- Messages -->
   <div class="messages" id="messages">
     <div class="welcome" id="welcome">
-      <div class="welcome-icon">⚡</div>
+      <div class="welcome-icon">🦞</div>
       <h2>Claw Agent</h2>
-      <p>Local AI assistant powered by Ollama</p>
+      <p>AI coding assistant · 14 model council</p>
       <div class="quick-actions">
         <button class="quick-btn" data-prompt="Explain the current workspace structure">📁 Explain workspace</button>
         <button class="quick-btn" data-prompt="Show me a summary of recent git changes">📝 Git summary</button>
@@ -447,7 +447,7 @@ class ClawChatViewProvider {
   <div class="cost-bar" id="costBar"></div>
 
   <!-- Risk banner -->
-  <div class="risk-banner">🔒 <strong>LOCAL MODE</strong> — Runs entirely on your machine via Ollama. No data leaves your computer.</div>
+  <div class="risk-banner">🦞 <strong>CLAW AI</strong> — 14-model council with OpenRouter + Alibaba Cloud. Free tier.</div>
 
   <!-- Input area -->
   <div class="input-area">
@@ -528,7 +528,7 @@ class ClawChatViewProvider {
       );
     },
     "/cost": () => { addMsg("assistant", costBar.textContent || "No stats yet."); },
-    "/version": () => { addMsg("assistant", "<strong>Claw Agent</strong> v0.1.0 — VS Code Extension"); },
+    "/version": () => { addMsg("assistant", "<strong>Claw Agent</strong> v2.0.0 — VS Code Extension"); },
   };
 
   function send() {

@@ -283,8 +283,8 @@ body {
 .risk-banner {
   padding: 8px 14px;
   font-size: 11px;
-  background: rgba(24, 128, 56, 0.08);
-  color: var(--success);
+  background: rgba(201, 100, 66, 0.08);
+  color: var(--accent);
   border-top: 1px solid var(--border);
 }
 

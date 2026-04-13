@@ -10,16 +10,17 @@
   <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <span class="logo">⚡</span>
+      <span class="logo">🦞</span>
       <span class="title">Claw Agent</span>
     </div>
     <div class="header-right">
       <select id="modelSelect" class="model-select">
-        <option value="deepseek-v3.1:671b-cloud">deepseek-v3.1:671b</option>
-        <option value="qwen2.5:7b">qwen2.5:7b</option>
-        <option value="llama3:latest">llama3</option>
-        <option value="codellama:7b">codellama:7b</option>
-        <option value="mistral:latest">mistral</option>
+        <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
+        <option value="anthropic/claude-3-haiku-20240307">claude-3-haiku</option>
+        <option value="google/gemini-flash-1.5">gemini-flash</option>
+        <option value="qwen/qwen-2.5-coder-32b-instruct">qwen-coder-32b</option>
+        <option value="meta-llama/llama-3.3-70b-instruct">llama-3.3-70b</option>
+        <option value="deepseek/deepseek-v3">deepseek-v3</option>
       </select>
       <button id="settingsBtn" class="icon-btn" title="Settings">⚙</button>
       <button id="newChatBtn" class="icon-btn" title="New Chat">+</button>
@@ -56,9 +57,9 @@
   <!-- Messages -->
   <div class="messages" id="messages">
     <div class="welcome">
-      <div class="welcome-icon">⚡</div>
+      <div class="welcome-icon">🦞</div>
       <h2>Claw Agent</h2>
-      <p>Local AI assistant powered by Ollama</p>
+      <p>AI browser agent · 40 tools · 6 cloud models</p>
       <div class="quick-actions">
         <button class="quick-btn" data-prompt="Summarize this page">📄 Summarize page</button>
         <button class="quick-btn" data-prompt="Extract all links from this page">🔗 Extract links</button>
@@ -73,7 +74,7 @@
 
   <!-- Risk Banner -->
   <div class="risk-banner" id="riskBanner">
-    <strong>LOCAL MODE:</strong> Claw runs entirely on your machine via Ollama. No data leaves your computer.
+    <strong>CLOUD MODE:</strong> Connected to Claw AI council via OpenRouter. 6 models available.
   </div>
 
   <!-- Input Area -->

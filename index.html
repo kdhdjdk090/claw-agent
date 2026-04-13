@@ -3,6 +3,601 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Claw AI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root,[data-theme="light"]{
+  --bg:#f7f7f5;
+  --bg-alt:#eae8e4;
+  --surface:#ffffff;
+  --surface-hover:#f5f4f2;
+  --border:#e5e3df;
+  --border-hover:#d5d3cf;
+  --text:#1a1a1a;
+  --text-2:#6b6b6b;
+  --text-3:#999;
+  --accent:#c96442;
+  --accent-light:#d97a58;
+  --accent-bg:rgba(201,100,66,0.08);
+  --accent-border:rgba(201,100,66,0.2);
+  --user-bg:#c96442;
+  --user-text:#fff;
+  --code-bg:#f5f3ef;
+  --code-border:#e5e2dd;
+  --green:#188038;
+  --green-bg:rgba(24,128,56,0.06);
+  --red:#d93025;
+  --red-bg:rgba(217,48,37,0.06);
+  --shadow:0 1px 3px rgba(0,0,0,0.06);
+  --shadow-lg:0 4px 12px rgba(0,0,0,0.08);
+  --council-bg:linear-gradient(135deg,#c96442,#d97a58);
+  --scrollbar:#d5d3cf;
+}
+[data-theme="dark"]{
+  --bg:#1a1a1a;
+  --bg-alt:#2a2a2a;
+  --surface:#242424;
+  --surface-hover:#2e2e2e;
+  --border:#3a3a3a;
+  --border-hover:#4a4a4a;
+  --text:#e8e6e3;
+  --text-2:#999;
+  --text-3:#666;
+  --accent:#d97a58;
+  --accent-light:#e89070;
+  --accent-bg:rgba(217,122,88,0.12);
+  --accent-border:rgba(217,122,88,0.25);
+  --user-bg:#c96442;
+  --user-text:#fff;
+  --code-bg:#1e1e1e;
+  --code-border:#3a3a3a;
+  --green:#34d399;
+  --green-bg:rgba(52,211,153,0.08);
+  --red:#f87171;
+  --red-bg:rgba(248,113,113,0.08);
+  --shadow:0 1px 3px rgba(0,0,0,0.3);
+  --shadow-lg:0 4px 12px rgba(0,0,0,0.4);
+  --council-bg:linear-gradient(135deg,#b5573a,#c96442);
+  --scrollbar:#4a4a4a;
+}
+
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,Helvetica,sans-serif;
+  background:var(--bg);color:var(--text);height:100dvh;overflow:hidden;
+  display:flex;-webkit-font-smoothing:antialiased;line-height:1.6;font-size:14px;
+}
+
+/* SIDEBAR */
+.sidebar{
+  width:260px;background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;transition:transform .25s ease;overflow:hidden;
+}
+.sb-hdr{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sb-hdr .logo{font-size:22px}
+.sb-hdr h1{font-size:16px;font-weight:700;color:var(--text)}
+.sb-nav{padding:8px;display:flex;flex-direction:column;gap:2px}
+.sb-nav button{
+  background:none;border:none;text-align:left;padding:8px 12px;border-radius:8px;
+  color:var(--text-2);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;
+}
+.sb-nav button:hover{background:var(--surface-hover);color:var(--text)}
+.sb-nav button.active{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.sb-nav button:disabled{cursor:default;opacity:1}
+.sb-nav button:disabled:hover{background:none}
+.sb-divider{height:1px;background:var(--border);margin:4px 8px}
+.sb-section{padding:12px 16px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-3);font-weight:600}
+.sb-scroll{flex:1;overflow-y:auto;padding-bottom:16px}
+.sb-scroll::-webkit-scrollbar{width:4px}
+.sb-scroll::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:2px}
+.sb-footer{
+  padding:12px 16px;border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text-3);
+}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+/* TOP BAR */
+.topbar{
+  padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surface);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.topbar-l{display:flex;align-items:center;gap:10px}
+.topbar-l .menu-btn{
+  display:none;background:none;border:1px solid var(--border);border-radius:8px;
+  width:32px;height:32px;font-size:16px;cursor:pointer;color:var(--text);
+  align-items:center;justify-content:center;
+}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;letter-spacing:.2px}
+.badge-council{background:var(--council-bg);color:#fff}
+.badge-skills{background:var(--green-bg);color:var(--green);border:1px solid rgba(24,128,56,0.15)}
+.badge-free{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-border)}
+.theme-toggle{
+  width:32px;height:32px;border-radius:8px;background:var(--bg-alt);border:1px solid var(--border);
+  color:var(--text-2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.theme-toggle:hover{border-color:var(--accent);color:var(--accent)}
+
+/* CHAT */
+.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;scroll-behavior:smooth;background:var(--bg)}
+.chat::-webkit-scrollbar{width:6px}
+.chat::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:3px}
+
+/* WELCOME (Claude-inspired) */
+.welcome{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px 24px;text-align:center;gap:20px;
+}
+.welcome-icon{font-size:32px;color:var(--accent)}
+.welcome h2{font-size:28px;font-weight:600;color:var(--text);letter-spacing:-.5px}
+.welcome h2 span{color:var(--text-2);font-weight:400}
+.welcome-sub{font-size:14px;color:var(--text-2);max-width:500px;line-height:1.7}
+.actions-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:8px;max-width:500px;width:100%;margin-top:8px;
+}
+.action-btn{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px 16px;cursor:pointer;text-align:left;transition:all .2s;
+  display:flex;flex-direction:column;gap:4px;
+}
+.action-btn:hover{border-color:var(--accent-border);background:var(--surface-hover);transform:translateY(-1px);box-shadow:var(--shadow)}
+.action-btn .icon{font-size:18px}
+.action-btn .label{font-size:12px;font-weight:600;color:var(--text)}
+.action-btn .desc{font-size:11px;color:var(--text-3)}
+.model-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:600px;margin-top:4px}
+.model-chip{background:var(--bg-alt);padding:4px 10px;border-radius:8px;font-size:10px;color:var(--text-3);font-weight:500}
+
+/* MESSAGES */
+.messages-area{padding:20px;display:flex;flex-direction:column;gap:16px}
+.msg{display:flex;gap:10px;animation:msgIn .25s ease}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.msg-user{justify-content:flex-end}
+.msg-user .bubble{
+  background:var(--user-bg);color:var(--user-text);border-radius:18px 18px 4px 18px;
+  padding:10px 16px;max-width:75%;font-size:14px;line-height:1.6;box-shadow:var(--shadow);
+}
+.msg-ai .bubble{max-width:85%;padding:2px 0;line-height:1.7;font-size:14px;color:var(--text)}
+.msg-ai .bubble p{margin:0 0 8px}
+.msg-ai .bubble p:last-child{margin-bottom:0}
+.msg-ai .bubble strong,.msg-ai .bubble b{color:var(--accent);font-weight:600}
+.msg-ai .bubble code{
+  background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:12.5px;
+  font-family:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace;border:1px solid var(--code-border);
+}
+.msg-ai .bubble pre{
+  background:var(--code-bg);padding:12px 16px;border-radius:8px;overflow-x:auto;
+  margin:8px 0;font-size:12.5px;line-height:1.5;border:1px solid var(--code-border);
+  font-family:'SF Mono','Cascadia Code','Fira Code',Consolas,monospace;
+}
+.msg-ai .bubble pre code{background:none;border:none;padding:0}
+.msg-ai .bubble ul,.msg-ai .bubble ol{padding-left:20px;margin:6px 0}
+.msg-ai .bubble li{margin:2px 0}
+.msg-ai .bubble a{color:var(--accent);text-decoration:none}
+.msg-ai .bubble a:hover{text-decoration:underline}
+.msg-ai .bubble h1,.msg-ai .bubble h2,.msg-ai .bubble h3{margin:12px 0 6px;color:var(--text);font-weight:600}
+.msg-ai .bubble h1{font-size:18px}.msg-ai .bubble h2{font-size:16px}.msg-ai .bubble h3{font-size:14px}
+.msg-ai .bubble blockquote{border-left:3px solid var(--border);padding-left:12px;color:var(--text-2);margin:6px 0}
+.msg-ai .bubble hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+
+.council-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--council-bg);color:#fff;padding:3px 12px;
+  border-radius:10px;font-size:11px;font-weight:600;margin-bottom:8px;
+}
+.msg-system .bubble{
+  background:var(--bg-alt);border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;font-size:13px;color:var(--text-2);line-height:1.6;
+}
+.msg-error .bubble{
+  background:var(--red-bg);border:1px solid rgba(217,48,37,0.15);border-radius:12px;
+  padding:10px 14px;font-size:13px;color:var(--red);
+}
+
+/* INPUT */
+.input-area{padding:16px 20px;border-top:1px solid var(--border);background:var(--surface)}
+.input-row{
+  display:flex;gap:10px;align-items:flex-end;
+  background:var(--bg);border:1px solid var(--border);border-radius:16px;
+  padding:6px 6px 6px 16px;transition:border-color .15s,box-shadow .15s;
+}
+.input-row:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
+#messageInput{
+  flex:1;border:none;background:none;color:var(--text);font-size:14px;
+  outline:none;resize:none;font-family:inherit;line-height:1.5;
+  min-height:24px;max-height:140px;padding:6px 0;
+}
+#messageInput::placeholder{color:var(--text-3)}
+.send-btn{
+  width:36px;height:36px;border-radius:12px;border:none;
+  background:var(--accent);color:#fff;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;flex-shrink:0;
+}
+.send-btn:hover{background:var(--accent-light);transform:scale(1.05)}
+.send-btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.input-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 4px 0;font-size:11px;color:var(--text-3);
+}
+
+/* OVERLAY + MOBILE */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99;backdrop-filter:blur(2px)}
+.overlay.show{display:block}
+@media(max-width:768px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:100;transform:translateX(-100%);width:280px;box-shadow:var(--shadow-lg)}
+  .sidebar.open{transform:translateX(0)}
+  .topbar-l .menu-btn{display:flex}
+  .msg-user .bubble{max-width:90%}
+  .msg-ai .bubble{max-width:95%}
+  .welcome h2{font-size:22px}
+  .actions-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+<div class="sidebar" id="sidebar">
+  <div class="sb-hdr"><span class="logo">🦞</span><h1>Claw AI</h1></div>
+  <div class="sb-scroll">
+    <div class="sb-nav">
+      <button class="active" onclick="goChat()">💬 Chat</button>
+      <button onclick="execCmd('/models')">🤖 Models</button>
+      <button onclick="execCmd('/skills')">🛠️ Skills</button>
+      <button onclick="execCmd('/status')">📊 Status</button>
+      <button onclick="execCmd('/help')">❓ Help</button>
+    </div>
+    <div class="sb-divider"></div>
+    <p class="sb-section">Council Models (14)</p>
+    <div class="sb-nav" id="modelList"></div>
+    <div class="sb-divider"></div>
+    <p class="sb-section">Quick Commands</p>
+    <div class="sb-nav">
+      <button onclick="execCmd('/council')">🏛️ Force Council</button>
+      <button onclick="execCmd('/nocouncil')">⚡ Single Model</button>
+      <button onclick="execCmd('/clear')">🗑️ Clear Chat</button>
+      <button onclick="execCmd('/export')">💾 Export Chat</button>
+    </div>
+  </div>
+  <div class="sb-footer"><span>14 Models · 2 Providers</span><span>v2.0</span></div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-l">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <span id="statusText" style="font-size:12px;color:var(--text-3)">Loading...</span>
+    </div>
+    <div class="topbar-r">
+      <span class="badge badge-council" id="councilBadge">🏛️ Council</span>
+      <span class="badge badge-skills">14 Skills</span>
+      <span class="badge badge-free">FREE</span>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme" id="themeBtn">🌙</button>
+    </div>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="welcome" id="welcome">
+      <div class="welcome-icon">🦞</div>
+      <h2>Good evening, <span>sinwa</span></h2>
+      <p class="welcome-sub">14 AI models working together for consensus-validated answers. Type <b>/</b> for commands.</p>
+      <div class="actions-grid">
+        <button class="action-btn" onclick="quickSend('Explain quantum computing simply')">
+          <span class="icon">💡</span><span class="label">Learn</span><span class="desc">Ask anything</span>
+        </button>
+        <button class="action-btn" onclick="quickSend('Write a Python web scraper')">
+          <span class="icon">&lt;/&gt;</span><span class="label">Code</span><span class="desc">Generate code</span>
+        </button>
+        <button class="action-btn" onclick="quickSend('Compare React vs Vue vs Svelte')">
+          <span class="icon">✏️</span><span class="label">Analyze</span><span class="desc">Compare things</span>
+        </button>
+        <button class="action-btn" onclick="execCmd('/skills')">
+          <span class="icon">🛠️</span><span class="label">Skills</span><span class="desc">14 specialties</span>
+        </button>
+      </div>
+      <div class="model-chips" id="modelChips"></div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-row">
+      <textarea id="messageInput" rows="1" placeholder="Message Claw AI..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="send()">↑</button>
+    </div>
+    <div class="input-footer">
+      <span>Claw AI · 14-Model Council</span>
+      <span id="councilLabel">Council mode</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* === STATE === */
+const MODELS=[
+  {n:'DeepSeek V3',icon:'🥇',tag:'Most Powerful 600B',p:'OR'},
+  {n:'Qwen3 80B',icon:'🥈',tag:'Best Balance',p:'OR'},
+  {n:'Llama 3.3 70B',icon:'🥉',tag:'Most Stable',p:'OR'},
+  {n:'Qwen Coder 32B',icon:'⭐',tag:'Coding King',p:'OR'},
+  {n:'DeepSeek R1',icon:'🧮',tag:'Reasoning',p:'OR'},
+  {n:'Gemma 3 12B',icon:'⚡',tag:'Fastest',p:'OR'},
+  {n:'GPT-4o-mini',icon:'🎯',tag:'Reliable',p:'OR'},
+  {n:'Claude 3 Haiku',icon:'🎭',tag:'Natural Chat',p:'OR'},
+  {n:'Qwen3 Coder 480B',icon:'🏆',tag:'Best Coder 480B',p:'ALI'},
+  {n:'Qwen3.5 397B',icon:'🥇',tag:'Most Powerful',p:'ALI'},
+  {n:'Qwen3 Max',icon:'🥈',tag:'Flagship',p:'ALI'},
+  {n:'Qwen3 235B',icon:'🧮',tag:'Reasoning 235B',p:'ALI'},
+  {n:'Qwen3 Coder+',icon:'⭐',tag:'Coding Expert',p:'ALI'},
+  {n:'Qwen Plus',icon:'⚡',tag:'Fast Balanced',p:'ALI'},
+];
+const SKILLS=[
+  {id:'web-dev',d:'React, Vue, Next.js'},{id:'data-science',d:'pandas, numpy, ML'},
+  {id:'devops',d:'Docker, K8s, CI/CD'},{id:'security',d:'Audits, scanning'},
+  {id:'code-review',d:'Refactoring, patterns'},{id:'testing',d:'Unit, e2e, TDD'},
+  {id:'database',d:'SQL, NoSQL'},{id:'api-dev',d:'REST, GraphQL'},
+  {id:'mobile-dev',d:'React Native, Flutter'},{id:'ml-ops',d:'ML training'},
+  {id:'documentation',d:'README, API docs'},{id:'git-workflow',d:'Branching'},
+  {id:'blockchain',d:'Solidity, Web3'},{id:'game-dev',d:'Unity, Godot'},
+];
+let history=[],councilMode=true;
+
+/* === THEME === */
+function initTheme(){
+  const t=localStorage.getItem('claw_theme')||'light';
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('themeBtn').textContent=t==='dark'?'☀️':'🌙';
+}
+function toggleTheme(){
+  const c=document.documentElement.getAttribute('data-theme');
+  const n=c==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',n);
+  localStorage.setItem('claw_theme',n);
+  document.getElementById('themeBtn').textContent=n==='dark'?'☀️':'🌙';
+}
+
+/* === INIT === */
+function init(){
+  initTheme(); renderSidebarModels(); renderModelChips(); loadHistory(); fetchStatus();
+  const h=new Date().getHours();
+  const g=h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  const el=document.querySelector('.welcome h2');
+  if(el) el.innerHTML=g+', <span>sinwa</span>';
+}
+function renderSidebarModels(){
+  document.getElementById('modelList').innerHTML=MODELS.map(m=>
+    '<button style="font-size:12px;gap:6px" disabled>'+esc(m.icon)+' <span style="flex:1">'+esc(m.n)+'</span><span style="color:var(--text-3);font-size:10px">'+esc(m.tag)+'</span></button>'
+  ).join('');
+}
+function renderModelChips(){
+  document.getElementById('modelChips').innerHTML=MODELS.map(m=>
+    '<span class="model-chip">'+esc(m.n)+'</span>'
+  ).join('');
+}
+async function fetchStatus(){
+  try{
+    const r=await fetch('/api/models');const d=await r.json();
+    if(d.council_enabled){
+      document.getElementById('statusText').textContent=d.model_count+' models · 2 providers · ready';
+      document.getElementById('councilBadge').textContent='🏛️ '+d.model_count+' Models';
+    }
+  }catch(e){document.getElementById('statusText').textContent='Connecting...'}
+}
+function loadHistory(){
+  try{const s=localStorage.getItem('claw_h');if(s){history=JSON.parse(s);if(history.length){hideWelcome();history.forEach(m=>renderMsg(m))}}}catch(e){}
+}
+function saveHistory(){try{localStorage.setItem('claw_h',JSON.stringify(history))}catch(e){}}
+
+/* === XSS-SAFE ESCAPE === */
+function esc(s){if(!s)return '';const d=document.createElement('span');d.textContent=String(s);return d.innerHTML}
+
+/* === MARKDOWN RENDERER === */
+function renderMd(text){
+  if(!text)return '';
+  let s=String(text);
+  s=s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  s=s.replace(/```(\w*)\n?([\s\S]*?)```/g,function(_,lang,code){return '<pre><code>'+code.trim()+'</code></pre>'});
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  s=s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  s=s.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/\*(.+?)\*/g,'<em>$1</em>');
+  s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+  s=s.replace(/^---$/gm,'<hr>');
+  s=s.replace(/^[•\-\*] (.+)$/gm,'<li>$1</li>');
+  s=s.replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>');
+  s=s.replace(/^\d+\. (.+)$/gm,'<li>$1</li>');
+  s=s.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
+  s=s.replace(/\n/g,'<br>');
+  s=s.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g,function(_,c){return '<pre><code>'+c.replace(/<br>/g,'\n')+'</code></pre>'});
+  s=s.replace(/<\/(h[1-3]|pre|ul|ol|blockquote|hr)><br>/g,'</$1>');
+  s=s.replace(/<br><(h[1-3]|pre|ul|ol|blockquote|hr)/g,'<$1');
+  return s;
+}
+
+/* === SLASH COMMAND CONTENT (returns pre-built HTML — no double-escaping) === */
+function slashContent(cmd){
+  switch(cmd){
+    case'/help':return{html:
+      '<h3>🦞 Claw AI — Commands</h3>'+
+      '<p><strong>Core:</strong> /help · /clear · /status · /version</p>'+
+      '<p><strong>Council:</strong> /council · /nocouncil · /models</p>'+
+      '<p><strong>Skills (14):</strong></p><ul>'+
+      SKILLS.map(s=>'<li><strong>/'+esc(s.id)+'</strong> — '+esc(s.d)+'</li>').join('')+
+      '</ul><p><strong>Session:</strong> /save · /export · /config · /memory</p>'};
+    case'/models':return{html:
+      '<h3>🏛️ Council Models (14)</h3>'+
+      '<p><strong>OpenRouter (8):</strong></p><ul>'+
+      MODELS.filter(m=>m.p==='OR').map(m=>'<li>'+esc(m.icon)+' <strong>'+esc(m.n)+'</strong> — '+esc(m.tag)+'</li>').join('')+
+      '</ul><p><strong>Alibaba Cloud (6):</strong></p><ul>'+
+      MODELS.filter(m=>m.p==='ALI').map(m=>'<li>'+esc(m.icon)+' <strong>'+esc(m.n)+'</strong> — '+esc(m.tag)+'</li>').join('')+
+      '</ul>'};
+    case'/skills':return{html:
+      '<h3>🛠️ Available Skills (14)</h3><ul>'+
+      SKILLS.map(s=>'<li><strong>/'+esc(s.id)+'</strong> — '+esc(s.d)+'</li>').join('')+
+      '</ul><p>Usage: <code>/skill-name your request</code></p>'};
+    case'/status':return{html:
+      '<h3>📊 Status</h3><ul>'+
+      '<li><strong>Council:</strong> '+(councilMode?'Active (14 models)':'Disabled')+'</li>'+
+      '<li><strong>Providers:</strong> OpenRouter + Alibaba Cloud</li>'+
+      '<li><strong>Skills:</strong> 14 loaded</li>'+
+      '<li><strong>Cost:</strong> FREE</li>'+
+      '<li><strong>Messages:</strong> '+history.length+'</li></ul>'};
+    case'/version':return{html:
+      '<h3>🦞 Claw AI v2.0</h3><ul>'+
+      '<li>14 models (OpenRouter + Alibaba)</li><li>14 skills</li>'+
+      '<li>Session persistence</li><li>File upload</li>'+
+      '<li>Light/Dark theme</li><li>Mobile responsive</li></ul>'};
+    case'/config':return{html:
+      '<h3>⚙️ Config</h3><ul>'+
+      '<li><strong>Council:</strong> '+(councilMode?'On':'Off')+'</li>'+
+      '<li><strong>Models:</strong> 14</li>'+
+      '<li><strong>Providers:</strong> 2</li></ul>'};
+    case'/memory':{
+      const ch=history.reduce((s,m)=>s+(m.content?.length||0),0);
+      const tk=Math.round(ch/4),pc=Math.min(100,tk/2000).toFixed(1);
+      return{html:
+        '<h3>🧠 Context</h3><ul>'+
+        '<li><strong>Tokens:</strong> ~'+tk.toLocaleString()+'</li>'+
+        '<li><strong>Max:</strong> 200,000</li>'+
+        '<li><strong>Usage:</strong> '+pc+'%</li></ul>'};}
+    default:return null;
+  }
+}
+
+/* === MESSAGE RENDERING === */
+function hideWelcome(){const w=document.getElementById('welcome');if(w)w.style.display='none'}
+function ensureMsgArea(){
+  let a=document.getElementById('msgArea');
+  if(!a){a=document.createElement('div');a.id='msgArea';a.className='messages-area';document.getElementById('chat').appendChild(a)}
+  return a;
+}
+function renderMsg(m){
+  const area=ensureMsgArea(),div=document.createElement('div');
+  if(m.role==='user'){
+    div.className='msg msg-user';
+    div.innerHTML='<div class="bubble">'+esc(m.content)+'</div>';
+  }else if(m.role==='ai'){
+    div.className='msg msg-ai';
+    let inner='';
+    if(m.council&&m.consensus) inner+='<div class="council-tag">🏛️ Council Consensus ('+esc(String(m.consensus))+'%)</div>';
+    if(m.rawHtml) inner+='<div class="bubble">'+m.rawHtml+'</div>';
+    else inner+='<div class="bubble">'+renderMd(m.content)+'</div>';
+    div.innerHTML=inner;
+  }else if(m.role==='system'){
+    div.className='msg msg-system';
+    div.innerHTML='<div class="bubble">'+renderMd(m.content)+'</div>';
+  }else if(m.role==='error'){
+    div.className='msg msg-error';
+    div.innerHTML='<div class="bubble">'+renderMd(m.content)+'</div>';
+  }
+  area.appendChild(div);scrollChat();
+}
+function scrollChat(){const c=document.getElementById('chat');c.scrollTop=c.scrollHeight}
+function addMsg(role,content,opts){
+  opts=opts||{};
+  const m={role,content,council:opts.council||false,consensus:opts.consensus||0,rawHtml:opts.rawHtml||null};
+  history.push(m);renderMsg(m);saveHistory();
+}
+
+/* === SEND / COMMANDS === */
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,140)+'px'}
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')}
+function goChat(){if(window.innerWidth<768)toggleSidebar();document.getElementById('messageInput').focus()}
+function execCmd(cmd){hideWelcome();handleSlashCmd(cmd);if(window.innerWidth<768)toggleSidebar()}
+function quickSend(text){document.getElementById('messageInput').value=text;send()}
+
+function send(){
+  const inp=document.getElementById('messageInput'),text=inp.value.trim();
+  if(!text)return;
+  inp.value='';inp.style.height='auto';hideWelcome();
+  if(text.startsWith('/')){handleSlashCmd(text);return}
+  addMsg('user',text);callAPI(text);
+}
+function handleSlashCmd(text){
+  const parts=text.split(' '),cmd=parts[0].toLowerCase(),arg=parts.slice(1).join(' ').trim();
+  if(cmd==='/council'){
+    if(arg){addMsg('user',text);callAPI(arg,true);return}
+    councilMode=true;document.getElementById('councilLabel').textContent='Council mode';
+    addMsg('system','🏛️ Council enabled — 14 models will collaborate');return;
+  }
+  if(cmd==='/nocouncil'){
+    if(arg){addMsg('user',text);callAPI(arg,false);return}
+    councilMode=false;document.getElementById('councilLabel').textContent='Single model';
+    addMsg('system','⚡ Council disabled — single model mode');return;
+  }
+  if(cmd==='/clear'){
+    history=[];saveHistory();
+    const chat=document.getElementById('chat');chat.innerHTML='';
+    const w=document.createElement('div');w.className='welcome';w.id='welcome';w.style.display='flex';
+    w.innerHTML='<div class="welcome-icon">🦞</div><h2>Chat cleared</h2><p class="welcome-sub">Start a new conversation</p>';
+    chat.appendChild(w);return;
+  }
+  if(cmd==='/save'){saveHistory();addMsg('system','✅ Session saved');return}
+  if(cmd==='/export'){
+    let md='# Claw AI Chat Export\n\n';
+    history.forEach(m=>md+='## '+m.role+'\n'+(m.content||'')+'\n\n');
+    const b=new Blob([md],{type:'text/markdown'}),u=URL.createObjectURL(b);
+    const a=document.createElement('a');a.href=u;a.download='claw-'+Date.now()+'.md';a.click();
+    URL.revokeObjectURL(u);addMsg('system','✅ Exported as markdown');return;
+  }
+  const matchedSkill=SKILLS.find(s=>'/'+s.id===cmd);
+  if(matchedSkill){
+    if(arg){addMsg('user',text);callAPI('Using '+cmd.slice(1)+' skill: '+arg);return}
+    addMsg('ai','',{rawHtml:'<h3>🛠️ '+esc(matchedSkill.id)+'</h3><p>'+esc(matchedSkill.d)+'</p><p>Usage: <code>'+esc(cmd)+' your request</code></p>'});
+    return;
+  }
+  const sc=slashContent(cmd);
+  if(sc){addMsg('ai','',{rawHtml:sc.html});return}
+  addMsg('error','❌ Unknown command: '+esc(cmd)+'. Type /help for available commands.');
+}
+
+/* === API === */
+async function callAPI(text,useCouncil){
+  const btn=document.getElementById('sendBtn');btn.disabled=true;
+  const area=ensureMsgArea();
+  const thinking=document.createElement('div');
+  thinking.className='msg msg-ai';
+  thinking.innerHTML='<div class="bubble" style="color:var(--text-3)"><span style="display:inline-block;animation:pulse 1.5s ease infinite">●</span> Thinking...</div>';
+  area.appendChild(thinking);scrollChat();
+
+  const council=useCouncil!==undefined?useCouncil:councilMode;
+  try{
+    const url=council?'/api/council':'/api/chat';
+    const r=await fetchRetry(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+    const d=await r.json();thinking.remove();
+    if(!r.ok){addMsg('error','❌ '+(d.error||'Server error'))}
+    else if(d.council){
+      let reply=(d.reply||'').replace(/\[Council Consensus.*?\]\n?/g,'').trim();
+      if(!reply){for(const resp of(d.all_responses||[])){if(resp.content?.trim()){reply=resp.content.trim();break}}}
+      addMsg('ai',reply||'No response',{council:true,consensus:d.consensus_percentage});
+    }else{addMsg('ai',d.reply||'No response')}
+  }catch(e){thinking.remove();addMsg('error','❌ Network error: '+esc(e.message))}
+  finally{btn.disabled=false;document.getElementById('messageInput').focus()}
+}
+async function fetchRetry(url,opts,retries){
+  retries=retries||3;
+  for(let i=0;i<retries;i++){
+    try{const r=await fetch(url,opts);if(r.ok||i===retries-1)return r;await new Promise(s=>setTimeout(s,1000*Math.pow(2,i)))}
+    catch(e){if(i===retries-1)throw e;await new Promise(s=>setTimeout(s,1000*Math.pow(2,i)))}
+  }
+}
+
+/* === BOOT === */
+document.addEventListener('DOMContentLoaded',init);
+</script>
+<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}</style>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Claw AI - Multi-Model Council</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
