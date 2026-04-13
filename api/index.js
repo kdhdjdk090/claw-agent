@@ -260,7 +260,7 @@ module.exports = async (req, res) => {
 async function handleChat(req, res) {
   let body = '';
   let bodySize = 0;
-  const MAX_BODY_SIZE = 200 * 1024; // 200KB limit (increased for history)
+  const MAX_BODY_SIZE = 200 * 1024;
   req.on('data', chunk => {
     bodySize += chunk.length;
     if (bodySize > MAX_BODY_SIZE) {
@@ -271,33 +271,26 @@ async function handleChat(req, res) {
   });
   req.on('end', async () => {
     try {
-      const { message, model, history, use_council } = JSON.parse(body);
+      const { message, model, history, use_council, stream: wantStream } = JSON.parse(body);
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'message required (string)' });
       }
-
       if (message.length > 50000) {
         return res.status(400).json({ error: 'message too long (max 50000 chars)' });
       }
-
-      // Use council if explicitly requested
       if (use_council && OPENROUTER_API_KEY) {
         return handleCouncilRequest(res, message);
       }
 
       // Build messages array with conversation history
       const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
-      
-      // Add conversation history (last 20 messages max)
       if (Array.isArray(history)) {
-        const recent = history.slice(-20);
-        for (const h of recent) {
+        for (const h of history.slice(-20)) {
           if (h.role === 'u') messages.push({ role: 'user', content: h.content });
           else if (h.role === 'a') messages.push({ role: 'assistant', content: h.content });
         }
       }
-      
       messages.push({ role: 'user', content: message });
 
       // Detect intent for smart model selection
@@ -305,11 +298,9 @@ async function handleChat(req, res) {
       const needsReasoning = /\b(math|reason|logic|proof|prove|calculate|solve|pattern|sequence|theorem|equation|missing.?number|find.?the|predict|next.?\d|part \d|step.by.step|edge.case|compare|contrast|pros.?cons|trade.?off|analysis|analyze|evaluate|assess|debate|argument|decision|which is better|explain why|how does|what causes|strategy|plan|design a system|architecture|troubleshoot|diagnose|debug this|what.?if|thought experiment)|\b\d+[\s,]+\d+[\s,]+\d+/i.test(message);
       const needsCoding = /\b(code|function|program|script|debug|refactor|implement|algorithm|class|api|write a |build a |def |const |import |return |for loop|while loop|array|list|dict|regex|database|query|schema|endpoint|server|client|component|module|package|library|framework|test case|unit test)|\b(python|javascript|java|rust|go|typescript|c\+\+|html|css|sql|react|vue|node|express|django|flask|fastapi)\b/i.test(message);
       const isHeavy = message.length > 500 || /\b(part \d|step \d|section|phase|first.*then|complex|comprehensive|detailed|thorough|exhaustive|complete guide|full|in-depth|everything about)\b/i.test(lc);
-      
-      // Select model chain based on intent — DeepSeek V3 always first (fast + 671B)
+
       let modelChain;
       if (model) {
-        // User specified a model
         const provider = ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter';
         modelChain = [{ model, provider }];
       } else if (needsCoding) {
@@ -320,16 +311,25 @@ async function handleChat(req, res) {
         modelChain = FAST_MODELS;
       }
 
-      // Try models in order until one succeeds (fallback chain)
-      let lastError = null;
-      for (const { model: m, provider: p } of modelChain) {
-        try {
+      const temp = needsReasoning ? 0.2 : (needsCoding ? 0.3 : 0.7);
+      const maxTok = (needsReasoning || needsCoding || isHeavy) ? 8192 : 4096;
+
+      // ---- SSE STREAMING MODE ----
+      if (wantStream) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        });
+
+        let lastError = null;
+        for (const { model: m, provider: p } of modelChain) {
           const isAlibaba = p === 'alibaba';
           const apiKey = isAlibaba ? DASHSCOPE_API_KEY : OPENROUTER_API_KEY;
           if (!apiKey) continue;
-          
+
           const apiBase = isAlibaba ? DASHSCOPE_API_BASE : OPENROUTER_API_BASE;
-          const headers = isAlibaba ? {
+          const hdrs = isAlibaba ? {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
           } : {
@@ -340,47 +340,182 @@ async function handleChat(req, res) {
           };
 
           const payload = JSON.stringify({
-            model: m,
-            messages,
-            temperature: needsReasoning ? 0.2 : (needsCoding ? 0.3 : 0.7),
-            max_tokens: 4096,
+            model: m, messages, temperature: temp, max_tokens: maxTok, stream: true,
           });
 
-          const result = await callAPI(apiBase, payload, headers);
-          
-          if (result.error) {
-            lastError = result.error.message || 'API error';
-            continue; // Try next model
-          }
-
-          const reply = result.choices?.[0]?.message?.content;
-          if (!reply || !reply.trim()) {
-            lastError = 'Empty response from ' + m;
+          try {
+            const ok = await callAPIStreaming(apiBase, payload, hdrs, res, m, p);
+            if (ok) return; // Stream completed successfully
+            // If callAPIStreaming returned false, no tokens were sent — try next model
+          } catch (e) {
+            lastError = e.message;
             continue;
           }
-
-          return res.status(200).json({
-            reply: reply.trim(),
-            usage: result.usage || {},
-            model: m,
-            provider: p,
-            council: false
-          });
-        } catch (e) {
-          lastError = e.message;
-          continue; // Try next model
         }
+        // All models failed in streaming mode
+        res.write(`data: ${JSON.stringify({ error: 'All models failed. ' + (lastError || '') })}\n\n`);
+        res.end();
+        return;
       }
 
-      // All models failed
-      return res.status(500).json({ 
-        error: 'All models failed. Last error: ' + (lastError || 'Unknown error'),
-        tried: modelChain.map(m => m.model)
-      });
+      // ---- NON-STREAMING FALLBACK (for API consumers) ----
+      let lastError = null;
+      for (const { model: m, provider: p } of modelChain) {
+        try {
+          const isAlibaba = p === 'alibaba';
+          const apiKey = isAlibaba ? DASHSCOPE_API_KEY : OPENROUTER_API_KEY;
+          if (!apiKey) continue;
+          const apiBase = isAlibaba ? DASHSCOPE_API_BASE : OPENROUTER_API_BASE;
+          const hdrs = isAlibaba ? {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          } : {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://github.com/claw-agent',
+            'X-Title': 'Claw AI',
+          };
+          const payload = JSON.stringify({
+            model: m, messages, temperature: temp, max_tokens: maxTok,
+          });
+          const result = await callAPI(apiBase, payload, hdrs);
+          if (result.error) { lastError = result.error.message || 'API error'; continue; }
+          const reply = result.choices?.[0]?.message?.content;
+          if (!reply || !reply.trim()) { lastError = 'Empty response from ' + m; continue; }
+          return res.status(200).json({ reply: reply.trim(), usage: result.usage || {}, model: m, provider: p, council: false });
+        } catch (e) { lastError = e.message; continue; }
+      }
+      return res.status(500).json({ error: 'All models failed. Last error: ' + (lastError || 'Unknown error'), tried: modelChain.map(m => m.model) });
     } catch (e) {
       console.error('Chat error:', e.message);
       res.status(500).json({ error: e.message });
     }
+  });
+}
+
+// SSE streaming: pipe upstream API SSE chunks directly to the client
+// Returns true if tokens were sent (success), false if failed before any tokens
+function callAPIStreaming(apiBase, payload, headers, clientRes, modelName, providerName) {
+  const url = new URL(`${apiBase}/chat/completions`);
+  return new Promise((resolve, reject) => {
+    let tokensSent = 0;
+    let fullContent = '';
+
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname,
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(payload) },
+      timeout: 55000, // 55s — within Vercel's 60s limit
+    };
+
+    const request = https.request(options, (apiRes) => {
+      if (apiRes.statusCode !== 200) {
+        let errData = '';
+        apiRes.on('data', chunk => errData += chunk);
+        apiRes.on('end', () => {
+          if (tokensSent === 0) {
+            resolve(false); // No tokens sent, caller can try next model
+          } else {
+            clientRes.write(`data: ${JSON.stringify({ error: 'API error mid-stream' })}\n\n`);
+            clientRes.write(`data: ${JSON.stringify({ done: true, model: modelName, provider: providerName, partial: true })}\n\n`);
+            clientRes.end();
+            resolve(true);
+          }
+        });
+        return;
+      }
+
+      // Send model info as first event
+      clientRes.write(`data: ${JSON.stringify({ model: modelName, provider: providerName, start: true })}\n\n`);
+
+      let buffer = '';
+      apiRes.on('data', (chunk) => {
+        buffer += chunk.toString();
+        // Process complete SSE frames (separated by \n\n)
+        const frames = buffer.split('\n\n');
+        buffer = frames.pop(); // Keep incomplete frame in buffer
+
+        for (const frame of frames) {
+          for (const line of frame.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') {
+              clientRes.write(`data: ${JSON.stringify({ done: true, model: modelName, provider: providerName })}\n\n`);
+              clientRes.end();
+              resolve(true);
+              return;
+            }
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                tokensSent++;
+                fullContent += delta;
+                clientRes.write(`data: ${JSON.stringify({ token: delta })}\n\n`);
+              }
+            } catch (e) { /* skip unparseable chunks */ }
+          }
+        }
+      });
+
+      apiRes.on('end', () => {
+        // Process any remaining buffer
+        if (buffer.trim()) {
+          for (const line of buffer.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) { tokensSent++; fullContent += delta; clientRes.write(`data: ${JSON.stringify({ token: delta })}\n\n`); }
+            } catch (e) { /* skip */ }
+          }
+        }
+        if (tokensSent > 0) {
+          if (!clientRes.writableEnded) {
+            clientRes.write(`data: ${JSON.stringify({ done: true, model: modelName, provider: providerName })}\n\n`);
+            clientRes.end();
+          }
+          resolve(true);
+        } else {
+          resolve(false); // No tokens received — try next model
+        }
+      });
+    });
+
+    request.on('error', (error) => {
+      if (tokensSent > 0) {
+        if (!clientRes.writableEnded) {
+          clientRes.write(`data: ${JSON.stringify({ error: error.message, partial: true, done: true })}\n\n`);
+          clientRes.end();
+        }
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
+
+    request.on('timeout', () => {
+      request.destroy();
+      if (tokensSent > 0) {
+        if (!clientRes.writableEnded) {
+          clientRes.write(`data: ${JSON.stringify({ error: 'timeout', partial: true, done: true })}\n\n`);
+          clientRes.end();
+        }
+        resolve(true);
+      } else {
+        resolve(false);
+      }
+    });
+
+    // Detect client disconnect
+    clientRes.on('close', () => { request.destroy(); });
+
+    request.write(payload);
+    request.end();
   });
 }
 
