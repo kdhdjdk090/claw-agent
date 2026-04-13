@@ -60,9 +60,9 @@
 
 | Command | What It Does |
 |---------|--------------|
-| **Just type** | Uses 8-model council automatically |
-| `/council <msg>` | Force council mode |
-| `/nocouncil <msg>` | Single model (faster) |
+| **Just type** | Uses 8-model ensemble automatically |
+| `/models <msg>` | Force ensemble mode |
+| `/noensemble <msg>` | Single model (faster) |
 | `/models` | Show available models |
 | `/skills` | List all skills |
 | `/skill-name <action>` | Use specific skill |
@@ -74,7 +74,7 @@
 ### Factual Question
 ```
 You: What is the capital of France?
-Claw: [Council Consensus (100% - 8/8 models agree)]
+Claw: [model agreement (100% - 8/8 models agree)]
       The capital of France is Paris.
 ```
 
@@ -97,15 +97,15 @@ Claw: *Comprehensive analysis with suggestions*
 ### When to Use What
 | Task | Mode | Why |
 |------|------|-----|
-| **Complex problem** | Council (auto) | 8 models > 1 |
-| **Quick fact** | /nocouncil | Faster |
-| **Coding** | Council + /web-dev | Best accuracy |
+| **Complex problem** | ensemble (auto) | 8 models > 1 |
+| **Quick fact** | /noensemble | Faster |
+| **Coding** | ensemble + /web-dev | Best accuracy |
 | **Review** | /code-review | Expert analysis |
 | **Deploy** | /devops deploy | Best practices |
 
 ### Reading Consensus
 ```
-[Council Consensus (100% - 8/8 models agree)]
+[model agreement (100% - 8/8 models agree)]
                      ↑
                Trust level
 ```
@@ -122,7 +122,7 @@ Claw: *Comprehensive analysis with suggestions*
 | Models | 8 active |
 | Skills | 14 installed |
 | Accuracy | 100% (facts) |
-| Speed | 5-10s (council) |
+| Speed | 5-10s (ensemble) |
 | Cost | $0.00 (FREE) |
 
 ---
@@ -131,7 +131,7 @@ Claw: *Comprehensive analysis with suggestions*
 
 ```bash
 # 8 Best Free Models
-COUNCIL_MODELS="deepseek/deepseek-v3,
+ensemble_MODELS="deepseek/deepseek-v3,
   qwen/qwen3-80b,
   meta-llama/llama-3.3-70b-instruct,
   qwen/qwen-2.5-coder-32b-instruct,
@@ -141,7 +141,7 @@ COUNCIL_MODELS="deepseek/deepseek-v3,
   anthropic/claude-3-haiku-20240307"
 
 # Consensus Threshold
-COUNCIL_THRESHOLD=0.6
+ensemble_THRESHOLD=0.6
 ```
 
 ---
@@ -150,7 +150,7 @@ COUNCIL_THRESHOLD=0.6
 
 - ✅ 8 models active
 - ✅ 14 skills installed
-- ✅ Council working (100%)
+- ✅ ensemble working (100%)
 - ✅ Vercel deployed
 - ✅ All endpoints responding
 - ✅ Cost: $0.00

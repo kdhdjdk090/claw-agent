@@ -41,13 +41,13 @@ ClaudeAI ❯ /models
 
 **Solution:**
 - Updated `list_models()` to include cloud/OpenRouter models
-- Fixed `/models` to show tiered council models with proper formatting
+- Fixed `/models` to show tiered ensemble models with proper formatting
 - Fixed `/model` to show available models with current marker
 
 **Before:** Empty output  
 **After:** 
 ```
-🏛️ Council Models (8 via OpenRouter)
+🏛️ ensemble models (8 via OpenRouter)
 
 🥇 Tier 1 - Most Powerful:
   • deepseek/deepseek-v3
@@ -101,7 +101,7 @@ KeyboardInterrupt
 **Solution:**
 - Made Ollama optional when cloud mode is active
 - Made Git optional (shows "OK" if missing)
-- Added OpenRouter Council status check
+- Added OpenRouter ensemble status check
 - Shows meaningful status based on active mode
 
 **Before:**
@@ -111,11 +111,11 @@ KeyboardInterrupt
 ✗ Git: not found
 ```
 
-**After (Council Mode):**
+**After (ensemble mode):**
 ```
-✓ OpenRouter Council: ✓ 8 models configured
+✓ OpenRouter ensemble: ✓ 8 models configured
 ✓ Ollama (Optional): Not running — OK, using cloud mode
-✓ Council Models: 8 models via OpenRouter
+✓ ensemble models: 8 models via OpenRouter
 ✓ Tool Registry: 26 tools loaded
 ✓ Git (Optional): Not found — OK
 ```
@@ -125,15 +125,15 @@ KeyboardInterrupt
 
 ---
 
-### 5. ✅ Updated to OpenRouter Council
+### 5. ✅ Updated to OpenRouter ensemble
 
-**Problem:** Only DeepSeek API was used, no council mode
+**Problem:** Only DeepSeek API was used, no ensemble mode
 
 **Solution:**
-- Auto-detect OpenRouter API key and enable council mode
-- Updated banner to show "Council" mode with model count
-- Updated all status commands to show council info
-- Priority: Council > DeepSeek > Ollama
+- Auto-detect OpenRouter API key and enable ensemble mode
+- Updated banner to show "ensemble" mode with model count
+- Updated all status commands to show ensemble info
+- Priority: ensemble > DeepSeek > Ollama
 
 **Before:**
 ```
@@ -143,8 +143,8 @@ KeyboardInterrupt
 
 **After:**
 ```
-🦞 Claw AI v2.0 - Multi-Model Council
-🏛️ Council • 8 models via OpenRouter
+🦞 Claw AI v2.0 - multi-model ensemble
+🏛️ ensemble • 8 models via OpenRouter
 ```
 
 **Files Modified:**
@@ -156,7 +156,7 @@ KeyboardInterrupt
 
 ## 📊 CURRENT SETUP
 
-### Council Models (8 Best Free)
+### ensemble models (8 Best Free)
 
 | Tier | Model | Purpose |
 |------|-------|---------|
@@ -182,16 +182,16 @@ KeyboardInterrupt
 
 ### API Endpoints
 - ✅ `/api/models` - Working (8 models)
-- ✅ `/api/council` - Working (100% consensus on facts)
-- ✅ `/api/chat` - Working (auto-council mode)
+- ✅ `/api/models` - Working (100% consensus on facts)
+- ✅ `/api/chat` - Working (auto-ensemble mode)
 - ✅ `/` - Working (chat interface)
 
 ### CLI Commands
 - ✅ `/help` - Shows all commands
-- ✅ `/models` - Shows 8 council models with tiers
+- ✅ `/models` - Shows 8 ensemble models with tiers
 - ✅ `/model` - Shows/switches models
 - ✅ `/doctor` - Shows proper diagnostics
-- ✅ `/status` - Shows council status
+- ✅ `/status` - Shows ensemble status
 - ✅ `/skills` - Lists all 14 skills
 - ✅ All other commands working
 
@@ -199,7 +199,7 @@ KeyboardInterrupt
 - ✅ Sidebar shows all 8 models
 - ✅ Sidebar shows all commands
 - ✅ Sidebar shows top skills
-- ✅ Chat shows council consensus badges
+- ✅ Chat shows model agreement badges
 - ✅ All commands accessible
 
 ---
@@ -217,10 +217,10 @@ claw
 
 ### Commands
 ```
-/models        - Show all 8 council models
+/models        - Show all 8 ensemble models
 /skills        - List all 14 skills
 /doctor        - Run diagnostics
-/status        - Show council status
+/status        - Show ensemble status
 /help          - All commands
 ```
 
@@ -230,13 +230,13 @@ claw
 
 ### Modified (3 files)
 1. `claw_agent/agent.py` - Tool validation, OpenRouter support
-2. `claw_agent/cli.py` - All CLI fixes, council integration
-3. `api/index.js` - Council models list updated
+2. `claw_agent/cli.py` - All CLI fixes, ensemble integration
+3. `api/index.js` - ensemble models list updated
 
 ### Verified Working
 - ✅ Vercel deployment: https://clean-claw-ai.vercel.app
 - ✅ All 8 models responding
-- ✅ Council consensus working
+- ✅ model agreement working
 - ✅ All commands functional
 - ✅ No crashes or errors
 
@@ -248,12 +248,12 @@ claw
 |-------|--------|-----|
 | 400 Bad Request errors | ✅ Fixed | Tool name validation |
 | /model shows nothing | ✅ Fixed | Returns cloud models |
-| /models shows nothing | ✅ Fixed | Shows tiered council |
+| /models shows nothing | ✅ Fixed | Shows tiered ensemble |
 | Pathlib crash | ✅ Fixed | Empty name rejection |
 | /doctor all red X | ✅ Fixed | Graceful handling |
 | Git missing error | ✅ Fixed | Made optional |
 | Ollama required | ✅ Fixed | Optional with cloud |
-| No council mode | ✅ Fixed | Auto-detect enabled |
+| No ensemble mode | ✅ Fixed | Auto-detect enabled |
 
 ---
 
@@ -265,7 +265,7 @@ claw
 - ✅ CLI commands: Working
 - ✅ Pathlib crash: Fixed  
 - ✅ Diagnostics: Improved
-- ✅ Council mode: Active
+- ✅ ensemble mode: Active
 - ✅ Web UI: Updated
 - ✅ Vercel: Deployed
 

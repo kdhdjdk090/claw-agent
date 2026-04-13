@@ -70,8 +70,8 @@ The system now automatically uses the best model for each task:
 | **Creative** | Llama 3.3 70B | Best personality |
 | **Fast Response** | Gemma 3 12B | Quickest |
 
-### Council Consensus
-All queries go through the council:
+### model agreement
+All queries go through the ensemble:
 - **8 models** queried in parallel
 - **Consensus algorithm** finds agreement
 - **Confidence score** shows reliability
@@ -84,7 +84,7 @@ All queries go through the council:
 ### Test 1: Factual Question
 ```
 Query: "What is the capital of France?"
-Result: [Council Consensus (100% - 8/8 models agree)] → Paris
+Result: [model agreement (100% - 8/8 models agree)] → Paris
 Status: ✅ PERFECT - All models correct
 ```
 
@@ -109,7 +109,7 @@ Status: ✅ ALL AVAILABLE
 ### Browser Chat (Vercel)
 **URL:** https://clean-claw-ai.vercel.app
 
-Just chat - council mode with 8 models is automatic!
+Just chat - ensemble mode with 8 models is automatic!
 
 ### Available Skills
 
@@ -227,16 +227,16 @@ When using Claw AI, these skills are automatically available:
 - **URL:** https://clean-claw-ai.vercel.app
 - **Models:** 8 active and verified
 - **Skills:** 14 installed
-- **Council:** Working with 100% consensus
+- **ensemble:** Working with 100% consensus
 - **API:** All endpoints responding
 
 ### Configuration
 ```bash
 # Models (8 best free)
-COUNCIL_MODELS="deepseek/deepseek-v3,qwen/qwen3-80b,meta-llama/llama-3.3-70b-instruct,qwen/qwen-2.5-coder-32b-instruct,deepseek/deepseek-r1,google/gemma-3-12b-it,openai/gpt-4o-mini,anthropic/claude-3-haiku-20240307"
+ensemble_MODELS="deepseek/deepseek-v3,qwen/qwen3-80b,meta-llama/llama-3.3-70b-instruct,qwen/qwen-2.5-coder-32b-instruct,deepseek/deepseek-r1,google/gemma-3-12b-it,openai/gpt-4o-mini,anthropic/claude-3-haiku-20240307"
 
 # Consensus threshold
-COUNCIL_THRESHOLD=0.6
+ensemble_THRESHOLD=0.6
 
 # API Key
 OPENROUTER_API_KEY="sk-or-v1-..." ✅
@@ -248,7 +248,7 @@ OPENROUTER_API_KEY="sk-or-v1-..." ✅
 
 1. ✅ **START USING** - Go to https://clean-claw-ai.vercel.app
 2. ✅ **TRY SKILLS** - Use /skill-name commands
-3. ✅ **TEST COUNCIL** - Ask questions and see 8-model consensus
+3. ✅ **TEST ensemble** - Ask questions and see 8-model consensus
 4. ✅ **ENJOY** - Best free AI setup possible!
 
 ---
@@ -264,14 +264,14 @@ OPENROUTER_API_KEY="sk-or-v1-..." ✅
 ```
 
 ### Model Selection
-- **Complex tasks** → Council uses DeepSeek V3 automatically
+- **Complex tasks** → ensemble uses DeepSeek V3 automatically
 - **Coding questions** → Qwen Coder gets priority
 - **Quick facts** → Gemma 3 responds fastest
-- **Best accuracy** → Full 8-model council
+- **Best accuracy** → Full 8-model ensemble
 
 ### Best Practices
 - Use skills for specialized tasks
-- Council mode for critical decisions
+- ensemble mode for critical decisions
 - Single model for speed when needed
 - Check consensus % for confidence
 
@@ -280,10 +280,10 @@ OPENROUTER_API_KEY="sk-or-v1-..." ✅
 ## 🎓 TECHNICAL DETAILS
 
 ### Files Modified
-1. ✅ `claw_agent/ll_council.py` - Updated to 8 best models
+1. ✅ `claw_agent/ll_ensemble.py` - Updated to 8 best models
 2. ✅ `claw_agent/skills.py` - Expanded to 14 skills
 3. ✅ `api/index.js` - Updated model list
-4. ✅ `.env.local` - New council configuration
+4. ✅ `.env.local` - New ensemble configuration
 
 ### Architecture
 ```
@@ -293,7 +293,7 @@ User Query
     ↓
 [Best Model Selection]
     ↓
-[8-Model Council Query]
+[8-Model ensemble Query]
     ↓
 [Consensus Algorithm]
     ↓

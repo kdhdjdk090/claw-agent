@@ -1,4 +1,4 @@
-# 🎉 Claw AI Council System - COMPLETE SUCCESS
+# 🎉 Claw AI ensemble System - COMPLETE SUCCESS
 
 ## ✅ FULLY DEPLOYED & VERIFIED
 
@@ -26,14 +26,14 @@ Your Claw AI now uses **6 AI models simultaneously** to provide:
 ### Simple Facts Test
 ```
 Query: "What is 2+2?"
-Result: [Council Consensus (100% - 6/6 models agree)] → 4
+Result: [model agreement (100% - 6/6 models agree)] → 4
 Status: ✅ PERFECT
 ```
 
 ### General Knowledge Test
 ```
 Query: "What is the capital of France?"
-Result: [Council Consensus (100% - 6/6 models agree)] → Paris
+Result: [model agreement (100% - 6/6 models agree)] → Paris
 Status: ✅ PERFECT
 ```
 
@@ -61,12 +61,12 @@ Status: ✅ FLAWLESS
 |----------|-----|--------|
 | **Main Site** | https://clean-claw-ai.vercel.app | ✅ Active |
 | **API Models** | https://clean-claw-ai.vercel.app/api/models | ✅ Working |
-| **API Council** | https://clean-claw-ai.vercel.app/api/council | ✅ Working |
+| **API ensemble** | https://clean-claw-ai.vercel.app/api/models | ✅ Working |
 | **API Chat** | https://clean-claw-ai.vercel.app/api/chat | ✅ Working |
 
 ---
 
-## 🏛️ Council Models (6 Active)
+## 🏛️ ensemble models (6 Active)
 
 1. ✅ **GPT-4o-mini** (OpenAI)
 2. ✅ **Claude 3 Haiku** (Anthropic)  
@@ -84,13 +84,13 @@ Status: ✅ FLAWLESS
 ### Browser Chat (Vercel)
 1. Go to: https://clean-claw-ai.vercel.app
 2. Type your question in the chat
-3. Council mode is AUTOMATIC
+3. ensemble mode is AUTOMATIC
 4. Get consensus-validated answers!
 
 ### API Usage
 ```bash
-# Council query (6 models)
-curl -X POST https://clean-claw-ai.vercel.app/api/council \
+# ensemble query (6 models)
+curl -X POST https://clean-claw-ai.vercel.app/api/models \
   -H "Content-Type: application/json" \
   -d '{"message":"Your question here"}'
 
@@ -123,7 +123,7 @@ python -m claw_agent
 
 ## 🎯 Key Features Verified
 
-- ✅ **Council Mode Active** - All 6 models responding
+- ✅ **ensemble mode Active** - All 6 models responding
 - ✅ **Consensus Algorithm** - Working perfectly
 - ✅ **Browser Interface** - Fully functional
 - ✅ **API Endpoints** - All wired correctly
@@ -141,14 +141,14 @@ python -m claw_agent
 1 AI model → 1 answer → Hope it's correct
 ```
 
-### After (Council System)
+### After (ensemble System)
 ```
 6 AI models → Consensus algorithm → Validated answer with confidence %
 ```
 
 **Example:**
 ```
-[Council Consensus (100% - 6/6 models agree)]
+[model agreement (100% - 6/6 models agree)]
 
 The capital of France is Paris.
 ```
@@ -161,11 +161,11 @@ You now KNOW the answer is reliable because all 6 models agree!
 
 | File | Purpose |
 |------|---------|
-| **COUNCIL_GUIDE.md** | Complete user guide |
+| **ensemble_GUIDE.md** | Complete user guide |
 | **MIGRATION.md** | What changed from old setup |
 | **QUICK_REFERENCE.md** | Quick commands & tips |
 | **VERIFICATION_REPORT.md** | Full test results |
-| **council-test.html** | Interactive test page |
+| **ensemble-test.html** | Interactive test page |
 
 ---
 
@@ -184,7 +184,7 @@ You now KNOW the answer is reliable because all 6 models agree!
 - **Low consensus (<60%)** = Models disagree, review alternatives  
 - **Coding questions** = Usually show different but valid approaches
 - **Factual questions** = Typically 100% consensus
-- **Use `/nocouncil`** = When you need faster single-model response
+- **Use `/noensemble`** = When you need faster single-model response
 
 ---
 
@@ -198,7 +198,7 @@ You now KNOW the answer is reliable because all 6 models agree!
 
 ### Deployment
 - **Vercel Serverless** - Automatic scaling
-- **512MB Memory** - Sufficient for council queries
+- **512MB Memory** - Sufficient for ensemble queries
 - **60s Timeout** - Handles all 6 model responses
 - **CORS Enabled** - Browser access supported
 

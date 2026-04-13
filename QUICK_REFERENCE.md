@@ -11,11 +11,11 @@ python -m claw_agent
 | Type | Command | Example |
 |------|---------|---------|
 | **Normal Chat** | Just type | `How do I reverse a string in Python?` |
-| **Force Council** | `/council` | `/council Explain quantum computing` |
-| **Single Model** | `/nocouncil` | `/nocouncil What is 2+2?` |
-| **Show Models** | `/models` | Shows all 6 council models |
+| **Force ensemble** | `/models` | `/models Explain quantum computing` |
+| **Single Model** | `/noensemble` | `/noensemble What is 2+2?` |
+| **Show Models** | `/models` | Shows all 6 ensemble models |
 
-## 🏛️ Council Models (6 Total - ALL FREE!)
+## 🏛️ ensemble models (6 Total - ALL FREE!)
 
 1. **GPT-4o-mini** (OpenAI) - General reasoning & coding
 2. **Claude 3 Haiku** (Anthropic) - Natural language
@@ -28,7 +28,7 @@ python -m claw_agent
 
 ### High Consensus (Good!)
 ```
-[Council Consensus (83% - 5/6 models agree)]
+[model agreement (83% - 5/6 models agree)]
 
 Here's the solution...
 ```
@@ -36,7 +36,7 @@ Here's the solution...
 
 ### Low Consensus (Diverse views)
 ```
-[Council Vote - No consensus (33%)]
+[ensemble Vote - No consensus (33%)]
 
 **Majority:** Use recursion...
 
@@ -48,7 +48,7 @@ Here's the solution...
 
 ## ⚡ Performance
 
-| Metric | Single Model | Council (6 models) |
+| Metric | Single Model | ensemble (6 models) |
 |--------|--------------|---------------------|
 | **Speed** | 2-5 seconds | 5-10 seconds |
 | **Accuracy** | Good | **Excellent** |
@@ -59,11 +59,11 @@ Here's the solution...
 
 | Task | Mode | Why |
 |------|------|-----|
-| **Coding questions** | Council (auto) | Cross-validated solutions |
-| **Simple facts** | /nocouncil | Faster, all models agree anyway |
-| **Analysis** | Council (auto) | Multiple perspectives |
-| **Creative tasks** | Council (auto) | Diverse ideas |
-| **Quick checks** | /nocouncil | Speed over accuracy |
+| **Coding questions** | ensemble (auto) | Cross-validated solutions |
+| **Simple facts** | /noensemble | Faster, all models agree anyway |
+| **Analysis** | ensemble (auto) | Multiple perspectives |
+| **Creative tasks** | ensemble (auto) | Diverse ideas |
+| **Quick checks** | /noensemble | Speed over accuracy |
 
 ## 🔧 Configuration (.env.local)
 
@@ -72,10 +72,10 @@ Here's the solution...
 OPENROUTER_API_KEY="sk-or-v1-..."
 
 # Customize models (optional)
-COUNCIL_MODELS="openai/gpt-4o-mini,..."
+ensemble_MODELS="openai/gpt-4o-mini,..."
 
 # Adjust consensus threshold (optional)
-COUNCIL_THRESHOLD=0.6  # 60% agreement required
+ensemble_THRESHOLD=0.6  # 60% agreement required
 ```
 
 ## 🌐 Deploy to Cloud
@@ -84,13 +84,13 @@ COUNCIL_THRESHOLD=0.6  # 60% agreement required
 vercel --prod
 ```
 
-Council works identically in the cloud! ☁️
+ensemble works identically in the cloud! ☁️
 
 ## 📚 Documentation
 
 | File | What's Inside |
 |------|---------------|
-| **COUNCIL_GUIDE.md** | Complete feature documentation |
+| **ensemble_GUIDE.md** | Complete feature documentation |
 | **MIGRATION.md** | Migration from old setup |
 | **UPGRADE_COMPLETE.md** | Summary of all changes |
 | **README.md** | General project info |
@@ -99,8 +99,8 @@ Council works identically in the cloud! ☁️
 
 Before you start:
 - [x] OpenRouter API key configured
-- [x] 6 council models loaded
-- [x] Council mode enabled (automatic)
+- [x] 6 ensemble models loaded
+- [x] ensemble mode enabled (automatic)
 - [x] All tests passing
 
 ## 🆘 Troubleshooting
@@ -108,30 +108,30 @@ Before you start:
 | Problem | Solution |
 |---------|----------|
 | "All models failed" | Check internet & API key |
-| Slow responses | Normal for 6 models, use `/nocouncil` |
-| Want single model | Use `/nocouncil` command |
-| Council not working | Check `OPENROUTER_API_KEY` in `.env.local` |
+| Slow responses | Normal for 6 models, use `/noensemble` |
+| Want single model | Use `/noensemble` command |
+| ensemble not working | Check `OPENROUTER_API_KEY` in `.env.local` |
 
 ## 💡 Pro Tips
 
 1. **Trust high consensus** - 80%+ is very reliable
 2. **Read alternatives** - Low consensus shows different approaches
-3. **Use /nocouncil for speed** - When you need fast answers
+3. **Use /noensemble for speed** - When you need fast answers
 4. **Code = high consensus** - Models usually agree on code
 5. **Opinions vary** - Analysis questions show diverse views
 
 ## 🎉 You're Ready!
 
-**Just start chatting - the council works automatically!**
+**Just start chatting - the ensemble works automatically!**
 
 ```
 You: How do I sort a list in Python?
-Claw: [Council Consensus (83% - 5/6 models agree)]
+Claw: [model agreement (83% - 5/6 models agree)]
       Here are the best approaches...
 ```
 
 ---
 
 **Powered by 6 FREE AI models via OpenRouter**  
-**Inspired by Karpathy's ll-council**  
+**Inspired by Karpathy's ll-ensemble**  
 **Consensus-validated for accuracy** 🦞✨

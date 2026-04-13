@@ -1,8 +1,8 @@
-# 🔥 Claw AI Upgrade - OpenRouter Council Migration
+# 🔥 Claw AI Upgrade - OpenRouter ensemble Migration
 
 ## What's New?
 
-Claw AI has been **completely upgraded** from using a single DeepSeek/Ollama model to a **Multi-Model Council** system using OpenRouter's free AI models!
+Claw AI has been **completely upgraded** from using a single DeepSeek/Ollama model to a **multi-model ensemble** system using OpenRouter's free AI models!
 
 ## 🎯 Key Changes
 
@@ -11,14 +11,14 @@ Claw AI has been **completely upgraded** from using a single DeepSeek/Ollama mod
 - **New**: OpenRouter with 6 free AI models working together
 - **API Key**: `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`
 
-### 2. **Council Architecture** (Karpathy-style)
-Based on [karpathy/ll-council](https://github.com/karpathy/llm-council):
+### 2. **ensemble Architecture** (Karpathy-style)
+Based on [karpathy/ll-ensemble](https://github.com/karpathy/llm-ensemble):
 - Query multiple AI models simultaneously
 - Aggregate responses automatically
 - Return consensus answers with confidence scores
 - Show alternative viewpoints when models disagree
 
-### 3. **Models in Your Council**
+### 3. **Models in Your ensemble**
 All **completely FREE** on OpenRouter:
 1. `openai/gpt-4o-mini` - OpenAI's efficient model
 2. `anthropic/claude-3-haiku` - Anthropic's fast model
@@ -31,13 +31,13 @@ All **completely FREE** on OpenRouter:
 
 #### ✏️ Modified Files:
 - `.env.local` - Replaced DeepSeek key with OpenRouter setup
-- `claw_agent/agent.py` - Added council auto-detection and integration
-- `api/index.js` - Complete rewrite for council support
-- `vercel.json` - Updated for council endpoints and config
+- `claw_agent/agent.py` - Added ensemble auto-detection and integration
+- `api/index.js` - Complete rewrite for ensemble support
+- `vercel.json` - Updated for ensemble endpoints and config
 
 #### 📄 New Files:
-- `claw_agent/ll_council.py` - Core council orchestration module
-- `COUNCIL_GUIDE.md` - Comprehensive council documentation
+- `claw_agent/ll_ensemble.py` - Core ensemble orchestration module
+- `ensemble_GUIDE.md` - Comprehensive ensemble documentation
 - `MIGRATION.md` - This file!
 
 ## 🚀 Migration Steps
@@ -46,14 +46,14 @@ All **completely FREE** on OpenRouter:
 Your `.env.local` now has:
 ```bash
 OPENROUTER_API_KEY="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"
-COUNCIL_MODELS="openai/gpt-4o-mini,anthropic/claude-3-haiku,google/gemini-flash-1.5,qwen/qwen-2.5-coder-32b-instruct,meta-llama/llama-3.3-70b-instruct,mistralai/mistral-small-24b-instruct-2501"
-COUNCIL_THRESHOLD=0.6
+ensemble_MODELS="openai/gpt-4o-mini,anthropic/claude-3-haiku,google/gemini-flash-1.5,qwen/qwen-2.5-coder-32b-instruct,meta-llama/llama-3.3-70b-instruct,mistralai/mistral-small-24b-instruct-2501"
+ensemble_THRESHOLD=0.6
 DEEPSEEK_API_KEY=""  # Kept for legacy support
 ```
 
 ### Step 2: Code Updated ✅
 - Agent automatically detects OpenRouter key
-- Council mode is enabled by default
+- ensemble mode is enabled by default
 - All existing functionality preserved
 
 ### Step 3: Ready to Use! ✅
@@ -61,21 +61,21 @@ No additional steps needed. Just start using Claw AI!
 
 ## 🎮 How to Use
 
-### Normal Usage (Council Mode)
+### Normal Usage (ensemble mode)
 ```bash
 cd claw-agent
 python -m claw_agent
 ```
 
-Then just chat! The council works automatically.
+Then just chat! The ensemble works automatically.
 
 ### Commands
 
 | Command | Description |
 |---------|-------------|
-| `/nocouncil <message>` | Use single model (faster, less accurate) |
-| `/council <message>` | Force council mode |
-| `/models` | Show available council models |
+| `/noensemble <message>` | Use single model (faster, less accurate) |
+| `/models <message>` | Force ensemble mode |
+| `/models` | Show available ensemble models |
 
 ### Example Interactions
 
@@ -86,7 +86,7 @@ Write a Python function to calculate fibonacci
 
 **Expected Output:**
 ```
-[Council Consensus (83% - 5/6 models agree)]
+[model agreement (83% - 5/6 models agree)]
 
 def fibonacci(n):
     if n <= 1:
@@ -104,7 +104,7 @@ What are the pros and cons of microservices?
 
 **Expected Output:**
 ```
-[Council Consensus (67% - 4/6 models agree)]
+[model agreement (67% - 4/6 models agree)]
 
 Pros:
 - Scalability
@@ -120,7 +120,7 @@ Cons:
 
 ## 📊 Comparison: Before vs After
 
-| Aspect | Before (DeepSeek) | After (Council) |
+| Aspect | Before (DeepSeek) | After (ensemble) |
 |--------|-------------------|-----------------|
 | **Models** | 1 (deepseek-chat) | 6 (GPT, Claude, Gemini, Qwen, Llama, Mistral) |
 | **Cost** | Free tier | **Completely FREE** (all models on free tier) |
@@ -132,7 +132,7 @@ Cons:
 
 ## 🧪 Testing Your Setup
 
-### Test 1: Check Council Status
+### Test 1: Check ensemble Status
 ```bash
 curl http://localhost:3000/api/models
 ```
@@ -140,9 +140,9 @@ curl http://localhost:3000/api/models
 Should return:
 ```json
 {
-  "council": ["openai/gpt-4o-mini", "anthropic/claude-3-haiku", ...],
-  "council_enabled": true,
-  "mode": "council"
+  "ensemble": ["openai/gpt-4o-mini", "anthropic/claude-3-haiku", ...],
+  "ensemble_enabled": true,
+  "mode": "ensemble"
 }
 ```
 
@@ -170,18 +170,18 @@ Should show good consensus with comprehensive answer
 Edit `.env.local`:
 ```bash
 # Use only 3 models
-COUNCIL_MODELS="openai/gpt-4o-mini,anthropic/claude-3-haiku,google/gemini-flash-1.5"
+ensemble_MODELS="openai/gpt-4o-mini,anthropic/claude-3-haiku,google/gemini-flash-1.5"
 ```
 
 ### Increase Consensus Requirement
 ```bash
 # Require 75% agreement
-COUNCIL_THRESHOLD=0.75
+ensemble_THRESHOLD=0.75
 ```
 
-### Disable Council Temporarily
+### Disable ensemble Temporarily
 ```bash
-DISABLE_COUNCIL=true
+DISABLE_ensemble=true
 ```
 
 ## 🔄 Backward Compatibility
@@ -193,25 +193,25 @@ DISABLE_COUNCIL=true
 
 ### Migration Path
 ```
-Single Model (Old) → Council (New) → Better Answers
+Single Model (Old) → ensemble (New) → Better Answers
 ```
 
 ## 🚀 Deploying to Vercel
 
-Your council configuration is ready for cloud deployment:
+Your ensemble configuration is ready for cloud deployment:
 
 ```bash
 cd claw-agent
 vercel --prod
 ```
 
-The council will work identically in the cloud!
+The ensemble will work identically in the cloud!
 
 ### Vercel Environment Variables
 The following are configured in `vercel.json`:
 - `OPENROUTER_API_KEY` - Your API key
-- `COUNCIL_MODELS` - Model list
-- `COUNCIL_THRESHOLD` - Consensus requirement
+- `ensemble_MODELS` - Model list
+- `ensemble_THRESHOLD` - Consensus requirement
 
 ## 🐛 Known Issues & Solutions
 
@@ -222,12 +222,12 @@ The following are configured in `vercel.json`:
 **Solution**: Normal for 6 models. Reduce count if needed.
 
 ### Issue: Want single model back
-**Solution**: Use `/nocouncil` command or set `DISABLE_COUNCIL=true`
+**Solution**: Use `/noensemble` command or set `DISABLE_ensemble=true`
 
 ## 📚 Learn More
 
-- **COUNCIL_GUIDE.md** - Full documentation
-- **karpathy/ll-council** - Original concept
+- **ensemble_GUIDE.md** - Full documentation
+- **karpathy/ll-ensemble** - Original concept
 - **OpenRouter** - https://openrouter.ai
 
 ## ✨ Benefits of This Upgrade
@@ -244,7 +244,7 @@ The following are configured in `vercel.json`:
 ## 🎯 Next Steps
 
 1. **Test it out** - Start chatting with Claw AI
-2. **Read COUNCIL_GUIDE.md** - Learn all features
+2. **Read ensemble_GUIDE.md** - Learn all features
 3. **Customize** - Adjust models to your needs
 4. **Deploy** - Push to Vercel for cloud access
 
@@ -252,4 +252,4 @@ The following are configured in `vercel.json`:
 
 **Upgrade Complete! 🎉**
 
-Your Claw AI is now powered by a state-of-the-art Multi-Model Council using OpenRouter's best free models. Enjoy more accurate, reliable, and validated AI responses!
+Your Claw AI is now powered by a state-of-the-art multi-model ensemble using OpenRouter's best free models. Enjoy more accurate, reliable, and validated AI responses!

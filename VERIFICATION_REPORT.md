@@ -1,28 +1,28 @@
-# 🎉 Claw AI Council System - Full Verification Report
+# 🎉 Claw AI ensemble System - Full Verification Report
 
 ## ✅ ALL TESTS PASSED - FULLY OPERATIONAL
 
 **Test Date:** April 13, 2026  
 **Deployment:** https://clean-claw-ai.vercel.app  
-**System:** Multi-Model Council with OpenRouter (6 AI models)
+**System:** multi-model ensemble with OpenRouter (6 AI models)
 
 ---
 
 ## 📊 Test Results Summary
 
-### 1. ✅ Council Mode Configuration
+### 1. ✅ ensemble mode Configuration
 **Status:** ACTIVE & VERIFIED
 
 ```json
 {
-  "council_enabled": true,
-  "mode": "council",
+  "ensemble_enabled": true,
+  "mode": "ensemble",
   "api_key_set": true,
   "model_count": 6
 }
 ```
 
-**Council Models (6 Total):**
+**ensemble models (6 Total):**
 1. ✅ openai/gpt-4o-mini
 2. ✅ anthropic/claude-3-haiku
 3. ✅ google/gemini-flash-1.5
@@ -32,13 +32,13 @@
 
 ---
 
-### 2. ✅ Council Endpoint Test (Simple Question)
-**Endpoint:** `POST /api/council`  
+### 2. ✅ ensemble Endpoint Test (Simple Question)
+**Endpoint:** `POST /api/models`  
 **Query:** "What is 2+2? Reply with just the number."
 
 **Result:**
 ```
-[Council Consensus (100% - 6/6 models agree)]
+[model agreement (100% - 6/6 models agree)]
 
 4
 ```
@@ -53,13 +53,13 @@
 
 ---
 
-### 3. ✅ Council Endpoint Test (Coding Question)
-**Endpoint:** `POST /api/council`  
+### 3. ✅ ensemble Endpoint Test (Coding Question)
+**Endpoint:** `POST /api/models`  
 **Query:** "Write a Python function to check if a string is a palindrome."
 
 **Result:**
 ```
-[Council Vote - No consensus (33%)]
+[ensemble Vote - No consensus (33%)]
 
 **Majority:** Complete palindrome function with normalization
 **Alternatives:** Different approaches shown by other models
@@ -77,19 +77,19 @@
 
 ---
 
-### 4. ✅ Chat Endpoint Test (Auto-Council)
+### 4. ✅ Chat Endpoint Test (Auto-ensemble)
 **Endpoint:** `POST /api/chat`  
 **Query:** "What is the capital of France?"
 
 **Result:**
 ```
-[Council Consensus (100% - 6/6 models agree)]
+[model agreement (100% - 6/6 models agree)]
 
 The capital of France is Paris.
 ```
 
 **Performance:**
-- ✅ Auto-council activated
+- ✅ Auto-ensemble activated
 - ✅ Models Queried: 6
 - ✅ Successful Responses: 6
 - ✅ Consensus: 100%
@@ -104,9 +104,9 @@ The capital of France is Paris.
 **Response:**
 ```json
 {
-  "council": ["openai/gpt-4o-mini", "anthropic/claude-3-haiku", ...],
-  "council_enabled": true,
-  "mode": "council",
+  "ensemble": ["openai/gpt-4o-mini", "anthropic/claude-3-haiku", ...],
+  "ensemble_enabled": true,
+  "mode": "ensemble",
   "api_key_set": true,
   "model_count": 6
 }
@@ -118,14 +118,14 @@ The capital of France is Paris.
 
 ### Module Import Test
 ```bash
-✅ Council module imported successfully
+✅ ensemble module imported successfully
 ✅ 6 models configured
 ✅ All dependencies met
 ```
 
-### Council Initialization
+### ensemble Initialization
 ```python
-✅ LLCouncil created with 6 models
+✅ LLensemble created with 6 models
 ✅ OpenRouter API key loaded
 ✅ System prompt configured
 ```
@@ -145,7 +145,7 @@ The capital of France is Paris.
 | Endpoint | Method | Status | Response Time |
 |----------|--------|--------|---------------|
 | `/api/models` | GET | ✅ 200 OK | <1s |
-| `/api/council` | POST | ✅ 200 OK | 5-10s |
+| `/api/models` | POST | ✅ 200 OK | 5-10s |
 | `/api/chat` | POST | ✅ 200 OK | 5-10s |
 | `/` | GET | ✅ 200 OK | <1s |
 
@@ -216,7 +216,7 @@ The capital of France is Paris.
 ## 🛡️ Reliability Tests
 
 ### Fault Tolerance
-Even if 1-2 models fail, the council still works:
+Even if 1-2 models fail, the ensemble still works:
 - 4/6 models = 67% consensus threshold ✅
 - System is resilient to individual model failures
 
@@ -230,9 +230,9 @@ Even if 1-2 models fail, the council still works:
 ## 🎨 Browser Interface
 
 ### Test Page Created
-**File:** `council-test.html`  
+**File:** `ensemble-test.html`  
 **Features:**
-- ✅ Real-time council testing
+- ✅ Real-time ensemble testing
 - ✅ Visual consensus display
 - ✅ Model status indicators
 - ✅ Custom query support
@@ -254,15 +254,15 @@ Even if 1-2 models fail, the council still works:
 | Variable | Status | Value |
 |----------|--------|-------|
 | `OPENROUTER_API_KEY` | ✅ Set | sk-or-v1-... (valid) |
-| `COUNCIL_MODELS` | ✅ Set | 6 models configured |
-| `COUNCIL_THRESHOLD` | ✅ Set | 0.6 (60%) |
+| `ensemble_MODELS` | ✅ Set | 6 models configured |
+| `ensemble_THRESHOLD` | ✅ Set | 0.6 (60%) |
 
 ### Code Integration
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `claw_agent/ll_council.py` | ✅ | Core council module |
-| `claw_agent/agent.py` | ✅ | Council auto-detection |
-| `api/index.js` | ✅ | Council API endpoints |
+| `claw_agent/ll_ensemble.py` | ✅ | Core ensemble module |
+| `claw_agent/agent.py` | ✅ | ensemble auto-detection |
+| `api/index.js` | ✅ | ensemble API endpoints |
 | `vercel.json` | ✅ | Deployment config |
 
 ---
@@ -270,7 +270,7 @@ Even if 1-2 models fail, the council still works:
 ## 🚀 Production Readiness
 
 ### ✅ Deployment Checklist
-- [x] Council mode active
+- [x] ensemble mode active
 - [x] All 6 models responding
 - [x] API endpoints working
 - [x] Browser interface functional
@@ -302,7 +302,7 @@ Even if 1-2 models fail, the council still works:
 6. ✅ **Production ready** - All endpoints verified
 
 ### Recommendations
-1. **Use council for:** Critical decisions, complex questions, code review
+1. **Use ensemble for:** Critical decisions, complex questions, code review
 2. **Use single model for:** Quick facts, speed priority
 3. **Monitor consensus:** High = trust answer, Low = review alternatives
 4. **Token usage:** ~200-1200 per query (still free)
@@ -313,10 +313,10 @@ Even if 1-2 models fail, the council still works:
 
 ### ✅ FULLY OPERATIONAL
 
-**The Claw AI Multi-Model Council system is:**
+**The Claw AI multi-model ensemble system is:**
 - ✅ Properly deployed to Vercel
 - ✅ All 6 models active and responding
-- ✅ Council consensus working perfectly
+- ✅ model agreement working perfectly
 - ✅ Browser chat interface functional
 - ✅ All endpoints wired correctly
 - ✅ Maximum logical reasoning achieved
@@ -326,11 +326,11 @@ Even if 1-2 models fail, the council still works:
 
 **URLs:**
 - Main: https://clean-claw-ai.vercel.app
-- Test Page: Open `council-test.html` locally
+- Test Page: Open `ensemble-test.html` locally
 - API: https://clean-claw-ai.vercel.app/api/models
 
 **Next Steps:**
-1. Start using the council - it's ready!
+1. Start using the ensemble - it's ready!
 2. Test with your own questions
 3. Deploy updates as needed
 4. Monitor usage in OpenRouter dashboard

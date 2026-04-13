@@ -100,7 +100,6 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .ai-av svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
 .ai-body{flex:1;min-width:0}
 .ai-lbl{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:4px;display:flex;align-items:center;gap:6px}
-.c-badge{background:var(--accent);color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600}
 
 /* AI content */
 .ac{font-size:14px;line-height:1.75;color:var(--text)}
@@ -199,12 +198,6 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <div class="sb-label">Recent Chats</div>
 <div class="sb-convos" id="convo-list"></div>
 <div class="sb-sep"></div>
-<div class="sb-label">Council</div>
-<div class="sb-nav">
-<button class="sb-item" onclick="sc('/council')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>Force Council</button>
-<button class="sb-item" onclick="sc('/nocouncil')"><span class="icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>Single Model</button>
-</div>
-<div class="sb-sep"></div>
 <div class="sb-label">Session</div>
 <div class="sb-nav">
 <button class="sb-item" onclick="sc('/sessions')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>Sessions</button>
@@ -234,7 +227,6 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <span class="tb-status" id="ts">Loading...</span>
 </div>
 <div class="tb-r">
-<span class="pill pill-m" id="bc">Council</span>
 <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme"><span class="icon" id="themeIcon"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
 </div>
 </div>
@@ -263,7 +255,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="btn-send" id="sb2" onclick="sm()" title="Send"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
 </div>
 </div>
-<div class="input-foot"><span>Claw AI</span><span id="modeLabel">Council mode</span></div>
+<div class="input-foot"><span>Claw AI</span><span id="modeLabel"></span></div>
 </div>
 </div>
 </div>
@@ -341,7 +333,7 @@ renderConvos();fetchSt();
 }
 function rS(){document.getElementById('ss').innerHTML=SK.map(s=>'<span class="sb-skill" onclick="sc(\'/'+s.id+'\')">'+esc(s.id)+'</span>').join('')}
 async function fetchSt(){
-try{const r=await fetch('/api/models');const d=await r.json();if(d.council_enabled){document.getElementById('ts').textContent='Ready';document.getElementById('bc').textContent='Council'}}
+try{const r=await fetch('/api/models');const d=await r.json();if(d.council_enabled){document.getElementById('ts').textContent='Ready'}}
 catch(e){document.getElementById('ts').textContent='Ready'}
 }
 
@@ -394,7 +386,7 @@ div.className='mr user';div.innerHTML='<div class="bubble">'+esc(m.content)+'</d
 div.className='mr ai';
 let h='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body">';
 h+='<div class="ai-lbl">Claw AI';
-if(m.c&&m.p) h+=' <span class="c-badge">Council '+esc(String(m.p))+'%</span>';
+
 h+='</div><div class="ac">'+fm(m.content)+'</div></div>';
 div.innerHTML=h;
 }else{
@@ -447,27 +439,23 @@ function hc(t){
 const p=t.split(' '),cmd=p[0].toLowerCase(),arg=p.slice(1).join(' ').trim();
 switch(cmd){
 case'/help':
-am('a','**Claw AI \u2014 All Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version \u00b7 /doctor\n\n**Council:** /council \u00b7 /nocouncil \u00b7 /models\n\n**Session:** /save \u00b7 /export \u00b7 /sessions \u00b7 /resume \u00b7 /delete \u00b7 /compact\n\n**System:** /tools \u00b7 /permissions \u00b7 /mcp \u00b7 /cost \u00b7 /config \u00b7 /memory \u00b7 /diff \u00b7 /undo \u00b7 /init \u00b7 /bug \u00b7 /approval\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n'));break;
-case'/council':
-if(arg){CM=true;am('u',t);callC(arg)}else{CM=true;document.getElementById('modeLabel').textContent='Council mode';ae('Council mode enabled')}break;
-case'/nocouncil':
-if(arg){CM=false;am('u',t);callS(arg)}else{CM=false;document.getElementById('modeLabel').textContent='Single model';ae('Single model mode enabled')}break;
+am('a','**Claw AI \u2014 All Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version \u00b7 /doctor \u00b7 /models\n\n**Session:** /save \u00b7 /export \u00b7 /sessions \u00b7 /resume \u00b7 /delete \u00b7 /compact\n\n**System:** /tools \u00b7 /permissions \u00b7 /mcp \u00b7 /cost \u00b7 /config \u00b7 /memory \u00b7 /diff \u00b7 /undo \u00b7 /init \u00b7 /bug \u00b7 /approval\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n'));break;
 case'/models':
-am('a','**Council Models (14)**\n\n**OpenRouter (8):**\n'+MD.filter(x=>x.p==='OR').map(x=>'- **'+x.n+'** \u2014 '+x.u).join('\n')+'\n\n**Alibaba Cloud (6):**\n'+MD.filter(x=>x.p==='ALI').map(x=>'- **'+x.n+'** \u2014 '+x.u).join('\n'));break;
+am('a','**Models**\n\n**OpenRouter:**\n'+MD.filter(x=>x.p==='OR').map(x=>'- **'+x.n+'** \u2014 '+x.u).join('\n')+'\n\n**Alibaba Cloud:**\n'+MD.filter(x=>x.p==='ALI').map(x=>'- **'+x.n+'** \u2014 '+x.u).join('\n'));break;
 case'/skills':
 am('a','**Available Skills (18)**\n\n'+SK.map(x=>'- **/'+x.id+'** \u2014 '+x.d).join('\n')+'\n\nUsage: `/skill-name your request`');break;
 case'/clear':doClear();break;
 case'/status':
-ae('**Status**\n- Council: '+(CM?'Active (14 models)':'Disabled')+'\n- Providers: OpenRouter + Alibaba Cloud\n- Skills: 18 loaded\n- Cost: FREE\n- Messages: '+H.length);break;
+ae('**Status**\n- Skills: 18 loaded\n- Cost: FREE\n- Messages: '+H.length);break;
 case'/version':
-ae('**Claw AI v2.0**\n- 14 models (OpenRouter + Alibaba)\n- 18 skills\n- Session persistence\n- File upload\n- Light/Dark theme');break;
+ae('**Claw AI v2.0**\n- 18 skills\n- Conversation history\n- File upload\n- Light/Dark theme');break;
 case'/export':
 let md='# Claw AI Chat\n\n';H.forEach(m=>md+='## '+m.role+'\n'+(m.content||'')+'\n\n');
 const bl=new Blob([md],{type:'text/markdown'}),ur=URL.createObjectURL(bl),a=document.createElement('a');
 a.href=ur;a.download='claw-'+Date.now()+'.md';a.click();URL.revokeObjectURL(ur);
 ae('Exported as markdown');break;
 case'/config':
-ae('**Config**\n- Council: '+(CM?'On':'Off')+'\n- Models: 14\n- Providers: 2\n- API: OpenRouter + Alibaba');break;
+ae('**Config**\n- Theme: '+document.documentElement.getAttribute('data-theme')+'\n- Skills: '+SK.length+'\n- Messages: '+H.length);break;
 case'/memory':
 const ch=H.reduce((s,m)=>s+(m.content?.length||0),0),tk=Math.round(ch/4),pc=Math.min(100,tk/2000).toFixed(1);
 ae('**Context**\n- Tokens: ~'+tk.toLocaleString()+'\n- Max: 200,000\n- Usage: '+pc+'%');break;
@@ -491,7 +479,7 @@ case'/diff':
 if(H.length<2){ae('Not enough messages to diff');break}
 var last2=H.slice(-2);ae('**Last 2 messages**\n\n**['+last2[0].role+']:** '+last2[0].content.slice(0,200)+(last2[0].content.length>200?'...':'')+'\n\n**['+last2[1].role+']:** '+last2[1].content.slice(0,200)+(last2[1].content.length>200?'...':''));break;
 case'/doctor':
-var checks=[];checks.push('API endpoint: '+location.origin+'/api');checks.push('Theme: '+document.documentElement.getAttribute('data-theme'));checks.push('Council: '+(CM?'Enabled':'Disabled'));checks.push('History: '+H.length+' messages');checks.push('Skills: '+SK.length+' loaded');checks.push('Models: '+MD.length+' configured');checks.push('Storage: '+(localStorage?'Available':'Unavailable'));checks.push('File upload: '+(window.FileReader?'Supported':'Unsupported'));checks.push('Fetch API: '+(window.fetch?'Available':'Unavailable'));
+var checks=[];checks.push('API endpoint: '+location.origin+'/api');checks.push('Theme: '+document.documentElement.getAttribute('data-theme'));checks.push('History: '+H.length+' messages');checks.push('Skills: '+SK.length+' loaded');checks.push('Storage: '+(localStorage?'Available':'Unavailable'));checks.push('File upload: '+(window.FileReader?'Supported':'Unsupported'));checks.push('Fetch API: '+(window.fetch?'Available':'Unavailable'));
 ae('**Diagnostics**\n'+checks.map(x=>'- '+x).join('\n'));break;
 case'/permissions':
 ae('**Permission System**\n\n**Gated tools** (require approval in CLI):\n- run_command\n- write_file\n- replace_in_file\n- multi_edit_file\n- insert_at_line\n- powershell\n\n**Dangerous patterns** (22 blocked):\n- rm -rf, sudo, chmod 777, mkfs, dd if=\n- DROP TABLE, DELETE FROM, shutdown\n- curl|sh, eval(), exec()\n\n**Web UI:** All requests go through the API which has its own safety layer');break;
