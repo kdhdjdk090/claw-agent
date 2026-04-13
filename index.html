@@ -206,15 +206,6 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="sb-item" onclick="doClear()"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span>Clear</button>
 </div>
 <div class="sb-sep"></div>
-<div class="sb-label">System</div>
-<div class="sb-nav">
-<button class="sb-item" onclick="sc('/tools')"><span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></span>Tools (26)</button>
-<button class="sb-item" onclick="sc('/permissions')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Permissions</button>
-<button class="sb-item" onclick="sc('/mcp')"><span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>MCP Servers</button>
-<button class="sb-item" onclick="sc('/doctor')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>Doctor</button>
-<button class="sb-item" onclick="sc('/cost')"><span class="icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>Cost</button>
-</div>
-<div class="sb-sep"></div>
 <div class="sb-label">Skills &middot; 18</div>
 <div style="padding:4px 12px" id="ss"></div>
 </div>
@@ -448,7 +439,7 @@ async function hc(t){
 const p=t.split(' '),cmd=p[0].toLowerCase(),arg=p.slice(1).join(' ').trim();
 switch(cmd){
 case'/help':
-am('a','**Claw AI — All Commands**\n\n**Core:** /help · /clear · /status · /version · /doctor · /models\n\n**Session:** /save · /export · /sessions · /resume · /delete · /compact\n\n**System:** /tools · /permissions · /mcp · /cost · /config · /memory · /diff · /undo · /init · /bug · /approval\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
+am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
 case'/models':
 try{const r=await fetch('/api/models');const d=await r.json();
 const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI');
@@ -480,12 +471,8 @@ ae('**Configuration**\n- Version: '+d.version+'\n- Theme: '+document.documentEle
 case'/memory':
 const ch=H.reduce((s,m)=>s+(m.content?.length||0),0),tk=Math.round(ch/4),pc=Math.min(100,tk/2000).toFixed(1);
 ae('**Context**\n- Tokens: ~'+tk.toLocaleString()+'\n- Max: 200,000\n- Usage: '+pc+'%');break;
-case'/tools':
-try{const r=await fetch('/api/tools');const d=await r.json();
-let txt='**Tools ('+d.total+')**\n\n';
-for(const[cat,tools]of Object.entries(d.categories)){txt+='**'+cat.charAt(0).toUpperCase()+cat.slice(1)+':** '+tools.join(', ')+'\n'}
-ae(txt)
-}catch(e){ae('**Tools (26)**\n\n**File:** read_file, write_file, list_directory, find_files\n**Shell:** run_command\n**Search:** grep_search\n**Edit:** replace_in_file, multi_edit_file, insert_at_line, diff_files\n**Web:** web_fetch, web_search\n**Agent:** run_subagent, plan_and_execute\n**Task:** task_create, task_update, task_list, task_get\n**Notebook:** notebook_run\n**Context:** get_workspace_context, git_diff, git_log\n**Utility:** sleep, config_get, config_set, powershell')}break;
+case'/tools':case'/capabilities':
+ae('**What I can do**\n\n**Code** — Write, debug, refactor, and review code in any language\n**Analyze** — Research topics, analyze data, compare options\n**Write** — Draft emails, essays, reports, documentation\n**Create** — Generate ideas, brainstorm, design systems\n**Understand** — Read files, explain concepts, summarize content\n**Search** — Look up information, fetch web pages\n**Edit** — Modify files, find & replace, multi-file edits\n**Automate** — Run commands, manage tasks, execute workflows\n\nJust ask naturally — no special syntax needed.');break;
 case'/cost':
 ae('**Cost Tracker**\n- Session cost: $0.00 (FREE)\n- All models: Free tier via OpenRouter + Alibaba\n- No API key charges\n- Messages this session: '+H.length);break;
 case'/sessions':
