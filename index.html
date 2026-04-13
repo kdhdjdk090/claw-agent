@@ -57,7 +57,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .sb-foot{padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);display:flex;justify-content:space-between}
 
 /* Main */
-.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 
 /* Top bar */
 .topbar{padding:0 20px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;height:48px;flex-shrink:0}
@@ -203,6 +203,54 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .sb-convo:hover .sb-convo-del{display:flex}
 .sb-convo-del:hover{color:var(--red);background:rgba(220,38,38,.1)}
 .sb-convo-del svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* Toast */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:8px 18px;font-size:13px;font-weight:500;box-shadow:var(--sh-l);z-index:9999;opacity:0;transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Scroll-to-bottom */
+.scroll-bot{position:absolute;bottom:90px;right:24px;width:36px;height:36px;border-radius:50%;background:var(--surface);border:1px solid var(--border);color:var(--text-2);cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:var(--sh);z-index:50;transition:all .15s}
+.scroll-bot:hover{background:var(--surface-alt);color:var(--text);border-color:var(--border-h)}
+.scroll-bot svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.scroll-bot.vis{display:flex}
+
+/* Stop button */
+.stop-btn{display:none;align-items:center;gap:6px;padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;margin:0 auto 8px}
+.stop-btn:hover{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.stop-btn.vis{display:flex}
+.stop-btn svg{width:14px;height:14px;stroke:currentColor;fill:currentColor;stroke-width:0}
+
+/* Install page */
+.install-page{display:none;flex-direction:column;height:100%;overflow-y:auto;padding:32px 24px;background:var(--bg);max-width:720px;margin:0 auto}
+.install-page.vis{display:flex}
+.install-page h1{font-size:22px;font-weight:700;margin-bottom:4px}
+.install-page .sub{font-size:13px;color:var(--text-2);margin-bottom:20px}
+.install-tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0}
+.install-tab{padding:8px 16px;border:none;background:none;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;transition:all .12s}
+.install-tab:hover{color:var(--text)}
+.install-tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.install-panel{display:none}
+.install-panel.vis{display:block}
+.install-panel h3{font-size:15px;font-weight:600;margin:16px 0 8px;color:var(--text)}
+.install-panel h3:first-child{margin-top:0}
+.install-panel p{font-size:13px;line-height:1.65;color:var(--text-2);margin-bottom:8px}
+.install-panel ol,.install-panel ul{font-size:13px;line-height:1.65;color:var(--text-2);margin-bottom:12px;padding-left:20px}
+.install-panel li{margin-bottom:4px}
+.install-panel code{background:var(--code-bg);border:1px solid var(--code-br);border-radius:4px;padding:1px 6px;font-size:12px;font-family:'SF Mono',Monaco,Consolas,monospace}
+.install-panel pre{background:var(--code-bg);border:1px solid var(--code-br);border-radius:8px;padding:12px 16px;margin-bottom:12px;overflow-x:auto;font-size:12px;line-height:1.6;font-family:'SF Mono',Monaco,Consolas,monospace}
+.install-panel pre code{background:none;border:none;padding:0}
+.install-panel .note{background:var(--accent-bg);border:1px solid var(--accent-br);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--accent);margin-bottom:12px}
+.install-panel .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;margin-left:6px}
+.install-panel .badge-free{background:var(--green-bg);color:var(--green);border:1px solid var(--green-br)}
+.install-panel .badge-rec{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-br)}
+.install-back{display:flex;align-items:center;gap:6px;padding:6px 0;border:none;background:none;font-size:13px;color:var(--text-2);cursor:pointer;font-family:inherit;margin-bottom:12px}
+.install-back:hover{color:var(--accent)}
+.install-back svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* Char counter */
+.char-count{font-size:10px;color:var(--text-3);transition:color .2s}
+.char-count.warn{color:var(--accent)}
+.char-count.over{color:var(--red)}
 </style>
 </head>
 <body>
@@ -219,6 +267,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="sb-item" onclick="sc('/skills')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></span>Skills</button>
 <button class="sb-item" onclick="sc('/status')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Status</button>
 <button class="sb-item" onclick="sc('/help')"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>Help</button>
+<button class="sb-item" onclick="showInstall()"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</button>
 </div>
 <div class="sb-sep"></div>
 <div class="sb-scroll">
@@ -262,6 +311,206 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 </div>
 </div>
 </div>
+<div class="install-page" id="installPage">
+<button class="install-back" onclick="hideInstall()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>Back to chat</button>
+<h1>Install Claw AI</h1>
+<p class="sub">Get Claw AI on every platform — CLI, browser, VS Code, or just use the web.</p>
+<div class="install-tabs" id="installTabs">
+<button class="install-tab active" onclick="switchTab('web')">Web App</button>
+<button class="install-tab" onclick="switchTab('cli')">CLI Agent</button>
+<button class="install-tab" onclick="switchTab('chrome')">Chrome Extension</button>
+<button class="install-tab" onclick="switchTab('vscode')">VS Code Extension</button>
+</div>
+
+<div class="install-panel vis" id="tab-web">
+<h3>Web App <span class="badge badge-free">FREE</span> <span class="badge badge-rec">RECOMMENDED</span></h3>
+<p>No installation required. Open in any browser:</p>
+<pre><code>https://clean-claw-ai.vercel.app</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>14 AI models across 2 providers (OpenRouter + Alibaba Cloud)</li>
+<li>18 built-in skills (code, write, analyze, translate, debug...)</li>
+<li>Conversation history with auto-save</li>
+<li>File upload & analysis</li>
+<li>Light/Dark theme</li>
+<li>Mobile responsive</li>
+<li>Works on any device with a browser</li>
+</ul>
+<div class="note">All API keys are pre-configured. No setup needed — just open and start chatting.</div>
+</div>
+
+<div class="install-panel" id="tab-cli">
+<h3>CLI Agent — Terminal Coding Assistant</h3>
+<p>Install the full coding agent for your terminal. Works like Claude Code.</p>
+
+<h3>Requirements</h3>
+<ul>
+<li>Python 3.10 or newer</li>
+<li>Git</li>
+<li>pip (comes with Python)</li>
+</ul>
+
+<h3>Quick Install (any OS)</h3>
+<pre><code>pip install git+https://github.com/kdhdjdk090/claw-agent.git</code></pre>
+
+<h3>Development Install (from source)</h3>
+<pre><code>git clone https://github.com/kdhdjdk090/claw-agent.git
+cd claw-agent
+pip install -e .</code></pre>
+
+<h3>Windows Quick Start</h3>
+<pre><code># Option 1: Double-click start-claw.cmd in the project folder
+
+# Option 2: Command line
+pip install git+https://github.com/kdhdjdk090/claw-agent.git
+claw</code></pre>
+
+<h3>Linux / macOS Quick Start</h3>
+<pre><code>pip install git+https://github.com/kdhdjdk090/claw-agent.git
+claw</code></pre>
+
+<h3>Usage</h3>
+<pre><code># Interactive REPL mode
+claw
+
+# One-shot mode
+claw "write a python web scraper"
+
+# Specify model
+claw --model deepseek-r1:671b
+
+# Print-only mode (no file edits)
+claw --print "explain this code"
+
+# Auto-approve all tool calls
+claw --yolo "refactor this project"</code></pre>
+
+<h3>CLI Commands</h3>
+<pre><code>/help         — Show all commands
+/model &lt;name&gt; — Switch model
+/tools        — List available tools
+/skills       — View skills
+/cost         — Session cost tracker
+/save         — Save session
+/resume &lt;id&gt; — Resume session
+/diff         — Show recent changes
+/undo         — Undo last action
+/config       — View configuration
+/quit         — Exit</code></pre>
+
+<h3>Cloud Mode (no Ollama needed)</h3>
+<pre><code># Set your API key
+# Windows PowerShell:
+$env:DEEPSEEK_API_KEY="your-key-here"
+
+# Linux/macOS:
+export DEEPSEEK_API_KEY="your-key-here"
+
+# Then run:
+claw</code></pre>
+
+<h3>Local Mode (with Ollama)</h3>
+<pre><code># Terminal 1: Start Ollama
+ollama serve
+
+# Terminal 2: Pull a model and run
+ollama pull deepseek-r1:32b
+claw</code></pre>
+<div class="note">Pre-configured API keys are included for OpenRouter and Alibaba Cloud. For local mode, install Ollama from ollama.com.</div>
+</div>
+
+<div class="install-panel" id="tab-chrome">
+<h3>Chrome Extension — Browser AI Agent</h3>
+<p>Add Claw AI as a side panel in Chrome with 40+ browser control tools.</p>
+
+<h3>Install Steps</h3>
+<ol>
+<li>Clone or download the repository:<br><pre><code>git clone https://github.com/kdhdjdk090/claw-agent.git</code></pre></li>
+<li>Open Chrome and go to <code>chrome://extensions/</code></li>
+<li>Enable <strong>Developer mode</strong> (toggle in top-right corner)</li>
+<li>Click <strong>Load unpacked</strong></li>
+<li>Select the <code>chrome-extension/</code> folder from the cloned repo</li>
+<li>Click the puzzle icon in Chrome toolbar and <strong>pin Claw Agent</strong></li>
+</ol>
+
+<h3>Features</h3>
+<ul>
+<li>Side panel AI chat in any tab</li>
+<li>40 browser control tools (click, fill, navigate, extract)</li>
+<li>Context menu: right-click text → Explain / Fix Code / Rewrite / Summarize</li>
+<li>Quick actions: Summarize page, Extract links, Find code, Explain</li>
+<li>Streaming responses</li>
+<li>Session persistence</li>
+<li>Model selection dropdown</li>
+<li>Works with OpenRouter Cloud API (no local setup)</li>
+</ul>
+
+<h3>Extension Files</h3>
+<pre><code>chrome-extension/
+├── manifest.json     # Extension config (Manifest V3)
+├── background.js     # Lifecycle & context menus
+├── content.js        # Page extraction & browser tools
+├── sidepanel.html    # Chat UI
+├── sidepanel.js      # Chat logic
+├── sidepanel.css     # Styles
+└── icons/            # 16, 32, 48, 128px icons</code></pre>
+<div class="note">API keys are pre-configured in the extension. No manual key setup needed.</div>
+</div>
+
+<div class="install-panel" id="tab-vscode">
+<h3>VS Code Extension — In-Editor AI Agent</h3>
+<p>Get Claw AI inside VS Code as a chat panel with code actions.</p>
+
+<h3>Method 1: VSIX Package (Recommended)</h3>
+<pre><code># Step 1: Package the extension
+cd vscode-extension
+npm install -g @vscode/vsce
+vsce package
+# Creates: claw-agent-2.0.0.vsix
+
+# Step 2: Install in VS Code
+# Extensions (Ctrl+Shift+X) → ⋯ menu → Install from VSIX
+# Select claw-agent-2.0.0.vsix</code></pre>
+
+<h3>Method 2: Development Mode</h3>
+<pre><code># Open the extension folder in VS Code
+cd vscode-extension
+code .
+
+# Press F5 to launch Extension Development Host
+# A new VS Code window opens with Claw Agent loaded</code></pre>
+
+<h3>Keyboard Shortcuts</h3>
+<pre><code>Ctrl+Shift+A    — Open Agent Chat (Windows/Linux)
+Cmd+Shift+A     — Open Agent Chat (macOS)</code></pre>
+
+<h3>Commands</h3>
+<pre><code>Claw: Open Agent Chat     — Open the chat panel
+Claw: Quick Prompt        — Inline prompt
+Claw: Explain Selection   — Right-click → Explain code
+Claw: Fix Selection       — Right-click → Fix code</code></pre>
+
+<h3>Settings</h3>
+<pre><code>{
+  "claw.apiMode": "cloud",
+  "claw.model": "openai/gpt-4o-mini",
+  "claw.openrouterApiKey": "",
+  "claw.ollamaUrl": "http://localhost:11434"
+}</code></pre>
+
+<h3>Extension Structure</h3>
+<pre><code>vscode-extension/
+├── package.json       # Extension manifest (v2.0.0)
+├── src/
+│   ├── extension.js   # Main entry point
+│   └── bridge.py      # Python CLI bridge
+└── icon.png           # Extension icon</code></pre>
+<div class="note">Supports both cloud mode (OpenRouter, pre-configured) and local mode (Ollama). Cloud mode works out of the box.</div>
+</div>
+</div>
+<div id="toastEl" class="toast"></div>
+<button class="scroll-bot" id="scrollBot" onclick="scrollBot()"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+<button class="stop-btn" id="stopBtn" onclick="stopGen()"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop generating</button>
 <div class="input-wrap">
 <div class="input-box">
 <div class="fprev" id="fp"><span id="fn"></span><span class="rm" onclick="rf()">&#x2715;</span></div>
@@ -273,7 +522,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="btn-send" id="sb2" onclick="sm()" title="Send"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
 </div>
 </div>
-<div class="input-foot"><span id="modelInfo">Claw AI · 14 Models</span><span id="modeLabel"></span></div>
+<div class="input-foot"><span id="modelInfo">Claw AI · 14 Models</span><span class="char-count" id="charCount"></span><span id="modeLabel"></span></div>
 </div>
 </div>
 </div>
@@ -451,12 +700,13 @@ const m=H[idx];if(!m)return;
 navigator.clipboard.writeText(m.content).then(()=>{
 btn.classList.add('copied');btn.innerHTML='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
 setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML='<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'},1500);
+showToast('Copied to clipboard');
 });
 }
 
 function delMsg(idx){
 if(idx<0||idx>=H.length)return;
-H.splice(idx,1);ss();rebuildChat();
+H.splice(idx,1);ss();rebuildChat();showToast('Message deleted');
 }
 
 function editMsg(idx){
@@ -488,13 +738,15 @@ resendFrom(nv);
 
 async function resendFrom(text){
 const area=ensureArea();
+abortCtrl=new AbortController();
+document.getElementById('stopBtn').classList.add('vis');
 const think=document.createElement('div');think.className='mr ai';think.id='thinking';
 think.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body"><div class="ai-lbl">Claw AI</div><div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Thinking...</span></div></div>';
 area.appendChild(think);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
 const btn=document.getElementById('sb2');btn.disabled=true;
 try{
 const url=CM?'/api/council':'/api/chat';
-const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text}),signal:abortCtrl?.signal});
 const d=await r.json();think.remove();
 if(!r.ok){ae('Error: '+(d.error||'Server error'))}
 else if(d.council){
@@ -502,8 +754,8 @@ let c=(d.reply||'').replace(/\[Council Consensus.*?\]\n?/g,'').trim();
 if(!c){for(const resp of(d.all_responses||[])){if(resp.content?.trim()){c=resp.content.trim();break}}}
 am('a',c||'No response',true,d.consensus_percentage);
 }else{am('a',d.reply||'No response')}
-}catch(e){think.remove();ae('Network error. Check your connection.')}
-finally{btn.disabled=false;document.getElementById('mi').focus()}
+}catch(e){think.remove();if(e.name==='AbortError'){ae('Generation stopped')}else{ae('Network error. Check your connection.')}}
+finally{btn.disabled=false;document.getElementById('mi').focus();document.getElementById('stopBtn').classList.remove('vis');abortCtrl=null}
 }
 
 function retryMsg(idx){
@@ -547,6 +799,8 @@ if(!t)return;inp.value='';inp.style.height='auto';rf();
 if(t.startsWith('/')){hc(t);return}
 am('u',t);
 const area=ensureArea();
+abortCtrl=new AbortController();
+document.getElementById('stopBtn').classList.add('vis');
 const think=document.createElement('div');think.className='mr ai';think.id='thinking';
 think.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body"><div class="ai-lbl">Claw AI</div><div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Thinking...</span></div></div>';
 area.appendChild(think);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
@@ -555,7 +809,7 @@ try{
 const url=CM?'/api/council':'/api/chat';
 let body={message:t};
 if(AF){try{const c=await rft(AF);body.message=t+'\n\n--- File: '+AF.name+' ---\n'+c}catch(e){}}
-const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:abortCtrl?.signal});
 const d=await r.json();think.remove();
 if(!r.ok){ae('Error: '+(d.error||'Server error'))}
 else if(d.council){
@@ -563,8 +817,8 @@ let c=(d.reply||'').replace(/\[Council Consensus.*?\]\n?/g,'').trim();
 if(!c){for(const resp of(d.all_responses||[])){if(resp.content?.trim()){c=resp.content.trim();break}}}
 am('a',c||'No response',true,d.consensus_percentage);
 }else{am('a',d.reply||'No response')}
-}catch(e){think.remove();ae('Network error. Check your connection.')}
-finally{btn.disabled=false;document.getElementById('mi').focus()}
+}catch(e){think.remove();if(e.name==='AbortError'){ae('Generation stopped')}else{ae('Network error. Check your connection.')}}
+finally{btn.disabled=false;document.getElementById('mi').focus();document.getElementById('stopBtn').classList.remove('vis');abortCtrl=null}
 }
 
 async function fw(url,opts,retries=3){for(let i=0;i<retries;i++){try{const r=await fetch(url,opts);if(r.ok||i===retries-1)return r;await new Promise(s=>setTimeout(s,1000*Math.pow(2,i)))}catch(e){if(i===retries-1)throw e;await new Promise(s=>setTimeout(s,1000*Math.pow(2,i)))}}}
@@ -576,7 +830,7 @@ async function hc(t){
 const p=t.split(' '),cmd=p[0].toLowerCase(),arg=p.slice(1).join(' ').trim();
 switch(cmd){
 case'/help':
-am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
+am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n**/install** — Installation guides\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
 case'/models':
 try{const r=await fetch('/api/models');const d=await r.json();
 const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI');
@@ -647,6 +901,7 @@ case'/undo':
 if(H.length>=2){H.pop();H.pop();ss();document.getElementById('ch').innerHTML='<div class="welcome" id="wl" style="display:none"></div>';var ma3=document.getElementById('ma');if(ma3)ma3.remove();if(H.length){H.forEach((m,i)=>renderMsg(m,i))}else{document.getElementById('wl').style.display=''}ae('Last exchange undone')}else{ae('Nothing to undo')}break;
 case'/init':
 ae('**Project Init**\n\nTo initialize Claw in a project directory, run in terminal:\n```\npip install -e .\nclaw init\n```\nThis creates `.claw-agent/` config in your project with:\n- `config.json` — Agent settings\n- `sessions/` — Chat history\n- `skills/` — Custom skills\n- `mcp/` — MCP server configs');break;
+case'/install':showInstall();break;
 case'/bug':
 ae('**Report a Bug**\n\nInclude:\n- Steps to reproduce\n- Expected vs actual behavior\n- Browser / OS info\n\nSubmit at: [GitHub Issues](https://github.com/kdhdjdk090/claw-agent/issues)');break;
 case'/mcp':
@@ -690,7 +945,68 @@ if(!r.ok)ae('Error: '+(d.error||'Error'));else am('a',d.reply||'No response')}
 catch(e){th.remove();ae('Network error')}
 finally{btn.disabled=false;ss()}}
 
-document.addEventListener('DOMContentLoaded',init);
+/* Install page */
+function showInstall(){
+document.getElementById('ch').style.display='none';
+document.querySelector('.input-wrap').style.display='none';
+document.getElementById('stopBtn').style.display='none';
+document.getElementById('scrollBot').style.display='none';
+document.getElementById('installPage').classList.add('vis');
+if(window.innerWidth<768)tSide();
+}
+function hideInstall(){
+document.getElementById('installPage').classList.remove('vis');
+document.getElementById('ch').style.display='';
+document.querySelector('.input-wrap').style.display='';
+}
+function switchTab(id){
+document.querySelectorAll('.install-tab').forEach(t=>t.classList.remove('active'));
+document.querySelectorAll('.install-panel').forEach(p=>p.classList.remove('vis'));
+document.getElementById('tab-'+id).classList.add('vis');
+document.querySelector('[onclick="switchTab(\''+id+'\')"]').classList.add('active');
+}
+
+/* Toast notifications */
+let toastTimer;
+function showToast(msg){
+const el=document.getElementById('toastEl');el.textContent=msg;el.classList.add('show');
+clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
+}
+
+/* Scroll-to-bottom */
+function scrollBot(){const ch=document.getElementById('ch');ch.scrollTop=ch.scrollHeight}
+function checkScroll(){
+const ch=document.getElementById('ch');
+const sb=document.getElementById('scrollBot');
+if(!sb)return;
+const gap=ch.scrollHeight-ch.scrollTop-ch.clientHeight;
+if(gap>200)sb.classList.add('vis');else sb.classList.remove('vis');
+}
+
+/* Stop generating */
+let abortCtrl=null;
+function stopGen(){
+if(abortCtrl){abortCtrl.abort();abortCtrl=null}
+const th=document.getElementById('thinking');if(th)th.remove();
+document.getElementById('stopBtn').classList.remove('vis');
+document.getElementById('sb2').disabled=false;
+showToast('Generation stopped');
+}
+
+/* Char counter */
+function updCharCount(){
+const inp=document.getElementById('mi'),cc=document.getElementById('charCount');
+const len=inp.value.length;
+if(len===0){cc.textContent='';cc.className='char-count';return}
+cc.textContent=len.toLocaleString();
+cc.className='char-count'+(len>8000?' warn':'')+(len>10000?' over':'');
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+init();
+const ch=document.getElementById('ch');ch.addEventListener('scroll',checkScroll);
+const mi=document.getElementById('mi');mi.addEventListener('input',updCharCount);
+});
 </script>
 </body>
 </html>
