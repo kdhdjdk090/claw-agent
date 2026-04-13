@@ -60,25 +60,45 @@ const CODING_MODELS = [
   { model: 'qwen3-coder-plus', provider: 'alibaba' },
 ];
 
-// System prompt - powerful reasoning + coding
-const SYSTEM_PROMPT = `You are Claw AI, an elite AI assistant with deep expertise in reasoning, mathematics, coding, and analysis.
+// System prompt - structured reasoning methodology
+const SYSTEM_PROMPT = `You are Claw AI, an elite AI assistant. You solve problems with the depth and precision of the world's best reasoning models.
 
-Core capabilities:
-- Step-by-step logical reasoning with clear explanations
-- Advanced mathematics: algebra, calculus, number theory, pattern recognition
-- Production-quality code in any programming language
-- Complex multi-part problem solving
-- Data analysis and structured thinking
+## YOUR METHODOLOGY
 
-Rules:
-- Always show your reasoning step by step
-- For math: show every calculation, verify your answers
-- For code: write clean, documented, production-ready code with error handling
-- For patterns: explain the rule, prove it works, then apply it
-- Break complex problems into numbered parts and solve each thoroughly
-- When asked what you are, say you are Claw AI
-- Use markdown formatting for clarity (headers, code blocks, lists, bold)
-- Never refuse a problem — always attempt a solution with your best reasoning`;
+### For ANY multi-part problem:
+1. **Parse** — Read the full problem. Identify every sub-task. Number them.
+2. **Solve each part** — Work through each sub-task individually with full reasoning shown.
+3. **Verify** — Check every answer. Substitute back. Prove it's correct.
+4. **Synthesize** — Connect the parts. Summarize findings.
+
+### For MATH & PATTERNS:
+1. **Observe** — List the numbers. Compute differences, ratios, or other relationships between consecutive terms.
+2. **Hypothesize** — State the rule explicitly (e.g., "each term = previous × 3").
+3. **Verify** — Apply the rule to ALL known terms. Confirm every one matches.
+4. **Solve** — Use the verified rule to find missing/next values.
+5. **Double-check** — Plug answers back in and confirm the full sequence is consistent.
+
+### For CODE:
+1. **Understand** — Restate what the function must do, inputs, outputs, edge cases.
+2. **Design** — Outline the algorithm before writing code.
+3. **Implement** — Write clean, documented, production-ready code.
+4. **Test** — Include example usage and expected output. Handle edge cases.
+
+### For LOGIC & REASONING:
+1. **State knowns** — List every fact and constraint.
+2. **Derive** — Apply logical steps, showing each deduction.
+3. **Eliminate** — Rule out impossible cases with explanation.
+4. **Conclude** — State the answer with confidence and justification.
+
+## RULES
+- ALWAYS show your work. Every calculation, every step.
+- Use markdown: **bold** key answers, \`code blocks\` for code, headers for sections.
+- For sequences: ALWAYS compute ratios AND differences to detect the pattern type.
+- For code: include docstrings, type hints, error handling, and test examples.
+- Never give up. If a problem is ambiguous, state your assumptions and solve under each.
+- Break complex problems into numbered parts and solve exhaustively.
+- When asked what you are, say you are Claw AI.
+- Give COMPLETE answers. Don't truncate. Don't say "and so on" — finish the work.`;
 
 module.exports = async (req, res) => {
   // Set CORS headers
@@ -247,8 +267,8 @@ module.exports = async (req, res) => {
       limits: {
         max_message_length: 50000,
         max_body_size: '200KB',
-        max_tokens: 4096,
-        temperature: 0.7
+        max_tokens: '4096-8192 (adaptive)',
+        temperature: '0.2-0.7 (adaptive)'
       }
     });
   }
@@ -309,8 +329,8 @@ async function handleChat(req, res) {
 
       // Detect intent for smart model selection
       const lc = message.toLowerCase();
-      const needsReasoning = /\b(math|reason|logic|proof|prove|calculate|solve|pattern|sequence|theorem|equation)\b/i.test(message);
-      const needsCoding = /\b(code|function|program|script|debug|refactor|implement|algorithm|class|api|write a |build a )\b/i.test(message);
+      const needsReasoning = /\b(math|reason|logic|proof|prove|calculate|solve|pattern|sequence|theorem|equation|missing.?number|find.?the|predict|next.?\d|part \d|step.by.step|edge.case)|\b\d+[\s,]+\d+[\s,]+\d+/i.test(message);
+      const needsCoding = /\b(code|function|program|script|debug|refactor|implement|algorithm|class|api|write a |build a |def |const |import |return |for loop|while loop|array|list|dict)|\b(python|javascript|java|rust|go|typescript|c\+\+|html|css|sql)\b/i.test(message);
       
       // Select model chain based on intent
       let modelChain;
@@ -348,8 +368,8 @@ async function handleChat(req, res) {
           const payload = JSON.stringify({
             model: m,
             messages,
-            temperature: needsReasoning ? 0.3 : 0.7,
-            max_tokens: 4096,
+            temperature: needsReasoning ? 0.2 : (needsCoding ? 0.3 : 0.7),
+            max_tokens: (needsReasoning || needsCoding) ? 8192 : 4096,
           });
 
           const result = await callAPI(apiBase, payload, headers);
@@ -432,7 +452,7 @@ async function handleCouncilRequest(res, message) {
             { role: 'user', content: message }
           ],
           temperature: 0.7,
-          max_tokens: 4096,
+          max_tokens: 8192,
         });
         apiBase = DASHSCOPE_API_BASE;
         headers = {
@@ -447,7 +467,7 @@ async function handleCouncilRequest(res, message) {
             { role: 'user', content: message }
           ],
           temperature: 0.7,
-          max_tokens: 4096,
+          max_tokens: 8192,
         });
         apiBase = OPENROUTER_API_BASE;
         headers = {
