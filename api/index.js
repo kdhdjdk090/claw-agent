@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
   if (req.url.startsWith('/api/health') && req.method === 'GET') {
     return res.status(200).json({
       status: 'ok',
-      version: '2.0.0',
+      version: '2.1.0',
       timestamp: new Date().toISOString(),
       keys_configured: {
         openrouter: !!OPENROUTER_API_KEY,
@@ -316,11 +316,11 @@ async function handleChat(req, res) {
 
       // ---- SSE STREAMING MODE ----
       if (wantStream) {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-        });
+        console.log('[stream] Entering SSE mode, wantStream=', wantStream);
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.status(200);
 
         let lastError = null;
         for (const { model: m, provider: p } of modelChain) {

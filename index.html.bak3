@@ -1,0 +1,896 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Claw AI - Multi-Model Council</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* â”€â”€ Light Theme (default) â”€â”€ */
+:root, [data-theme="light"] {
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  --border: #e2e8f0;
+  --border-hover: #cbd5e1;
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-dim: #94a3b8;
+  --accent: #6366f1;
+  --accent-light: #818cf8;
+  --accent-bg: #eef2ff;
+  --accent-border: #c7d2fe;
+  --green: #059669;
+  --green-bg: #ecfdf5;
+  --green-border: #a7f3d0;
+  --red: #dc2626;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --blue: #2563eb;
+  --blue-bg: #eff6ff;
+  --blue-border: #bfdbfe;
+  --amber: #d97706;
+  --amber-bg: #fffbeb;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-lg: 0 4px 14px rgba(0,0,0,0.08);
+  --gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a78bfa 100%);
+  --user-msg-bg: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --user-msg-text: #ffffff;
+  --sidebar-bg: var(--surface);
+  --input-bg: var(--surface-alt);
+  --code-bg: #f1f5f9;
+  --scrollbar: #cbd5e1;
+  --scrollbar-hover: #94a3b8;
+}
+
+/* â”€â”€ Dark Theme â”€â”€ */
+[data-theme="dark"] {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-alt: #1a2332;
+  --border: #334155;
+  --border-hover: #475569;
+  --text: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-dim: #64748b;
+  --accent: #818cf8;
+  --accent-light: #a5b4fc;
+  --accent-bg: rgba(99,102,241,0.15);
+  --accent-border: rgba(99,102,241,0.3);
+  --green: #34d399;
+  --green-bg: rgba(16,185,129,0.1);
+  --green-border: rgba(16,185,129,0.3);
+  --red: #f87171;
+  --red-bg: rgba(239,68,68,0.1);
+  --red-border: rgba(239,68,68,0.3);
+  --blue: #60a5fa;
+  --blue-bg: rgba(59,130,246,0.1);
+  --blue-border: rgba(59,130,246,0.3);
+  --amber: #fbbf24;
+  --amber-bg: rgba(245,158,11,0.1);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-lg: 0 4px 14px rgba(0,0,0,0.4);
+  --gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #8b5cf6 100%);
+  --user-msg-bg: linear-gradient(135deg, #4f46e5, #7c3aed);
+  --user-msg-text: #ffffff;
+  --sidebar-bg: #1a2332;
+  --input-bg: #1a2332;
+  --code-bg: #0f172a;
+  --scrollbar: #475569;
+  --scrollbar-hover: #64748b;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* â”€â”€ Sidebar â”€â”€ */
+.sidebar {
+  width: 280px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar::-webkit-scrollbar { width: 4px }
+.sidebar::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 2px }
+.sidebar::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover) }
+
+.side-hdr {
+  padding: 20px 16px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--gradient);
+  color: #fff;
+}
+.side-hdr h1 { font-size: 18px; display: flex; align-items: center; gap: 8px; font-weight: 700 }
+.side-hdr p { font-size: 11px; color: rgba(255,255,255,0.8); margin-top: 4px }
+
+.side-sec {
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.side-sec h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.mdl {
+  background: var(--surface-alt);
+  padding: 7px 10px;
+  border-radius: 8px;
+  margin-bottom: 3px;
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.mdl:hover { background: var(--accent-bg) }
+.mdl .r { min-width: 20px; text-align: center; font-size: 13px }
+.mdl .n { flex: 1; font-weight: 600; color: var(--text) }
+.mdl .u { color: var(--text-dim); font-size: 10px; white-space: nowrap }
+
+.cbtn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  width: 100%;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.cbtn:hover { background: var(--accent-bg); border-color: var(--accent-border); transform: translateX(2px) }
+.cbtn code { color: var(--accent); font-weight: 700; font-size: 11px; font-family: 'SF Mono', 'Fira Code', monospace }
+.cbtn span { color: var(--text-dim); margin-left: 4px; font-size: 10.5px }
+
+.skill-tag {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 5px 11px;
+  border-radius: 16px;
+  margin: 3px;
+  font-size: 10.5px;
+  cursor: pointer;
+  color: var(--green);
+  transition: all 0.15s;
+  display: inline-block;
+  font-weight: 500;
+}
+.skill-tag:hover { background: var(--green-bg); border-color: var(--green-border) }
+
+/* â”€â”€ Main Area â”€â”€ */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0 }
+
+.top {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.top-l { display: flex; align-items: center; gap: 10px; min-width: 0 }
+.top-l h2 { font-size: 15px; font-weight: 700 }
+.top-l p { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+
+.top-r { display: flex; align-items: center; gap: 8px; flex-shrink: 0 }
+
+.badges { display: flex; gap: 6px }
+.bdg {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.2px;
+}
+.bdg-c { background: var(--gradient); color: #fff }
+.bdg-s { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border) }
+.bdg-f { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border) }
+
+.theme-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.theme-btn:hover { background: var(--accent-bg); border-color: var(--accent-border); color: var(--accent) }
+
+.menu-btn {
+  display: none;
+  width: 34px;
+  height: 34px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.menu-btn:hover { background: var(--surface-alt) }
+
+/* â”€â”€ Chat Area â”€â”€ */
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-behavior: smooth;
+  background: var(--bg);
+}
+.chat::-webkit-scrollbar { width: 6px }
+.chat::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px }
+.chat::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover) }
+
+/* â”€â”€ Welcome Screen â”€â”€ */
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  text-align: center;
+  gap: 16px;
+  padding: 24px;
+}
+.welcome-icon { font-size: 52px; margin-bottom: 4px }
+.welcome h2 { font-size: 22px; font-weight: 700 }
+.welcome p { font-size: 13.5px; color: var(--text-secondary); max-width: 420px; line-height: 1.7 }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 600px }
+.chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.qbtns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px }
+.qb {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+.qb:hover { border-color: var(--accent-border); background: var(--accent-bg); transform: translateY(-1px); box-shadow: var(--shadow) }
+
+/* â”€â”€ Messages â”€â”€ */
+.msg { display: flex; gap: 10px; animation: msgIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) }
+@keyframes msgIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+.msg.u { justify-content: flex-end }
+.mc {
+  max-width: 82%;
+  padding: 14px 18px;
+  border-radius: 16px;
+  line-height: 1.7;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.msg.a .mc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.msg.u .mc {
+  background: var(--user-msg-bg);
+  color: var(--user-msg-text);
+  box-shadow: var(--shadow);
+}
+.msg.s .mc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.ctag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--gradient);
+  color: #fff;
+  padding: 3px 12px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.cresp { white-space: pre-wrap; line-height: 1.7; color: var(--text) }
+.cresp b { color: var(--accent); font-weight: 700 }
+.cresp i { font-style: italic }
+.cresp code {
+  background: var(--code-bg);
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  border: 1px solid var(--border);
+}
+.cresp pre {
+  background: var(--code-bg);
+  padding: 12px 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+  white-space: pre;
+}
+.cresp pre code { background: none; border: none; padding: 0; font-size: inherit }
+.cresp h1, .cresp h2, .cresp h3 { margin: 10px 0 6px; color: var(--text); font-weight: 700 }
+.cresp h1 { font-size: 18px } .cresp h2 { font-size: 16px } .cresp h3 { font-size: 14px }
+.cresp ul, .cresp ol { padding-left: 20px; margin: 4px 0 }
+.cresp li { margin: 2px 0; list-style: disc }
+.cresp a { color: var(--accent); text-decoration: none }
+.cresp a:hover { text-decoration: underline }
+.cresp blockquote { border-left: 3px solid var(--border); padding-left: 12px; color: var(--text-secondary); margin: 6px 0 }
+.cresp hr { border: none; border-top: 1px solid var(--border); margin: 10px 0 }
+.err {
+  background: var(--red-bg);
+  border: 1px solid var(--red-border);
+  color: var(--red);
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  margin: 4px 0;
+}
+.err b { display: block; margin-bottom: 4px }
+.retry {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-top: 8px;
+  transition: all 0.15s;
+}
+.retry:hover { background: var(--accent); color: #fff; border-color: var(--accent) }
+
+/* â”€â”€ Input Area â”€â”€ */
+.inp {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 -1px 4px rgba(0,0,0,0.03);
+}
+.fprev {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11.5px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+.fprev.show { display: flex }
+.fprev .rm { cursor: pointer; color: var(--red); font-weight: 700; margin-left: auto; font-size: 14px }
+.fprev .rm:hover { opacity: 0.7 }
+
+.irow { display: flex; gap: 8px; align-items: flex-end }
+.iwrap { flex: 1 }
+
+#mi {
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 13.5px;
+  outline: none;
+  resize: none;
+  min-height: 44px;
+  max-height: 140px;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+#mi:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg) }
+#mi::placeholder { color: var(--text-dim) }
+
+.send-btn {
+  padding: 11px 24px;
+  background: var(--gradient);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+.send-btn:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: var(--shadow-lg) }
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none }
+
+.attach-btn {
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.attach-btn:hover { border-color: var(--accent-border); color: var(--accent); background: var(--accent-bg) }
+
+/* â”€â”€ Overlay â”€â”€ */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99; backdrop-filter: blur(2px) }
+.overlay.show { display: block }
+
+/* â”€â”€ Mobile â”€â”€ */
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 100; transform: translateX(-100%); width: 280px; box-shadow: var(--shadow-lg) }
+  .sidebar.open { transform: translateX(0) }
+  .menu-btn { display: flex }
+  .mc { max-width: 92% }
+  .top { padding: 10px 14px }
+  .top-l p { display: none }
+  .inp { padding: 10px 14px }
+  .badges { gap: 4px }
+  .bdg { font-size: 9.5px; padding: 3px 8px }
+}
+</style>
+</head>
+<body>
+<div class="overlay" id="ov" onclick="tSide()"></div>
+<div class="sidebar" id="sb">
+  <div class="side-hdr">
+    <h1>ðŸ¦ž Claw AI</h1>
+    <p>14-Model Council &bull; 2 Providers</p>
+  </div>
+  <div class="side-sec" id="ms"></div>
+  <div class="side-sec">
+    <h3>âš¡ Commands</h3>
+    <button class="cbtn" onclick="sc('/help')"><code>/help</code><span>All commands</span></button>
+    <button class="cbtn" onclick="sc('/council')"><code>/council</code><span>Force council</span></button>
+    <button class="cbtn" onclick="sc('/nocouncil')"><code>/nocouncil</code><span>Single model</span></button>
+    <button class="cbtn" onclick="sc('/models')"><code>/models</code><span>List models</span></button>
+    <button class="cbtn" onclick="sc('/skills')"><code>/skills</code><span>List skills</span></button>
+    <button class="cbtn" onclick="sc('/clear')"><code>/clear</code><span>Clear chat</span></button>
+    <button class="cbtn" onclick="sc('/status')"><code>/status</code><span>Status</span></button>
+  </div>
+  <div class="side-sec">
+    <h3>ðŸ› ï¸ Skills</h3>
+    <div id="ss"></div>
+  </div>
+</div>
+<div class="main">
+  <div class="top">
+    <div class="top-l">
+      <button class="menu-btn" onclick="tSide()">â˜°</button>
+      <h2>ðŸ’¬ Chat</h2>
+      <p id="ts">Loading...</p>
+    </div>
+    <div class="top-r">
+      <div class="badges">
+        <span class="bdg bdg-c" id="bc">ðŸ›ï¸ Council</span>
+        <span class="bdg bdg-s">26 Skills</span>
+        <span class="bdg bdg-f">FREE</span>
+      </div>
+      <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">ðŸŒ™</button>
+    </div>
+  </div>
+  <div class="chat" id="ch">
+    <div class="welcome" id="wl">
+      <div class="welcome-icon">ðŸ¦ž</div>
+      <h2>Welcome to Claw AI</h2>
+      <p>14 AI models from OpenRouter &amp; Alibaba Cloud working together for consensus-validated answers</p>
+      <div class="chips" id="wc"></div>
+      <div class="qbtns">
+        <button class="qb" onclick="qs('What is 2+2?')">ðŸ§ª Test Council</button>
+        <button class="qb" onclick="qs('/skills')">ðŸ› ï¸ Skills</button>
+        <button class="qb" onclick="qs('/models')">ðŸ¤– Models</button>
+        <button class="qb" onclick="sc('/help')">â“ Help</button>
+      </div>
+    </div>
+  </div>
+  <div class="inp">
+    <div class="fprev" id="fp"><span id="fn"></span><span class="rm" onclick="rf()">âœ•</span></div>
+    <div class="irow">
+      <button class="attach-btn" onclick="document.getElementById('fi').click()" title="Attach file">ðŸ“Ž</button>
+      <input type="file" id="fi" style="display:none" onchange="hf(event)">
+      <div class="iwrap"><textarea id="mi" rows="1" placeholder="Ask anything... (/help for commands)" onkeydown="hk(event)" oninput="ar(this)"></textarea></div>
+      <button class="send-btn" id="sb2" onclick="sm()">Send</button>
+    </div>
+  </div>
+</div>
+<script>
+/* â”€â”€ Theme Toggle â”€â”€ */
+function initTheme() {
+  const saved = localStorage.getItem('claw_theme');
+  const theme = saved || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  updateThemeIcon(theme);
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('claw_theme', next);
+  updateThemeIcon(next);
+}
+function updateThemeIcon(theme) {
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = theme === 'dark' ? 'â˜€ï¸' : 'ðŸŒ™';
+}
+
+/* â”€â”€ Data â”€â”€ */
+const MD = [
+  {n:'DeepSeek V3',r:'ðŸ¥‡',u:'Most Powerful 600B',p:'OR'},
+  {n:'Qwen3 80B',r:'ðŸ¥ˆ',u:'Best Balance',p:'OR'},
+  {n:'Llama 3.3 70B',r:'ðŸ¥‰',u:'Most Stable',p:'OR'},
+  {n:'Qwen Coder 32B',r:'â­',u:'Coding King',p:'OR'},
+  {n:'DeepSeek R1',r:'ðŸ§®',u:'Reasoning',p:'OR'},
+  {n:'Gemma 3 12B',r:'âš¡',u:'Fastest',p:'OR'},
+  {n:'GPT-4o-mini',r:'ðŸŽ¯',u:'Reliable',p:'OR'},
+  {n:'Claude 3 Haiku',r:'ðŸŽ­',u:'Natural Chat',p:'OR'},
+  {n:'Qwen3 Coder 480B',r:'ðŸ†',u:'Best Coder 480B',p:'ALI'},
+  {n:'Qwen3.5 397B',r:'ðŸ¥‡',u:'Most Powerful',p:'ALI'},
+  {n:'Qwen3 Max',r:'ðŸ¥ˆ',u:'Flagship',p:'ALI'},
+  {n:'Qwen3 235B',r:'ðŸ§®',u:'Reasoning 235B',p:'ALI'},
+  {n:'Qwen3 Coder+',r:'â­',u:'Coding Expert',p:'ALI'},
+  {n:'Qwen Plus',r:'âš¡',u:'Fast Balanced',p:'ALI'}
+];
+
+const SK = [
+  {id:'web-dev',d:'React, Vue, Next.js'},{id:'data-science',d:'pandas, numpy, ML'},
+  {id:'devops',d:'Docker, K8s, CI/CD'},{id:'security',d:'Audits, scanning'},
+  {id:'code-review',d:'Refactoring, patterns'},{id:'testing',d:'Unit, e2e, TDD'},
+  {id:'database',d:'SQL, NoSQL'},{id:'api-dev',d:'REST, GraphQL'},
+  {id:'mobile-dev',d:'React Native, Flutter'},{id:'ml-ops',d:'ML training'},
+  {id:'documentation',d:'README, API docs'},{id:'git-workflow',d:'Branching'},
+  {id:'blockchain',d:'Solidity, Web3'},{id:'game-dev',d:'Unity, Godot'},
+  {id:'cloud',d:'AWS, GCP, Azure, Terraform'},{id:'performance',d:'Profiling, caching, load testing'},
+  {id:'a11y',d:'WCAG, ARIA, screen readers'},{id:'embedded',d:'Arduino, ESP32, Raspberry Pi'},
+  {id:'sysadmin',d:'Linux, monitoring, scripts'},{id:'ai-ml',d:'PyTorch, TensorFlow, LLMs'},
+  {id:'iot',d:'MQTT, sensors, edge computing'},{id:'ui-ux',d:'Tailwind, animations, design systems'},
+  {id:'networking',d:'WebSocket, gRPC, DNS'},{id:'microservices',d:'Service mesh, API gateway'},
+  {id:'rust-dev',d:'Cargo, async, WebAssembly'},{id:'python-dev',d:'FastAPI, Django, packaging'}
+];
+
+let H = [], CM = true, AF = null;
+
+/* â”€â”€ Storage â”€â”€ */
+function ss() { try { localStorage.setItem('claw_h', JSON.stringify(H)) } catch(e) {} }
+function ls() { try { const s = localStorage.getItem('claw_h'); if (s) { H = JSON.parse(s); return H.length > 0 } } catch(e) {} return false }
+
+/* â”€â”€ Init â”€â”€ */
+function init() {
+  initTheme();
+  rM(); rS(); rC();
+  if (ls() && H.length) {
+    document.getElementById('wl').style.display = 'none';
+    H.forEach(m => am(m.role, m.content, m.c, m.p));
+  }
+  fs();
+}
+
+function rM() {
+  document.getElementById('ms').innerHTML =
+    '<h3>ðŸ›ï¸ Council Models (14)</h3>' +
+    MD.map(m => '<div class="mdl"><span class="r">' + m.r + '</span><span class="n">' + esc(m.n) + '</span><span class="u">' + esc(m.u) + '</span></div>').join('');
+}
+function rS() {
+  document.getElementById('ss').innerHTML =
+    SK.map(s => '<span class="skill-tag" onclick="sc(\'/' + s.id + '\')">' + esc(s.id) + '</span>').join('');
+}
+function rC() {
+  document.getElementById('wc').innerHTML =
+    MD.map(m => '<span class="chip">' + esc(m.n) + '</span>').join('');
+}
+
+async function fs() {
+  try {
+    const r = await fetch('/api/models');
+    const d = await r.json();
+    if (d.council_enabled) {
+      document.getElementById('ts').textContent = d.model_count + ' models \u2022 2 providers';
+      document.getElementById('bc').textContent = '\uD83C\uDFDB\uFE0F ' + d.model_count + ' Models';
+    }
+  } catch(e) {
+    document.getElementById('ts').textContent = 'Connecting...';
+  }
+}
+
+function tSide() {
+  document.getElementById('sb').classList.toggle('open');
+  document.getElementById('ov').classList.toggle('show');
+}
+function ar(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px' }
+function hk(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sm() } }
+function hf(e) {
+  const f = e.target.files[0]; if (!f) return;
+  AF = f;
+  document.getElementById('fn').textContent = '\uD83D\uDCCE ' + esc(f.name) + ' (' + (f.size / 1024).toFixed(1) + 'KB)';
+  document.getElementById('fp').classList.add('show');
+}
+function rf() { AF = null; document.getElementById('fp').classList.remove('show'); document.getElementById('fi').value = '' }
+function sc(t) { document.getElementById('mi').value = t + ' '; document.getElementById('mi').focus(); if (window.innerWidth < 768) tSide() }
+function qs(m) { document.getElementById('mi').value = m; sm() }
+
+/* â”€â”€ XSS-safe text escaping â”€â”€ */
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+/* â”€â”€ Send Message â”€â”€ */
+async function sm() {
+  const inp = document.getElementById('mi'), t = inp.value.trim();
+  if (!t) return;
+  inp.value = ''; inp.style.height = 'auto'; rf();
+  document.getElementById('wl').style.display = 'none';
+  if (t.startsWith('/')) { hc(t); return }
+  am('u', t);
+  const sb = document.getElementById('sb2');
+  sb.disabled = true; sb.textContent = '\u23F3 Thinking...';
+  try {
+    const url = CM ? '/api/council' : '/api/chat';
+    let body = { message: t };
+    if (AF) { try { const c = await rft(AF); body.message = t + '\n\n--- File: ' + AF.name + ' ---\n' + c } catch(e) {} }
+    const r = await fw(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (!r.ok) {
+      ae('\u274C Error: ' + (d.error || 'Unknown error'));
+    } else if (d.council) {
+      let clean = (d.reply || '').replace(/\[Council Consensus.*?\]\n?/g, '').trim();
+      if (!clean) { for (const resp of (d.all_responses || [])) { if (resp.content && resp.content.trim()) { clean = resp.content.trim(); break } } }
+      am('a', clean || 'No response', true, d.consensus_percentage);
+    } else {
+      am('a', d.reply || 'No response');
+    }
+  } catch(e) {
+    console.error(e);
+    ae('\u274C Network error. Please check your connection and try again.');
+  } finally {
+    sb.disabled = false; sb.textContent = 'Send'; ss(); document.getElementById('mi').focus();
+  }
+}
+
+/* â”€â”€ Fetch with retry â”€â”€ */
+async function fw(url, opts, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch(url, opts);
+      if (r.ok || i === retries - 1) return r;
+      await new Promise(s => setTimeout(s, 1000 * Math.pow(2, i)));
+    } catch(e) {
+      if (i === retries - 1) throw e;
+      await new Promise(s => setTimeout(s, 1000 * Math.pow(2, i)));
+    }
+  }
+}
+
+/* â”€â”€ Read file as text â”€â”€ */
+function rft(f) {
+  return new Promise((res, rej) => {
+    if (f.type.startsWith('text/') || f.name.match(/\.(js|py|json|md|html|css|txt|xml|yaml|yml|toml|cfg|ini|log|csv|ts|tsx|jsx|sql|sh|bat|rb|go|rs|java|cpp|c|h|hpp)$/i)) {
+      const rd = new FileReader();
+      rd.onload = () => res(rd.result);
+      rd.onerror = () => rej(new Error('Read failed'));
+      rd.readAsText(f);
+    } else {
+      res('[Binary file: ' + f.name + ', ' + (f.size / 1024).toFixed(1) + 'KB]');
+    }
+  });
+}
+
+/* â”€â”€ Slash Commands â”€â”€ */
+function hc(t) {
+  const p = t.split(' '), cmd = p[0].toLowerCase(), arg = p.slice(1).join(' ').trim();
+  document.getElementById('wl').style.display = 'none';
+  switch (cmd) {
+    case '/help':
+      let h = '**\uD83E\uDD9E CLAW AI - All Commands**\n\n';
+      h += '**Core:** /help /clear /status /version\n\n';
+      h += '**Council:** /council /nocouncil /models\n\n';
+      h += '**Skills (26):**\n';
+      SK.forEach(s => h += '  **/' + s.id + '** - ' + s.d + '\n');
+      h += '\n**Session:** /save /export /config /memory';
+      am('a', h); break;
+    case '/council':
+      if (arg) { CM = true; am('u', arg); scm(arg) } else { CM = true; ae('\uD83C\uDFDB\uFE0F Council enabled - 14 models') } break;
+    case '/nocouncil':
+      if (arg) { CM = false; am('u', arg); ssm(arg) } else { CM = false; ae('\u26A1 Council disabled - single model') } break;
+    case '/models':
+      let m = '**\uD83C\uDFDB\uFE0F Council Models (14)**\n\n**OpenRouter (8):**\n';
+      MD.filter(x => x.p === 'OR').forEach(x => m += '  ' + x.r + ' **' + x.n + '** - ' + x.u + '\n');
+      m += '\n**Alibaba Cloud (6):**\n';
+      MD.filter(x => x.p === 'ALI').forEach(x => m += '  ' + x.r + ' **' + x.n + '** - ' + x.u + '\n');
+      am('a', m); break;
+    case '/skills':
+      let s = '**\uD83D\uDEE0\uFE0F Available Skills (26)**\n\n';
+      SK.forEach(x => s += '**/' + x.id + '** - ' + x.d + '\n');
+      am('a', s); break;
+    case '/clear':
+      H = []; ss();
+      document.getElementById('ch').innerHTML = '<div class="welcome" id="wl" style="display:flex"><div class="welcome-icon">\uD83E\uDD9E</div><h2>Chat cleared</h2><p>Start a new conversation</p></div>';
+      break;
+    case '/status':
+      ae('\uD83D\uDCCA Status\n\u2022 Council: ' + (CM ? 'Active (14 models)' : 'Disabled') + '\n\u2022 Providers: OpenRouter + Alibaba Cloud\n\u2022 Skills: 26 loaded\n\u2022 Cost: FREE\n\u2022 Messages: ' + H.length);
+      break;
+    case '/version':
+      ae('\uD83E\uDD9E Claw AI v2.0\n\u2022 14 models (OpenRouter + Alibaba)\n\u2022 26 skills\n\u2022 Session persistence\n\u2022 File upload\n\u2022 Mobile responsive\n\u2022 Light/Dark theme');
+      break;
+    case '/save': ss(); ae('\u2705 Session saved to browser'); break;
+    case '/export':
+      let md = '# Claw AI Chat\n\n';
+      H.forEach(m => md += '## ' + m.role + '\n' + m.content + '\n\n');
+      const bl = new Blob([md], { type: 'text/markdown' }), ur = URL.createObjectURL(bl), a = document.createElement('a');
+      a.href = ur; a.download = 'claw-' + Date.now() + '.md'; a.click();
+      URL.revokeObjectURL(ur);
+      ae('\u2705 Exported as markdown'); break;
+    case '/config':
+      ae('\u2699\uFE0F Config\n\u2022 Council: ' + (CM ? 'On' : 'Off') + '\n\u2022 Models: 14\n\u2022 Providers: 2\n\u2022 API: OpenRouter + Alibaba');
+      break;
+    case '/memory':
+      let ch = H.reduce((s, m) => s + (m.content?.length || 0), 0), tk = Math.round(ch / 4), pc = Math.min(100, tk / 2000).toFixed(1);
+      ae('\uD83E\uDDE0 Context\n\u2022 Tokens: ~' + tk.toLocaleString() + '\n\u2022 Max: 200,000\n\u2022 Usage: ' + pc + '%');
+      break;
+    default:
+      if (SK.some(x => '/' + x.id === cmd)) {
+        if (arg) { am('u', t); scm('Using ' + cmd + ' skill: ' + arg) }
+        else { const sk = SK.find(x => '/' + x.id === cmd); ae('\uD83D\uDEE0\uFE0F **' + cmd.slice(1) + '** - ' + (sk ? sk.d : '') + '\n\nUsage: `' + cmd + ' <action>`') }
+      } else { ae('\u274C Unknown command. Type /help') }
+  }
+}
+
+/* â”€â”€ API calls (council / single) â”€â”€ */
+async function scm(t) {
+  const sb = document.getElementById('sb2'); sb.disabled = true; sb.textContent = '\u23F3 Thinking...';
+  try {
+    const r = await fw('/api/council', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: t }) });
+    const d = await r.json();
+    if (!r.ok) ae('\u274C ' + (d.error || 'Error'));
+    else {
+      let c = (d.reply || '').replace(/\[Council Consensus.*?\]\n?/g, '').trim();
+      if (!c) { for (const resp of (d.all_responses || [])) { if (resp.content && resp.content.trim()) { c = resp.content.trim(); break } } }
+      am('a', c || 'No response', true, d.consensus_percentage);
+    }
+  } catch(e) { ae('\u274C Network error. Please try again.') }
+  finally { sb.disabled = false; sb.textContent = 'Send'; ss() }
+}
+async function ssm(t) {
+  const sb = document.getElementById('sb2'); sb.disabled = true; sb.textContent = '\u23F3 Thinking...';
+  try {
+    const r = await fw('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: t }) });
+    const d = await r.json();
+    if (!r.ok) ae('\u274C ' + (d.error || 'Error')); else am('a', d.reply || 'No response');
+  } catch(e) { ae('\u274C Network error. Please try again.') }
+  finally { sb.disabled = false; sb.textContent = 'Send'; ss() }
+}
+
+/* â”€â”€ Add message / system event to chat â”€â”€ */
+function am(role, content, council, consensus) {
+  const ch = document.getElementById('ch'), d = document.createElement('div');
+  d.className = 'msg ' + (role === 'u' ? 'u' : role === 'a' ? 'a' : 's');
+  let inner = '';
+  if (council && consensus) {
+    inner += '<div class="ctag">\uD83C\uDFDB\uFE0F Council Consensus (' + esc(String(consensus)) + '%)</div>\n';
+  }
+  inner += '<div class="cresp">' + fm(content) + '</div>';
+  d.innerHTML = '<div class="mc">' + inner + '</div>';
+  ch.appendChild(d);
+  ch.scrollTop = ch.scrollHeight;
+  H.push({ role, content, c: council || false, p: consensus || 0 });
+}
+
+function ae(text) {
+  const ch = document.getElementById('ch'), d = document.createElement('div');
+  d.className = 'msg s';
+  d.innerHTML = '<div class="mc" style="white-space:pre-wrap;line-height:1.6">' + fm(text) + '</div>';
+  ch.appendChild(d);
+  ch.scrollTop = ch.scrollHeight;
+  H.push({ role: 's', content: text });
+}
+
+/* â"€â"€ Markdown formatting â"€â"€ */
+function fm(t) {
+  if (!t) return '';
+  let s = String(t);
+  // HTML escape
+  s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // Code blocks
+  s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
+    return '<pre><code>' + code.trim() + '</code></pre>';
+  });
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Headers
+  s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // Bold & italic
+  s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  s = s.replace(/\*(.+?)\*/g, '<i>$1</i>');
+  // Links
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Horizontal rule
+  s = s.replace(/^---$/gm, '<hr>');
+  // Lists
+  s = s.replace(/^[\u2022\-\*] (.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  s = s.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  // Blockquotes
+  s = s.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  // Line breaks
+  s = s.replace(/\n/g, '<br>');
+  // Clean up breaks around block elements
+  s = s.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, function(_, c) {
+    return '<pre><code>' + c.replace(/<br>/g, '\n') + '</code></pre>';
+  });
+  s = s.replace(/<\/(h[1-3]|pre|ul|ol|blockquote|hr)><br>/g, '</$1>');
+  s = s.replace(/<br><(h[1-3]|pre|ul|ol|blockquote|hr)/g, '<$1');
+  return s;
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
