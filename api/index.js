@@ -40,10 +40,45 @@ const ALIBABA_MODELS = [
 
 const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
 
-const COUNCIL_THRESHOLD = parseFloat(process.env.COUNCIL_THRESHOLD || '0.6');
+// Smart model priority chain - fastest/most reliable first
+const FAST_MODELS = [
+  { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen/qwen3-80b', provider: 'openrouter' },
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  { model: 'openai/gpt-4o-mini', provider: 'openrouter' },
+];
 
-// Council is enabled if we have an OpenRouter key
-const COUNCIL_ENABLED = OPENROUTER_API_KEY && OPENROUTER_API_KEY.length > 10;
+const REASONING_MODELS = [
+  { model: 'deepseek/deepseek-r1', provider: 'openrouter' },
+  { model: 'qwen3-235b-a22b', provider: 'alibaba' },
+  { model: 'qwen3.5-397b-a17b', provider: 'alibaba' },
+];
+
+const CODING_MODELS = [
+  { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
+  { model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' },
+  { model: 'qwen3-coder-plus', provider: 'alibaba' },
+];
+
+// System prompt - powerful reasoning + coding
+const SYSTEM_PROMPT = `You are Claw AI, an elite AI assistant with deep expertise in reasoning, mathematics, coding, and analysis.
+
+Core capabilities:
+- Step-by-step logical reasoning with clear explanations
+- Advanced mathematics: algebra, calculus, number theory, pattern recognition
+- Production-quality code in any programming language
+- Complex multi-part problem solving
+- Data analysis and structured thinking
+
+Rules:
+- Always show your reasoning step by step
+- For math: show every calculation, verify your answers
+- For code: write clean, documented, production-ready code with error handling
+- For patterns: explain the rule, prove it works, then apply it
+- Break complex problems into numbered parts and solve each thoroughly
+- When asked what you are, say you are Claw AI
+- Use markdown formatting for clarity (headers, code blocks, lists, bold)
+- Never refuse a problem — always attempt a solution with your best reasoning`;
 
 module.exports = async (req, res) => {
   // Set CORS headers
@@ -210,9 +245,9 @@ module.exports = async (req, res) => {
         dashscope: !!DASHSCOPE_API_KEY,
       },
       limits: {
-        max_message_length: 32000,
-        max_body_size: '100KB',
-        max_tokens: 2048,
+        max_message_length: 50000,
+        max_body_size: '200KB',
+        max_tokens: 4096,
         temperature: 0.7
       }
     });
@@ -232,68 +267,121 @@ module.exports = async (req, res) => {
 async function handleChat(req, res) {
   let body = '';
   let bodySize = 0;
-  const MAX_BODY_SIZE = 100 * 1024; // 100KB limit
+  const MAX_BODY_SIZE = 200 * 1024; // 200KB limit (increased for history)
   req.on('data', chunk => {
     bodySize += chunk.length;
     if (bodySize > MAX_BODY_SIZE) {
       req.destroy();
-      return res.status(413).json({ error: 'Request body too large (max 100KB)' });
+      return res.status(413).json({ error: 'Request body too large (max 200KB)' });
     }
     body += chunk;
   });
   req.on('end', async () => {
     try {
-      const { message, model, use_council } = JSON.parse(body);
+      const { message, model, history, use_council } = JSON.parse(body);
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'message required (string)' });
       }
 
-      if (message.length > 32000) {
-        return res.status(400).json({ error: 'message too long (max 32000 chars)' });
+      if (message.length > 50000) {
+        return res.status(400).json({ error: 'message too long (max 50000 chars)' });
       }
 
-      // Use council if enabled and requested
-      if (use_council || (!model && OPENROUTER_API_KEY)) {
+      // Use council if explicitly requested
+      if (use_council && OPENROUTER_API_KEY) {
         return handleCouncilRequest(res, message);
       }
 
-      // Single model mode
-      const apiKey = OPENROUTER_API_KEY || process.env.DEEPSEEK_API_KEY;
-      if (!apiKey) {
-        return res.status(500).json({
-          error: 'API key not configured. Set OPENROUTER_API_KEY or DEEPSEEK_API_KEY in Vercel environment variables.',
-          instructions: 'Go to Vercel Dashboard → Project Settings → Environment Variables → Add OPENROUTER_API_KEY'
-        });
-      }
-
-      const selectedModel = model || COUNCIL_MODELS[0];
+      // Build messages array with conversation history
+      const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
       
-      // Call OpenRouter API (single model)
-      const payload = JSON.stringify({
-        model: selectedModel,
-        messages: [
-          { role: 'system', content: 'You are Claw AI, a helpful, accurate, and thoughtful AI assistant. You provide clear, well-structured responses. When asked what you are, say you are Claw AI.' },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 2048,
-      });
+      // Add conversation history (last 20 messages max)
+      if (Array.isArray(history)) {
+        const recent = history.slice(-20);
+        for (const h of recent) {
+          if (h.role === 'u') messages.push({ role: 'user', content: h.content });
+          else if (h.role === 'a') messages.push({ role: 'assistant', content: h.content });
+        }
+      }
+      
+      messages.push({ role: 'user', content: message });
 
-      const result = await callOpenRouterAPI(apiKey, payload);
-
-      if (result.error) {
-        return res.status(400).json({ error: result.error.message });
+      // Detect intent for smart model selection
+      const lc = message.toLowerCase();
+      const needsReasoning = /\b(math|reason|logic|proof|prove|calculate|solve|pattern|sequence|theorem|equation)\b/i.test(message);
+      const needsCoding = /\b(code|function|program|script|debug|refactor|implement|algorithm|class|api|write a |build a )\b/i.test(message);
+      
+      // Select model chain based on intent
+      let modelChain;
+      if (model) {
+        // User specified a model
+        const provider = ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter';
+        modelChain = [{ model, provider }];
+      } else if (needsReasoning) {
+        modelChain = [...REASONING_MODELS, ...FAST_MODELS];
+      } else if (needsCoding) {
+        modelChain = [...CODING_MODELS, ...FAST_MODELS];
+      } else {
+        modelChain = [...FAST_MODELS, ...REASONING_MODELS.slice(0, 1)];
       }
 
-      const reply = result.choices?.[0]?.message?.content || 'No response';
-      const usage = result.usage || {};
+      // Try models in order until one succeeds (fallback chain)
+      let lastError = null;
+      for (const { model: m, provider: p } of modelChain) {
+        try {
+          const isAlibaba = p === 'alibaba';
+          const apiKey = isAlibaba ? DASHSCOPE_API_KEY : OPENROUTER_API_KEY;
+          if (!apiKey) continue;
+          
+          const apiBase = isAlibaba ? DASHSCOPE_API_BASE : OPENROUTER_API_BASE;
+          const headers = isAlibaba ? {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          } : {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://github.com/claw-agent',
+            'X-Title': 'Claw AI',
+          };
 
-      res.status(200).json({
-        reply,
-        usage,
-        model: selectedModel,
-        council: false
+          const payload = JSON.stringify({
+            model: m,
+            messages,
+            temperature: needsReasoning ? 0.3 : 0.7,
+            max_tokens: 4096,
+          });
+
+          const result = await callAPI(apiBase, payload, headers);
+          
+          if (result.error) {
+            lastError = result.error.message || 'API error';
+            continue; // Try next model
+          }
+
+          const reply = result.choices?.[0]?.message?.content;
+          if (!reply || !reply.trim()) {
+            lastError = 'Empty response from ' + m;
+            continue;
+          }
+
+          return res.status(200).json({
+            reply: reply.trim(),
+            usage: result.usage || {},
+            model: m,
+            provider: p,
+            council: false
+          });
+        } catch (e) {
+          lastError = e.message;
+          continue; // Try next model
+        }
+      }
+
+      // All models failed
+      return res.status(500).json({ 
+        error: 'All models failed. Last error: ' + (lastError || 'Unknown error'),
+        tried: modelChain.map(m => m.model)
       });
     } catch (e) {
       console.error('Chat error:', e.message);
@@ -337,15 +425,14 @@ async function handleCouncilRequest(res, message) {
       let payload, apiBase, headers;
       
       if (isAlibaba) {
-        // Alibaba Cloud API
         payload = JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: 'You are Claw AI, a helpful, accurate, and thoughtful AI assistant. You provide clear, well-structured responses.' },
+            { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: message }
           ],
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: 4096,
         });
         apiBase = DASHSCOPE_API_BASE;
         headers = {
@@ -353,15 +440,14 @@ async function handleCouncilRequest(res, message) {
           'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
         };
       } else {
-        // OpenRouter API
         payload = JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: 'You are Claw AI, a helpful, accurate, and thoughtful AI assistant. You provide clear, well-structured responses.' },
+            { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: message }
           ],
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: 4096,
         });
         apiBase = OPENROUTER_API_BASE;
         headers = {
@@ -468,7 +554,7 @@ function callAPI(apiBase, payload, headers) {
         ...headers,
         'Content-Length': Buffer.byteLength(payload),
       },
-      timeout: 60000,
+      timeout: 30000,
     };
 
     const request = https.request(options, (apiRes) => {

@@ -555,7 +555,7 @@ const SK=[
 {id:'test',d:'Write tests & QA'},{id:'docs',d:'Generate documentation'},
 {id:'design',d:'System architecture'},{id:'search',d:'Web research & lookup'}
 ];
-let H=[],CM=true,AF=null,CID=null,CONVOS=[];
+let H=[],CM=false,AF=null,CID=null,CONVOS=[];
 
 /* Storage & Conversations */
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -746,7 +746,7 @@ area.appendChild(think);document.getElementById('ch').scrollTop=document.getElem
 const btn=document.getElementById('sb2');btn.disabled=true;
 try{
 const url=CM?'/api/council':'/api/chat';
-const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text}),signal:abortCtrl?.signal});
+const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,history:H.filter(m=>m.role==='u'||m.role==='a').slice(-20)}),signal:abortCtrl?.signal});
 const d=await r.json();think.remove();
 if(!r.ok){ae('Error: '+(d.error||'Server error'))}
 else if(d.council){
@@ -795,7 +795,7 @@ wrap.appendChild(btn);
 /* Send */
 async function sm(){
 const inp=document.getElementById('mi'),t=inp.value.trim();
-if(!t)return;inp.value='';inp.style.height='auto';rf();
+if(!t)return;inp.value='';inp.style.height='auto';rf();updCharCount();
 if(t.startsWith('/')){hc(t);return}
 am('u',t);
 const area=ensureArea();
@@ -807,7 +807,7 @@ area.appendChild(think);document.getElementById('ch').scrollTop=document.getElem
 const btn=document.getElementById('sb2');btn.disabled=true;
 try{
 const url=CM?'/api/council':'/api/chat';
-let body={message:t};
+let body={message:t,history:H.filter(m=>m.role==='u'||m.role==='a').slice(-20)};
 if(AF){try{const c=await rft(AF);body.message=t+'\n\n--- File: '+AF.name+' ---\n'+c}catch(e){}}
 const r=await fw(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:abortCtrl?.signal});
 const d=await r.json();think.remove();
