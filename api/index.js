@@ -40,23 +40,23 @@ const ALIBABA_MODELS = [
 
 const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
 
-// Model chains — 3 models per chain: OpenRouter primary + Alibaba DashScope fallbacks
-// DeepSeek V3 primary (fast 671B), then Alibaba powerhouses, then OpenRouter backup
+// Model chains — ALL OpenRouter (proven SSE streaming support)
+// 3 models per chain, 18s timeout each = 54s worst case (within 60s Vercel limit)
 const FAST_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
-  { model: 'qwen-plus', provider: 'alibaba' },
   { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  { model: 'openai/gpt-4o-mini', provider: 'openrouter' },
 ];
 
 const REASONING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
-  { model: 'qwen3-235b-a22b', provider: 'alibaba' },
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
   { model: 'qwen/qwen3-80b', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
-  { model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' },
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
   { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
 ];
 
@@ -349,9 +349,11 @@ async function handleChat(req, res) {
           try {
             const ok = await callAPIStreaming(apiBase, payload, hdrs, res, m, p);
             if (ok) return; // Stream completed successfully
-            // If callAPIStreaming returned false, no tokens were sent — try next model
+            lastError = 'No tokens from ' + m;
+            console.log('[stream] Model failed (0 tokens):', m);
           } catch (e) {
             lastError = e.message;
+            console.log('[stream] Model error:', m, e.message);
             continue;
           }
         }
@@ -418,6 +420,7 @@ function callAPIStreaming(apiBase, payload, headers, clientRes, modelName, provi
         let errData = '';
         apiRes.on('data', chunk => errData += chunk);
         apiRes.on('end', () => {
+          console.log('[stream] Non-200 from', modelName, ':', apiRes.statusCode, errData.substring(0, 200));
           if (tokensSent === 0) {
             resolve(false); // No tokens sent, caller can try next model
           } else {
