@@ -187,12 +187,27 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 </div>
 <div class="sb-sep"></div>
 <div class="sb-scroll">
-<div class="sb-label">Commands</div>
+<div class="sb-label">Council</div>
 <div class="sb-nav">
 <button class="sb-item" onclick="sc('/council')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>Force Council</button>
 <button class="sb-item" onclick="sc('/nocouncil')"><span class="icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>Single Model</button>
-<button class="sb-item" onclick="sc('/export')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Export Chat</button>
+</div>
+<div class="sb-sep"></div>
+<div class="sb-label">Session</div>
+<div class="sb-nav">
+<button class="sb-item" onclick="sc('/sessions')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></span>Sessions</button>
+<button class="sb-item" onclick="sc('/resume')"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></span>Resume</button>
+<button class="sb-item" onclick="sc('/export')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Export</button>
 <button class="sb-item" onclick="doClear()"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span>Clear</button>
+</div>
+<div class="sb-sep"></div>
+<div class="sb-label">System</div>
+<div class="sb-nav">
+<button class="sb-item" onclick="sc('/tools')"><span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></span>Tools (26)</button>
+<button class="sb-item" onclick="sc('/permissions')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Permissions</button>
+<button class="sb-item" onclick="sc('/mcp')"><span class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>MCP Servers</button>
+<button class="sb-item" onclick="sc('/doctor')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>Doctor</button>
+<button class="sb-item" onclick="sc('/cost')"><span class="icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>Cost</button>
 </div>
 <div class="sb-sep"></div>
 <div class="sb-label">Skills &middot; 26</div>
@@ -394,7 +409,7 @@ function hc(t){
 const p=t.split(' '),cmd=p[0].toLowerCase(),arg=p.slice(1).join(' ').trim();
 switch(cmd){
 case'/help':
-am('a','**Claw AI \u2014 Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version\n\n**Council:** /council \u00b7 /nocouncil \u00b7 /models\n\n**Skills (26):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n')+'\n\n**Session:** /save \u00b7 /export \u00b7 /config \u00b7 /memory');break;
+am('a','**Claw AI \u2014 All Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version \u00b7 /doctor\n\n**Council:** /council \u00b7 /nocouncil \u00b7 /models\n\n**Session:** /save \u00b7 /export \u00b7 /sessions \u00b7 /resume \u00b7 /delete \u00b7 /compact\n\n**System:** /tools \u00b7 /permissions \u00b7 /mcp \u00b7 /cost \u00b7 /config \u00b7 /memory \u00b7 /diff \u00b7 /undo \u00b7 /init \u00b7 /bug \u00b7 /approval\n\n**Skills (26):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n'));break;
 case'/council':
 if(arg){CM=true;am('u',t);callC(arg)}else{CM=true;document.getElementById('modeLabel').textContent='Council mode';ae('Council enabled \u2014 14 models will collaborate')}break;
 case'/nocouncil':
@@ -408,7 +423,6 @@ case'/status':
 ae('**Status**\n- Council: '+(CM?'Active (14 models)':'Disabled')+'\n- Providers: OpenRouter + Alibaba Cloud\n- Skills: 26 loaded\n- Cost: FREE\n- Messages: '+H.length);break;
 case'/version':
 ae('**Claw AI v2.0**\n- 14 models (OpenRouter + Alibaba)\n- 26 skills\n- Session persistence\n- File upload\n- Light/Dark theme');break;
-case'/save':ss();ae('Session saved');break;
 case'/export':
 let md='# Claw AI Chat\n\n';H.forEach(m=>md+='## '+m.role+'\n'+(m.content||'')+'\n\n');
 const bl=new Blob([md],{type:'text/markdown'}),ur=URL.createObjectURL(bl),a=document.createElement('a');
@@ -419,6 +433,42 @@ ae('**Config**\n- Council: '+(CM?'On':'Off')+'\n- Models: 14\n- Providers: 2\n- 
 case'/memory':
 const ch=H.reduce((s,m)=>s+(m.content?.length||0),0),tk=Math.round(ch/4),pc=Math.min(100,tk/2000).toFixed(1);
 ae('**Context**\n- Tokens: ~'+tk.toLocaleString()+'\n- Max: 200,000\n- Usage: '+pc+'%');break;
+case'/tools':
+ae('**Tools (26)**\n\n**File:** read_file, write_file, list_directory, find_files\n**Shell:** run_command\n**Search:** grep_search\n**Edit:** replace_in_file, multi_edit_file, insert_at_line, diff_files\n**Web:** web_fetch, web_search\n**Agent:** run_subagent, plan_and_execute\n**Task:** task_create, task_update, task_list, task_get\n**Notebook:** notebook_run\n**Context:** get_workspace_context, git_diff, git_log\n**Utility:** sleep, config_get, config_set, powershell');break;
+case'/cost':
+ae('**Cost Tracker**\n- Session cost: $0.00 (FREE)\n- All models: Free tier via OpenRouter + Alibaba\n- No API key charges\n- Messages this session: '+H.length);break;
+case'/sessions':
+var sl=[];try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.startsWith('claw_ses_'))sl.push(k.replace('claw_ses_',''))}}catch(e){}
+if(sl.length)ae('**Saved Sessions ('+sl.length+')**\n'+sl.map(x=>'- `'+x+'`').join('\n')+'\n\nUse `/resume <name>` to load');
+else ae('**No saved sessions**\n\nUse `/save <name>` to save current chat');break;
+case'/resume':
+if(!arg){ae('Usage: `/resume <session-name>`\nType `/sessions` to list');break}
+try{var sd=localStorage.getItem('claw_ses_'+arg);if(sd){H=JSON.parse(sd);ss();document.getElementById('ch').innerHTML='<div class="welcome" id="wl" style="display:none"></div>';var ma2=document.getElementById('ma');if(ma2)ma2.remove();H.forEach(m=>renderMsg(m));ae('Session "'+arg+'" resumed ('+H.length+' messages)')}else{ae('Session "'+arg+'" not found. Type `/sessions` to list')}}catch(e){ae('Failed to resume session')}break;
+case'/delete':
+if(!arg){ae('Usage: `/delete <session-name>`\nType `/sessions` to list');break}
+try{localStorage.removeItem('claw_ses_'+arg);ae('Session "'+arg+'" deleted')}catch(e){ae('Failed to delete session')}break;
+case'/compact':
+var before=H.length;if(H.length>20){H=H.slice(-20);ss();ae('History compacted: '+before+' \u2192 '+H.length+' messages')}else{ae('History already compact ('+H.length+' messages)')}break;
+case'/diff':
+if(H.length<2){ae('Not enough messages to diff');break}
+var last2=H.slice(-2);ae('**Last 2 messages**\n\n**['+last2[0].role+']:** '+last2[0].content.slice(0,200)+(last2[0].content.length>200?'...':'')+'\n\n**['+last2[1].role+']:** '+last2[1].content.slice(0,200)+(last2[1].content.length>200?'...':''));break;
+case'/doctor':
+var checks=[];checks.push('API endpoint: '+location.origin+'/api');checks.push('Theme: '+document.documentElement.getAttribute('data-theme'));checks.push('Council: '+(CM?'Enabled':'Disabled'));checks.push('History: '+H.length+' messages');checks.push('Skills: '+SK.length+' loaded');checks.push('Models: '+MD.length+' configured');checks.push('Storage: '+(localStorage?'Available':'Unavailable'));checks.push('File upload: '+(window.FileReader?'Supported':'Unsupported'));checks.push('Fetch API: '+(window.fetch?'Available':'Unavailable'));
+ae('**Diagnostics**\n'+checks.map(x=>'- '+x).join('\n'));break;
+case'/permissions':
+ae('**Permission System**\n\n**Gated tools** (require approval in CLI):\n- run_command\n- write_file\n- replace_in_file\n- multi_edit_file\n- insert_at_line\n- powershell\n\n**Dangerous patterns** (22 blocked):\n- rm -rf, sudo, chmod 777, mkfs, dd if=\n- DROP TABLE, DELETE FROM, shutdown\n- curl|sh, eval(), exec()\n\n**Web UI:** All requests go through the API which has its own safety layer');break;
+case'/undo':
+if(H.length>=2){H.pop();H.pop();ss();document.getElementById('ch').innerHTML='<div class="welcome" id="wl" style="display:none"></div>';var ma3=document.getElementById('ma');if(ma3)ma3.remove();if(H.length){H.forEach(m=>renderMsg(m))}else{document.getElementById('wl').style.display=''}ae('Last exchange undone')}else{ae('Nothing to undo')}break;
+case'/init':
+ae('**Project Init**\n\nTo initialize Claw in a project directory, run in terminal:\n```\npip install -e .\nclaw init\n```\nThis creates `.claw-agent/` config in your project with:\n- `config.json` \u2014 Agent settings\n- `sessions/` \u2014 Chat history\n- `skills/` \u2014 Custom skills\n- `mcp/` \u2014 MCP server configs');break;
+case'/bug':
+ae('**Report a Bug**\n\nInclude:\n- Steps to reproduce\n- Expected vs actual behavior\n- Browser / OS info\n\nSubmit at: [GitHub Issues](https://github.com/kdhdjdk090/claw-agent/issues)');break;
+case'/mcp':
+ae('**MCP Server Integration**\n\n**Transport:** stdio (active), SSE (config only), HTTP (config only)\n\n**Protocol:** JSON-RPC 2.0\n- `tools/list` \u2014 Discover server tools\n- `tools/call` \u2014 Execute a tool\n- `notifications/initialized` \u2014 Handshake\n\n**CLI commands:**\n- `claw mcp add <name> <command>` \u2014 Add server\n- `claw mcp remove <name>` \u2014 Remove server\n- `claw mcp list` \u2014 List servers\n\n**Config:** `~/.claw-agent/mcp/config.json`');break;
+case'/approval':
+ae('**Approval Queue**\n\nIn CLI mode, dangerous tool calls require approval:\n- Type `y` to approve, `n` to deny\n- Auto-approved tools: read_file, list_directory, grep_search, web_fetch\n- Gated tools: run_command, write_file, powershell, replace_in_file\n\nWeb UI requests go through the API safety layer instead');break;
+case'/save':
+if(arg){try{localStorage.setItem('claw_ses_'+arg,JSON.stringify(H));ae('Session saved as "'+arg+'"')}catch(e){ae('Failed to save session')}}else{ss();ae('Chat saved. Use `/save <name>` to save as named session')}break;
 default:
 const sk=SK.find(x=>'/'+x.id===cmd);
 if(sk){if(arg){am('u',t);callC('Using '+cmd.slice(1)+' skill: '+arg)}else{ae('**/'+sk.id+'** \u2014 '+sk.d+'\n\nUsage: `'+cmd+' your request`')}}
