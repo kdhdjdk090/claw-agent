@@ -22,324 +22,203 @@ SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Registry of built-in skills - CLAUDE AI TOP SKILLS INSTALLED
 BUILTIN_SKILLS = {
-    # 🥇 CORE DEVELOPMENT SKILLS
-    "web-dev": {
-        "name": "web-dev",
+    # Core capabilities — Claude-style
+    "code": {
+        "name": "code",
         "version": "1.0.0",
-        "description": "Web development toolkit - HTML, CSS, JavaScript, React, Vue, Next.js",
-        "tools": ["web_fetch", "write_file", "run_command", "read_file"],
-        "prompts": {
-            "create-react": "Create a React component with TypeScript",
-            "debug-js": "Debug JavaScript/TypeScript code",
-            "setup-vite": "Set up Vite project",
-            "nextjs": "Create Next.js app with routing",
-        },
-    },
-    "data-science": {
-        "name": "data-science",
-        "version": "1.0.0",
-        "description": "Data science toolkit - pandas, numpy, matplotlib, ML",
-        "tools": ["notebook_run", "run_command", "read_file", "write_file"],
-        "prompts": {
-            "analyze-data": "Analyze a CSV file and create visualizations",
-            "train-model": "Train a machine learning model",
-            "eda": "Exploratory data analysis",
-        },
-    },
-    "devops": {
-        "name": "devops",
-        "version": "1.0.0",
-        "description": "DevOps toolkit - Docker, Kubernetes, CI/CD, cloud deployment",
-        "tools": ["run_command", "write_file", "read_file"],
-        "prompts": {
-            "dockerize": "Create Docker setup for a project",
-            "ci-cd": "Set up CI/CD pipeline",
-            "k8s": "Kubernetes configuration",
-            "deploy": "Deploy to cloud (AWS/GCP/Azure)",
-        },
-    },
-    
-    # 🥇 SECURITY & CODE QUALITY
-    "security": {
-        "name": "security",
-        "version": "1.0.0",
-        "description": "Security toolkit - vulnerability scanning, code review, audits",
-        "tools": ["read_file", "grep_search", "run_command"],
-        "prompts": {
-            "audit": "Security audit of codebase",
-            "review": "Security code review",
-            "scan": "Vulnerability scan",
-            "pentest": "Penetration testing checklist",
-        },
-    },
-    "api-dev": {
-        "name": "api-dev",
-        "version": "1.0.0",
-        "description": "API development - REST, GraphQL, OpenAPI, testing",
-        "tools": ["write_file", "read_file", "run_command", "web_fetch"],
-        "prompts": {
-            "create-api": "Create REST API endpoint",
-            "openapi": "Generate OpenAPI spec",
-            "test-api": "API integration tests",
-            "graphql": "Create GraphQL schema",
-        },
-    },
-    
-    # 🥈 ADVANCED DEVELOPMENT
-    "mobile-dev": {
-        "name": "mobile-dev",
-        "version": "1.0.0",
-        "description": "Mobile development - React Native, Flutter, iOS/Android",
-        "tools": ["write_file", "run_command", "read_file"],
-        "prompts": {
-            "react-native": "Create React Native component",
-            "flutter": "Set up Flutter project",
-            "debug-mobile": "Debug mobile build issues",
-        },
-    },
-    "ml-ops": {
-        "name": "ml-ops",
-        "version": "1.0.0",
-        "description": "Machine Learning Ops - model training, deployment, monitoring",
-        "tools": ["notebook_run", "run_command", "write_file", "web_fetch"],
-        "prompts": {
-            "train": "Train ML model with best practices",
-            "deploy-model": "Deploy ML model to production",
-            "monitor": "Set up model monitoring",
-        },
-    },
-    "database": {
-        "name": "database",
-        "version": "1.0.0",
-        "description": "Database toolkit - SQL, NoSQL, migrations, optimization",
-        "tools": ["run_command", "read_file", "write_file"],
-        "prompts": {
-            "design-schema": "Design database schema",
-            "optimize": "Optimize slow queries",
-            "migrate": "Database migration script",
-            "nosql": "NoSQL data modeling",
-        },
-    },
-    
-    # 🥉 TESTING & QA
-    "testing": {
-        "name": "testing",
-        "version": "1.0.0",
-        "description": "Testing toolkit - unit, integration, e2e, TDD",
-        "tools": ["run_command", "read_file", "write_file"],
-        "prompts": {
-            "unit-test": "Write unit tests",
-            "e2e": "End-to-end test setup",
-            "tdd": "Test-driven development workflow",
-            "coverage": "Check test coverage",
-        },
-    },
-    "code-review": {
-        "name": "code-review",
-        "version": "1.0.0",
-        "description": "Code review toolkit - best practices, refactoring, patterns",
-        "tools": ["read_file", "grep_search", "diff_files"],
-        "prompts": {
-            "review": "Comprehensive code review",
-            "refactor": "Refactor code for better structure",
-            "patterns": "Apply design patterns",
-            "clean-code": "Clean code principles check",
-        },
-    },
-    
-    # ⚡ PRODUCTIVITY & WORKFLOW
-    "git-workflow": {
-        "name": "git-workflow",
-        "version": "1.0.0",
-        "description": "Git workflow automation - branching, merging, CI integration",
-        "tools": ["run_command", "read_file"],
-        "prompts": {
-            "branch": "Create Git branching strategy",
-            "merge": "Resolve merge conflicts",
-            "rebase": "Interactive rebase guide",
-            "release": "Release management workflow",
-        },
-    },
-    "documentation": {
-        "name": "documentation",
-        "version": "1.0.0",
-        "description": "Documentation toolkit - README, API docs, diagrams",
-        "tools": ["read_file", "write_file", "web_fetch"],
-        "prompts": {
-            "readme": "Generate comprehensive README",
-            "api-docs": "Generate API documentation",
-            "diagrams": "Create architecture diagrams",
-            "changelog": "Generate changelog",
-        },
-    },
-    "blockchain": {
-        "name": "blockchain",
-        "version": "1.0.0",
-        "description": "Blockchain development - Solidity, smart contracts, Web3",
-        "tools": ["write_file", "read_file", "run_command"],
-        "prompts": {
-            "solidity": "Write Solidity smart contract",
-            "web3": "Integrate Web3.js",
-            "audit-contract": "Smart contract security audit",
-        },
-    },
-    "game-dev": {
-        "name": "game-dev",
-        "version": "1.0.0",
-        "description": "Game development - Unity, Unreal, Godot, web games",
-        "tools": ["write_file", "read_file", "run_command"],
-        "prompts": {
-            "unity": "Unity C# script",
-            "godot": "Godot GDScript",
-            "web-game": "HTML5/JavaScript game",
-        },
-    },
-
-    # 🌐 CLOUD & INFRASTRUCTURE
-    "cloud": {
-        "name": "cloud",
-        "version": "1.0.0",
-        "description": "Cloud platforms - AWS, GCP, Azure, Terraform, serverless",
-        "tools": ["run_command", "write_file", "read_file", "web_fetch"],
-        "prompts": {
-            "aws": "AWS infrastructure setup",
-            "gcp": "Google Cloud configuration",
-            "azure": "Azure resource deployment",
-            "terraform": "Terraform IaC templates",
-            "serverless": "Serverless function deployment",
-        },
-    },
-    "performance": {
-        "name": "performance",
-        "version": "1.0.0",
-        "description": "Performance optimization - profiling, caching, load testing",
-        "tools": ["run_command", "read_file", "grep_search", "web_fetch"],
-        "prompts": {
-            "profile": "Profile application performance",
-            "cache": "Implement caching strategy",
-            "load-test": "Set up load testing",
-            "optimize": "Optimize slow code paths",
-        },
-    },
-    "a11y": {
-        "name": "a11y",
-        "version": "1.0.0",
-        "description": "Accessibility - WCAG compliance, screen readers, ARIA",
-        "tools": ["read_file", "grep_search", "write_file", "web_fetch"],
-        "prompts": {
-            "audit": "Accessibility audit against WCAG",
-            "aria": "Add ARIA attributes",
-            "contrast": "Check color contrast ratios",
-            "screen-reader": "Screen reader compatibility check",
-        },
-    },
-    "embedded": {
-        "name": "embedded",
-        "version": "1.0.0",
-        "description": "Embedded systems - Arduino, ESP32, Raspberry Pi, firmware",
-        "tools": ["write_file", "read_file", "run_command"],
-        "prompts": {
-            "arduino": "Arduino sketch development",
-            "esp32": "ESP32 firmware",
-            "rpi": "Raspberry Pi project setup",
-            "firmware": "Firmware development workflow",
-        },
-    },
-    "sysadmin": {
-        "name": "sysadmin",
-        "version": "1.0.0",
-        "description": "System administration - Linux, networking, monitoring, scripts",
-        "tools": ["run_command", "write_file", "read_file", "grep_search"],
-        "prompts": {
-            "bash": "Shell scripting automation",
-            "monitoring": "Set up system monitoring",
-            "nginx": "Nginx/Apache configuration",
-            "systemd": "Systemd service management",
-        },
-    },
-    "ai-ml": {
-        "name": "ai-ml",
-        "version": "1.0.0",
-        "description": "AI & deep learning - PyTorch, TensorFlow, transformers, LLMs",
-        "tools": ["notebook_run", "run_command", "write_file", "read_file", "web_fetch"],
-        "prompts": {
-            "pytorch": "PyTorch model training",
-            "tensorflow": "TensorFlow pipeline",
-            "transformers": "Hugging Face transformers",
-            "finetune": "Fine-tune language model",
-            "rag": "Build RAG pipeline",
-        },
-    },
-    "iot": {
-        "name": "iot",
-        "version": "1.0.0",
-        "description": "IoT development - MQTT, sensors, edge computing, protocols",
-        "tools": ["write_file", "read_file", "run_command", "web_fetch"],
-        "prompts": {
-            "mqtt": "MQTT broker and client setup",
-            "edge": "Edge computing pipeline",
-            "sensor": "Sensor data processing",
-            "protocol": "IoT protocol implementation",
-        },
-    },
-    "ui-ux": {
-        "name": "ui-ux",
-        "version": "1.0.0",
-        "description": "UI/UX design - Tailwind, Figma, animations, design systems",
-        "tools": ["write_file", "read_file", "web_fetch"],
-        "prompts": {
-            "tailwind": "Tailwind CSS component design",
-            "animation": "CSS/JS animations",
-            "design-system": "Build design system",
-            "responsive": "Responsive layout implementation",
-        },
-    },
-    "networking": {
-        "name": "networking",
-        "version": "1.0.0",
-        "description": "Networking - TCP/UDP, WebSocket, gRPC, DNS, load balancing",
-        "tools": ["run_command", "write_file", "read_file", "web_fetch"],
-        "prompts": {
-            "websocket": "WebSocket server/client",
-            "grpc": "gRPC service definition",
-            "dns": "DNS configuration",
-            "load-balance": "Load balancer setup",
-        },
-    },
-    "microservices": {
-        "name": "microservices",
-        "version": "1.0.0",
-        "description": "Microservices - service mesh, event-driven, API gateway, saga",
-        "tools": ["write_file", "read_file", "run_command"],
-        "prompts": {
-            "service": "Create microservice scaffold",
-            "gateway": "API gateway configuration",
-            "event-driven": "Event-driven architecture",
-            "saga": "Saga pattern implementation",
-        },
-    },
-    "rust-dev": {
-        "name": "rust-dev",
-        "version": "1.0.0",
-        "description": "Rust development - Cargo, async, traits, WebAssembly",
+        "description": "Generate, edit & debug code in any language",
         "tools": ["write_file", "read_file", "run_command", "grep_search"],
         "prompts": {
-            "cargo": "Cargo project setup",
-            "async": "Async Rust with Tokio",
-            "wasm": "Rust to WebAssembly",
-            "traits": "Trait-based design patterns",
+            "generate": "Generate code from a description",
+            "edit": "Edit existing code to add a feature",
+            "fix": "Fix a bug in the provided code",
         },
     },
-    "python-dev": {
-        "name": "python-dev",
+    "analyze": {
+        "name": "analyze",
         "version": "1.0.0",
-        "description": "Python development - FastAPI, Django, async, packaging",
-        "tools": ["write_file", "read_file", "run_command", "notebook_run"],
+        "description": "Research & data analysis",
+        "tools": ["read_file", "notebook_run", "web_fetch", "grep_search"],
         "prompts": {
-            "fastapi": "FastAPI application scaffold",
-            "django": "Django project setup",
-            "packaging": "Python package with pyproject.toml",
-            "async": "Async Python with asyncio",
+            "data": "Analyze a dataset and surface insights",
+            "research": "Research a topic with sources",
+            "compare": "Compare options with pros and cons",
+        },
+    },
+    "write": {
+        "name": "write",
+        "version": "1.0.0",
+        "description": "Essays, emails, reports & creative writing",
+        "tools": ["write_file", "read_file"],
+        "prompts": {
+            "essay": "Write a structured essay",
+            "email": "Draft a professional email",
+            "report": "Create a detailed report",
+        },
+    },
+    "summarize": {
+        "name": "summarize",
+        "version": "1.0.0",
+        "description": "Condense documents & articles",
+        "tools": ["read_file", "web_fetch"],
+        "prompts": {
+            "document": "Summarize a long document",
+            "article": "Summarize a web article",
+            "key-points": "Extract key takeaways",
+        },
+    },
+    "translate": {
+        "name": "translate",
+        "version": "1.0.0",
+        "description": "Translate between any language pair",
+        "tools": ["read_file", "write_file"],
+        "prompts": {
+            "text": "Translate text to a target language",
+            "file": "Translate an entire file",
+            "localize": "Localize content for a region",
+        },
+    },
+    "math": {
+        "name": "math",
+        "version": "1.0.0",
+        "description": "Calculations, equations & mathematical reasoning",
+        "tools": ["notebook_run", "run_command"],
+        "prompts": {
+            "solve": "Solve a math problem step by step",
+            "proof": "Write a mathematical proof",
+            "compute": "Perform a numerical computation",
+        },
+    },
+    "reason": {
+        "name": "reason",
+        "version": "1.0.0",
+        "description": "Logic, critical thinking & problem solving",
+        "tools": ["read_file", "web_fetch"],
+        "prompts": {
+            "logic": "Solve a logic puzzle",
+            "decision": "Decision analysis with trade-offs",
+            "debug-logic": "Find the flaw in an argument",
+        },
+    },
+    "brainstorm": {
+        "name": "brainstorm",
+        "version": "1.0.0",
+        "description": "Ideation & creative thinking",
+        "tools": ["write_file", "web_fetch"],
+        "prompts": {
+            "ideas": "Brainstorm ideas for a project",
+            "names": "Generate names or titles",
+            "strategy": "Strategic planning session",
+        },
+    },
+    "explain": {
+        "name": "explain",
+        "version": "1.0.0",
+        "description": "Simplify complex topics",
+        "tools": ["read_file", "web_fetch"],
+        "prompts": {
+            "concept": "Explain a concept simply",
+            "eli5": "Explain like I'm five",
+            "deep-dive": "In-depth technical explanation",
+        },
+    },
+    "extract": {
+        "name": "extract",
+        "version": "1.0.0",
+        "description": "Structure data from unstructured text",
+        "tools": ["read_file", "write_file", "grep_search"],
+        "prompts": {
+            "json": "Extract data into JSON format",
+            "table": "Extract data into a table",
+            "entities": "Extract named entities from text",
+        },
+    },
+    "vision": {
+        "name": "vision",
+        "version": "1.0.0",
+        "description": "Describe & analyze images and diagrams",
+        "tools": ["read_file", "web_fetch"],
+        "prompts": {
+            "describe": "Describe what's in an image",
+            "diagram": "Interpret a diagram or chart",
+            "ocr": "Extract text from an image",
+        },
+    },
+    "debug": {
+        "name": "debug",
+        "version": "1.0.0",
+        "description": "Find & fix bugs in code",
+        "tools": ["read_file", "grep_search", "run_command", "diff_files"],
+        "prompts": {
+            "error": "Debug an error message",
+            "trace": "Trace the root cause of a bug",
+            "fix": "Fix a failing test",
+        },
+    },
+    "refactor": {
+        "name": "refactor",
+        "version": "1.0.0",
+        "description": "Improve code quality & structure",
+        "tools": ["read_file", "write_file", "grep_search", "diff_files"],
+        "prompts": {
+            "clean": "Clean up messy code",
+            "patterns": "Apply design patterns",
+            "performance": "Optimize for performance",
+        },
+    },
+    "review": {
+        "name": "review",
+        "version": "1.0.0",
+        "description": "Code review & feedback",
+        "tools": ["read_file", "grep_search", "diff_files"],
+        "prompts": {
+            "pr": "Review a pull request",
+            "security": "Security-focused code review",
+            "best-practices": "Check against best practices",
+        },
+    },
+    "test": {
+        "name": "test",
+        "version": "1.0.0",
+        "description": "Write tests & QA",
+        "tools": ["write_file", "read_file", "run_command"],
+        "prompts": {
+            "unit": "Write unit tests",
+            "integration": "Write integration tests",
+            "coverage": "Improve test coverage",
+        },
+    },
+    "docs": {
+        "name": "docs",
+        "version": "1.0.0",
+        "description": "Generate documentation",
+        "tools": ["read_file", "write_file"],
+        "prompts": {
+            "readme": "Generate a README",
+            "api": "Generate API documentation",
+            "comments": "Add inline documentation",
+        },
+    },
+    "design": {
+        "name": "design",
+        "version": "1.0.0",
+        "description": "System architecture & technical design",
+        "tools": ["read_file", "write_file", "web_fetch"],
+        "prompts": {
+            "architecture": "Design system architecture",
+            "schema": "Design a database schema",
+            "api-design": "Design an API interface",
+        },
+    },
+    "search": {
+        "name": "search",
+        "version": "1.0.0",
+        "description": "Web research & information lookup",
+        "tools": ["web_fetch", "web_search", "read_file"],
+        "prompts": {
+            "web": "Search the web for information",
+            "docs": "Find documentation for a library",
+            "answer": "Research and answer a question",
         },
     },
 }

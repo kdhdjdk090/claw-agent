@@ -222,7 +222,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="sb-item" onclick="sc('/cost')"><span class="icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>Cost</button>
 </div>
 <div class="sb-sep"></div>
-<div class="sb-label">Skills &middot; 26</div>
+<div class="sb-label">Skills &middot; 18</div>
 <div style="padding:4px 12px" id="ss"></div>
 </div>
 <div class="sb-foot"><span>14 Models &middot; 2 Providers</span><span>v2.0</span></div>
@@ -235,7 +235,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 </div>
 <div class="tb-r">
 <span class="pill pill-m" id="bc">14 Models</span>
-<span class="pill pill-s">26 Skills</span>
+<span class="pill pill-s">18 Skills</span>
 <span class="pill pill-f">FREE</span>
 <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme"><span class="icon" id="themeIcon"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
 </div>
@@ -287,19 +287,15 @@ const MD=[
 {n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI'},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI'}
 ];
 const SK=[
-{id:'web-dev',d:'React, Vue, Next.js'},{id:'data-science',d:'pandas, numpy, ML'},
-{id:'devops',d:'Docker, K8s, CI/CD'},{id:'security',d:'Audits, scanning'},
-{id:'code-review',d:'Refactoring, patterns'},{id:'testing',d:'Unit, e2e, TDD'},
-{id:'database',d:'SQL, NoSQL'},{id:'api-dev',d:'REST, GraphQL'},
-{id:'mobile-dev',d:'React Native, Flutter'},{id:'ml-ops',d:'ML training'},
-{id:'documentation',d:'README, API docs'},{id:'git-workflow',d:'Branching'},
-{id:'blockchain',d:'Solidity, Web3'},{id:'game-dev',d:'Unity, Godot'},
-{id:'cloud',d:'AWS, GCP, Azure, Terraform'},{id:'performance',d:'Profiling, caching, load testing'},
-{id:'a11y',d:'WCAG, ARIA, screen readers'},{id:'embedded',d:'Arduino, ESP32, Raspberry Pi'},
-{id:'sysadmin',d:'Linux, monitoring, scripts'},{id:'ai-ml',d:'PyTorch, TensorFlow, LLMs'},
-{id:'iot',d:'MQTT, sensors, edge computing'},{id:'ui-ux',d:'Tailwind, animations, design systems'},
-{id:'networking',d:'WebSocket, gRPC, DNS'},{id:'microservices',d:'Service mesh, API gateway'},
-{id:'rust-dev',d:'Cargo, async, WebAssembly'},{id:'python-dev',d:'FastAPI, Django, packaging'}
+{id:'code',d:'Generate, edit & debug code'},{id:'analyze',d:'Research & data analysis'},
+{id:'write',d:'Essays, emails, reports'},{id:'summarize',d:'Condense docs & articles'},
+{id:'translate',d:'Any language pair'},{id:'math',d:'Calculations & reasoning'},
+{id:'reason',d:'Logic & problem solving'},{id:'brainstorm',d:'Ideas & creative thinking'},
+{id:'explain',d:'Simplify complex topics'},{id:'extract',d:'Structure data from text'},
+{id:'vision',d:'Describe images & diagrams'},{id:'debug',d:'Find & fix bugs'},
+{id:'refactor',d:'Improve code quality'},{id:'review',d:'Code review & feedback'},
+{id:'test',d:'Write tests & QA'},{id:'docs',d:'Generate documentation'},
+{id:'design',d:'System architecture'},{id:'search',d:'Web research & lookup'}
 ];
 let H=[],CM=true,AF=null,CID=null,CONVOS=[];
 
@@ -453,7 +449,7 @@ function hc(t){
 const p=t.split(' '),cmd=p[0].toLowerCase(),arg=p.slice(1).join(' ').trim();
 switch(cmd){
 case'/help':
-am('a','**Claw AI \u2014 All Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version \u00b7 /doctor\n\n**Council:** /council \u00b7 /nocouncil \u00b7 /models\n\n**Session:** /save \u00b7 /export \u00b7 /sessions \u00b7 /resume \u00b7 /delete \u00b7 /compact\n\n**System:** /tools \u00b7 /permissions \u00b7 /mcp \u00b7 /cost \u00b7 /config \u00b7 /memory \u00b7 /diff \u00b7 /undo \u00b7 /init \u00b7 /bug \u00b7 /approval\n\n**Skills (26):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n'));break;
+am('a','**Claw AI \u2014 All Commands**\n\n**Core:** /help \u00b7 /clear \u00b7 /status \u00b7 /version \u00b7 /doctor\n\n**Council:** /council \u00b7 /nocouncil \u00b7 /models\n\n**Session:** /save \u00b7 /export \u00b7 /sessions \u00b7 /resume \u00b7 /delete \u00b7 /compact\n\n**System:** /tools \u00b7 /permissions \u00b7 /mcp \u00b7 /cost \u00b7 /config \u00b7 /memory \u00b7 /diff \u00b7 /undo \u00b7 /init \u00b7 /bug \u00b7 /approval\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** \u2014 '+s.d).join('\n'));break;
 case'/council':
 if(arg){CM=true;am('u',t);callC(arg)}else{CM=true;document.getElementById('modeLabel').textContent='Council mode';ae('Council enabled \u2014 14 models will collaborate')}break;
 case'/nocouncil':
@@ -461,12 +457,12 @@ if(arg){CM=false;am('u',t);callS(arg)}else{CM=false;document.getElementById('mod
 case'/models':
 am('a','**Council Models (14)**\n\n**OpenRouter (8):**\n'+MD.filter(x=>x.p==='OR').map(x=>'- **'+x.n+'** \u2014 '+x.u).join('\n')+'\n\n**Alibaba Cloud (6):**\n'+MD.filter(x=>x.p==='ALI').map(x=>'- **'+x.n+'** \u2014 '+x.u).join('\n'));break;
 case'/skills':
-am('a','**Available Skills (26)**\n\n'+SK.map(x=>'- **/'+x.id+'** \u2014 '+x.d).join('\n')+'\n\nUsage: `/skill-name your request`');break;
+am('a','**Available Skills (18)**\n\n'+SK.map(x=>'- **/'+x.id+'** \u2014 '+x.d).join('\n')+'\n\nUsage: `/skill-name your request`');break;
 case'/clear':doClear();break;
 case'/status':
-ae('**Status**\n- Council: '+(CM?'Active (14 models)':'Disabled')+'\n- Providers: OpenRouter + Alibaba Cloud\n- Skills: 26 loaded\n- Cost: FREE\n- Messages: '+H.length);break;
+ae('**Status**\n- Council: '+(CM?'Active (14 models)':'Disabled')+'\n- Providers: OpenRouter + Alibaba Cloud\n- Skills: 18 loaded\n- Cost: FREE\n- Messages: '+H.length);break;
 case'/version':
-ae('**Claw AI v2.0**\n- 14 models (OpenRouter + Alibaba)\n- 26 skills\n- Session persistence\n- File upload\n- Light/Dark theme');break;
+ae('**Claw AI v2.0**\n- 14 models (OpenRouter + Alibaba)\n- 18 skills\n- Session persistence\n- File upload\n- Light/Dark theme');break;
 case'/export':
 let md='# Claw AI Chat\n\n';H.forEach(m=>md+='## '+m.role+'\n'+(m.content||'')+'\n\n');
 const bl=new Blob([md],{type:'text/markdown'}),ur=URL.createObjectURL(bl),a=document.createElement('a');
