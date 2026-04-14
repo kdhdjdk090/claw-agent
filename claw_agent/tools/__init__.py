@@ -69,6 +69,33 @@ from .diagram_tools import render_mermaid, mermaid_template
 # ---- MCP resource tools (2) -------------------------------------------------
 from ..mcp import read_mcp_resource, list_mcp_resources
 
+# ---- Code intelligence tools (2) --------------------------------------------
+from .code_intel_tools import find_references, rename_symbol
+
+# ---- Todo tools (1) ---------------------------------------------------------
+from .todo_tools import manage_todos
+
+# ---- HTTP tools (1) ---------------------------------------------------------
+from .http_tools import http_request
+
+# ---- Project tools (2) ------------------------------------------------------
+from .project_tools import get_project_info, install_packages
+
+# ---- Archive tools (2) ------------------------------------------------------
+from .archive_tools import create_archive, extract_archive
+
+# ---- Environment tools (3) --------------------------------------------------
+from .env_tools import read_env, write_env, set_env_var
+
+# ---- Process tools (2) ------------------------------------------------------
+from .process_tools import list_processes, kill_process
+
+# ---- Hash / encoding tools (2) ----------------------------------------------
+from .hash_tools import compute_hash, encode_decode
+
+# ---- Clipboard tools (2) ----------------------------------------------------
+from .clipboard_tools import clipboard_copy, clipboard_read
+
 # ---- Registry ----------------------------------------------------------------
 
 TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
@@ -144,6 +171,32 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     # Diagrams (2)
     "render_mermaid": render_mermaid,
     "mermaid_template": mermaid_template,
+    # Code intelligence (2)
+    "find_references": find_references,
+    "rename_symbol": rename_symbol,
+    # Todo (1)
+    "manage_todos": manage_todos,
+    # HTTP (1)
+    "http_request": http_request,
+    # Project (2)
+    "get_project_info": get_project_info,
+    "install_packages": install_packages,
+    # Archive (2)
+    "create_archive": create_archive,
+    "extract_archive": extract_archive,
+    # Environment (3)
+    "read_env": read_env,
+    "write_env": write_env,
+    "set_env_var": set_env_var,
+    # Process (2)
+    "list_processes": list_processes,
+    "kill_process": kill_process,
+    # Hash / encoding (2)
+    "compute_hash": compute_hash,
+    "encode_decode": encode_decode,
+    # Clipboard (2)
+    "clipboard_copy": clipboard_copy,
+    "clipboard_read": clipboard_read,
 }
 
 # ---- Ollama tool definitions (OpenAI-compatible) ----------------------------
@@ -944,6 +997,279 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 },
                 "required": ["diagram_type"],
             },
+        },
+    },
+    # === CODE INTELLIGENCE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "find_references",
+            "description": "Find all usages (references) of a code symbol across the workspace. Uses word-boundary grep.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {"type": "string", "description": "Exact symbol name (function, class, variable)."},
+                    "directory": {"type": "string", "description": "Root directory to search."},
+                    "include_pattern": {"type": "string", "description": "Glob pattern to filter files (e.g. '*.py')."},
+                },
+                "required": ["symbol"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rename_symbol",
+            "description": "Rename a code symbol across all files in the workspace. Supports dry_run preview.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "old_name": {"type": "string", "description": "Current symbol name."},
+                    "new_name": {"type": "string", "description": "New symbol name."},
+                    "directory": {"type": "string", "description": "Root directory to search."},
+                    "include_pattern": {"type": "string", "description": "Glob pattern to filter files (e.g. '*.py')."},
+                    "dry_run": {"type": "boolean", "description": "Preview changes without applying (default true)."},
+                },
+                "required": ["old_name", "new_name"],
+            },
+        },
+    },
+    # === TODO / TASK TRACKING ===
+    {
+        "type": "function",
+        "function": {
+            "name": "manage_todos",
+            "description": "In-session todo list. Actions: list, add, update, remove, clear. Track tasks during conversation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "Action: list|add|update|remove|clear."},
+                    "todo_id": {"type": "integer", "description": "Todo ID (for update/remove)."},
+                    "title": {"type": "string", "description": "Todo title (for add/update)."},
+                    "status": {"type": "string", "description": "Status: not-started|in-progress|completed (for update)."},
+                },
+                "required": ["action"],
+            },
+        },
+    },
+    # === HTTP CLIENT ===
+    {
+        "type": "function",
+        "function": {
+            "name": "http_request",
+            "description": "Make HTTP requests (GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS). Full REST client.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "Request URL."},
+                    "method": {"type": "string", "description": "HTTP method (default GET)."},
+                    "headers": {"type": "object", "description": "Request headers dict."},
+                    "body": {"type": "string", "description": "Request body (for POST/PUT/PATCH)."},
+                    "content_type": {"type": "string", "description": "Content-Type header shortcut."},
+                    "timeout": {"type": "integer", "description": "Timeout in seconds (default 30)."},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    # === PROJECT INFO ===
+    {
+        "type": "function",
+        "function": {
+            "name": "get_project_info",
+            "description": "Detect project type, language, frameworks, dependencies, and scripts in a directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Project root directory."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "install_packages",
+            "description": "Install packages using pip, npm, or cargo. Auto-detects package manager if not specified.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "packages": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of package names to install.",
+                    },
+                    "manager": {"type": "string", "description": "Package manager: pip|npm|yarn|cargo (auto-detect if omitted)."},
+                    "directory": {"type": "string", "description": "Working directory."},
+                },
+                "required": ["packages"],
+            },
+        },
+    },
+    # === ARCHIVE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "create_archive",
+            "description": "Create a zip/tar/tar.gz/tar.bz2 archive from a file or directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string", "description": "File or directory to archive."},
+                    "output": {"type": "string", "description": "Output archive path."},
+                    "format": {"type": "string", "description": "Format: zip|tar|tar.gz|tar.bz2 (default zip)."},
+                },
+                "required": ["source", "output"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "extract_archive",
+            "description": "Extract a zip/tar/tar.gz/tar.bz2 archive to a destination directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "archive": {"type": "string", "description": "Path to archive file."},
+                    "destination": {"type": "string", "description": "Extraction directory (default: archive location)."},
+                },
+                "required": ["archive"],
+            },
+        },
+    },
+    # === ENVIRONMENT ===
+    {
+        "type": "function",
+        "function": {
+            "name": "read_env",
+            "description": "Read a .env file. Sensitive values (SECRET, KEY, TOKEN, PASSWORD) are masked.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path to .env file (default .env)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_env",
+            "description": "Set or update a key=value in a .env file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "Environment variable name."},
+                    "value": {"type": "string", "description": "Value to set."},
+                    "filepath": {"type": "string", "description": "Path to .env file (default .env)."},
+                },
+                "required": ["key", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_env_var",
+            "description": "Set an environment variable in the current process.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string", "description": "Variable name."},
+                    "value": {"type": "string", "description": "Variable value."},
+                },
+                "required": ["key", "value"],
+            },
+        },
+    },
+    # === PROCESS MANAGEMENT ===
+    {
+        "type": "function",
+        "function": {
+            "name": "list_processes",
+            "description": "List running system processes. Optionally filter by name.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filter_name": {"type": "string", "description": "Filter processes by name substring."},
+                    "limit": {"type": "integer", "description": "Max results (default 50)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "kill_process",
+            "description": "Kill a process by PID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pid": {"type": "integer", "description": "Process ID to kill."},
+                    "force": {"type": "boolean", "description": "Force kill (SIGKILL/taskkill /F). Default false."},
+                },
+                "required": ["pid"],
+            },
+        },
+    },
+    # === HASH / ENCODING ===
+    {
+        "type": "function",
+        "function": {
+            "name": "compute_hash",
+            "description": "Compute hash of a file or string (sha256, sha1, md5, sha512, sha384).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "description": "File path or string to hash."},
+                    "algorithm": {"type": "string", "description": "Hash algorithm: sha256|sha1|md5|sha512|sha384 (default sha256)."},
+                    "is_file": {"type": "boolean", "description": "Treat target as file path (default: auto-detect)."},
+                },
+                "required": ["target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "encode_decode",
+            "description": "Encode/decode text. Supports base64, url, hex.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Text to encode or decode."},
+                    "encoding": {"type": "string", "description": "Encoding type: base64|url|hex (default base64)."},
+                    "decode": {"type": "boolean", "description": "Decode instead of encode (default false)."},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    # === CLIPBOARD ===
+    {
+        "type": "function",
+        "function": {
+            "name": "clipboard_copy",
+            "description": "Copy text to system clipboard.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Text to copy to clipboard."},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "clipboard_read",
+            "description": "Read current contents of system clipboard.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
 ]
