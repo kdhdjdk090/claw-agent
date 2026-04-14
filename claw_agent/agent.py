@@ -22,6 +22,43 @@ from .hooks import HookRunner
 from .mcp import MCPManager
 
 
+def _load_project_env() -> None:
+    """Load workspace .env.local / .env files for local CLI runs.
+
+    Values from project env files take precedence so the local CLI matches
+    the checked-in workspace configuration and Vercel-style local setup.
+    """
+    cwd = os.getcwd()
+    for filename in (".env.local", ".env"):
+        search = cwd
+        for _ in range(4):
+            path = os.path.join(search, filename)
+            if os.path.isfile(path):
+                try:
+                    with open(path, "r", encoding="utf-8", errors="replace") as f:
+                        for raw_line in f:
+                            line = raw_line.strip()
+                            if not line or line.startswith("#") or "=" not in line:
+                                continue
+                            key, value = line.split("=", 1)
+                            key = key.strip()
+                            value = value.strip()
+                            if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+                                value = value[1:-1]
+                            if key:
+                                os.environ[key] = value
+                except OSError:
+                    pass
+                break
+            parent = os.path.dirname(search)
+            if parent == search:
+                break
+            search = parent
+
+
+_load_project_env()
+
+
 def _build_tools_section() -> str:
     """Dynamically build the TOOLS section from the live TOOL_REGISTRY."""
     # Group tools by their source module (e.g. file_tools → File)
@@ -450,6 +487,31 @@ class Agent:
 
     def stream_chat(self, user_message: str) -> Generator[StreamEvent, None, None]:
         """Stream events as the agent thinks, calls tools, and responds."""
+        self.messages.append({"role": "user", "content": user_message})
+        self.session.total_turns += 1
+
+        # Interactive council path: the REPL uses stream_chat(), so council mode
+        # must be handled here as well, not only in blocking chat().
+        if self.council and not user_message.startswith("/nocouncil"):
+            try:
+                result = self.council.query_council(user_message)
+                final_text = result.consensus_answer
+                self.messages.append({"role": "assistant", "content": final_text})
+                yield TextDelta(final_text)
+                yield TurnComplete(final_text, 0, 0)
+                yield AgentDone(final_text)
+            except Exception as e:
+                self.messages.append({
+                    "role": "system",
+                    "content": f"Council unavailable ({e}). Falling back to single-model execution.",
+                })
+                yield TextDelta(f"\n[Council fallback: {e}]\n")
+            else:
+                self.session.messages = [m for m in self.messages[1:] if not (m.get("role") == "system" and "CONVERSATION COMPACTED" not in m.get("content", ""))]
+                self.session.input_tokens = self.cost.total_prompt_tokens
+                self.session.output_tokens = self.cost.total_completion_tokens
+                return
+
         # Dynamic skill detection: inject relevant skill context per-turn
         try:
             from .skill_detector import get_detected_skills_context
@@ -458,8 +520,6 @@ class Agent:
                 self.messages.append({"role": "system", "content": skill_ctx})
         except Exception:
             pass  # Graceful degradation if detector fails
-        self.messages.append({"role": "user", "content": user_message})
-        self.session.total_turns += 1
         yield from self._stream_loop()
         # Sync full conversation (minus original system prompt) to session for persistence
         # H7: Preserve compaction summaries (role=system, not index 0) so resumed sessions have context

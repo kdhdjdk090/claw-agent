@@ -1554,9 +1554,67 @@ def oneshot(model: str, prompt: str, output_format: str = "text"):
 
 
 def oneshot_print(model: str, prompt: str):
-    """Print-only mode: no tools, just stream text from the model."""
+    """Print-only mode: no tools, just stream text from the active provider."""
     import httpx as _hx
-    console.print(f"[dim]Model: {model} (print mode — no tools)[/dim]\n")
+    from .agent import DEFAULT_BASE_URL, OPENROUTER_API_KEY, DEEPSEEK_API_KEY
+
+    mode = _get_runtime_mode()
+    console.print(f"[dim]Model: {model} (print mode — no tools, {mode['detail']})[/dim]\n")
+
+    if mode["kind"] == "council":
+        agent = make_agent(model)
+        try:
+            sys.stdout.write(agent.council_chat(prompt) + "\n")
+            sys.stdout.flush()
+        except Exception as e:
+            console.print(f"[claw.error]Error: {e}[/claw.error]")
+        return
+
+    if mode["kind"] in {"openrouter", "deepseek"}:
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "You are Claw, a helpful AI coding assistant. Answer concisely."},
+                {"role": "user", "content": prompt},
+            ],
+            "stream": True,
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {OPENROUTER_API_KEY if mode['kind'] == 'openrouter' else DEEPSEEK_API_KEY}",
+        }
+        if mode["kind"] == "openrouter":
+            headers["HTTP-Referer"] = "https://github.com/claw-agent"
+            headers["X-Title"] = "Claw AI"
+
+        try:
+            with _hx.Client(timeout=300).stream(
+                "POST", f"{DEFAULT_BASE_URL}/chat/completions", json=payload, headers=headers, timeout=300
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line:
+                        continue
+                    if isinstance(line, str) and line.startswith("data: "):
+                        line = line[6:]
+                    if line == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    choices = chunk.get("choices", [])
+                    if not choices:
+                        continue
+                    delta = choices[0].get("delta", {}).get("content", "")
+                    if delta:
+                        sys.stdout.write(delta)
+                        sys.stdout.flush()
+            sys.stdout.write("\n")
+        except Exception as e:
+            console.print(f"[claw.error]Error: {e}[/claw.error]")
+        return
+
     payload = {
         "model": model,
         "messages": [
@@ -1567,7 +1625,7 @@ def oneshot_print(model: str, prompt: str):
     }
     try:
         with _hx.Client(timeout=300).stream(
-            "POST", f"http://localhost:11434/api/chat", json=payload, timeout=300
+            "POST", "http://localhost:11434/api/chat", json=payload, timeout=300
         ) as response:
             response.raise_for_status()
             for line in response.iter_lines():
