@@ -232,8 +232,14 @@ class PortingWorkspaceTests(unittest.TestCase):
         registry = build_execution_registry()
         self.assertGreaterEqual(len(registry.commands), 150)
         self.assertGreaterEqual(len(registry.tools), 100)
-        self.assertIn('Mirrored command', registry.command('review').execute('review security'))
-        self.assertIn('Mirrored tool', registry.tool('MCPTool').execute('fetch mcp resources'))
+        command = registry.command('review')
+        self.assertIsNotNone(command)
+        assert command is not None
+        self.assertIn('Mirrored command', command.execute('review security'))
+        tool = registry.tool('MCPTool')
+        self.assertIsNotNone(tool)
+        assert tool is not None
+        self.assertIn('Mirrored tool', tool.execute('fetch mcp resources'))
 
     def test_bootstrap_graph_and_direct_modes_run(self) -> None:
         graph_result = subprocess.run([sys.executable, '-m', 'src.main', 'bootstrap-graph'], check=True, capture_output=True, text=True)

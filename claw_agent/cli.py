@@ -34,21 +34,29 @@ from .sessions import Session, save_session, load_session, list_sessions, delete
 from .cost_tracker import CostTracker
 from .tools import TOOL_REGISTRY
 
-# --- Theme (Claude Code-inspired) ---
+try:
+    import tiktoken
+    _enc = tiktoken.encoding_for_model("gpt-4")
+except Exception:
+    _enc = None
+
+# --- Theme (Claude Code style) ---
 THEME = Theme({
     "claw.prompt": "bold bright_white",
-    "claw.model": "dim magenta",
-    "claw.tool": "bold bright_magenta",
+    "claw.model": "dim bright_blue",
+    "claw.tool": "bold bright_blue",
     "claw.tool_result": "dim white",
     "claw.error": "bold red",
     "claw.dim": "dim",
     "claw.success": "bold green",
     "claw.info": "bright_blue",
-    "claw.accent": "bold bright_magenta",
+    "claw.accent": "bold bright_blue",
     "claw.muted": "dim white",
 })
 
 console = Console(theme=THEME)
+
+VERSION = "0.1.0"
 
 HISTORY_PATH = os.path.expanduser("~/.claw-agent/history.txt")
 os.makedirs(os.path.dirname(HISTORY_PATH), exist_ok=True)
@@ -229,43 +237,31 @@ def _tool_display_name(name: str, args: dict) -> str:
 
 def print_banner(model: str, models: list[str]):
     cwd = os.getcwd()
+    username = os.getenv("USERNAME", os.getenv("USER", "user"))
 
     # Detect mode type
     mode = _get_runtime_mode()
-    mode_icon = mode["icon"]
-    mode_text = mode["label"]
     if mode["kind"] == "council":
         model_display = mode["detail"]
     else:
         model_display = model
 
+    lines = [
+        f"[bold]Welcome back {username}![/bold]",
+        "",
+        f"[dim]{model_display} · {mode['label']} Mode · {len(TOOL_REGISTRY)} tools[/dim]",
+        f"[dim]{cwd}[/dim]",
+    ]
+
     console.print()
-    console.print(f"[bold cyan]╭{'─' * 58}╮[/bold cyan]")
-    console.print(f"[bold cyan]│[/bold cyan] [bold]🦞 Claw AI[/bold] [dim]v2.0 - Multi-Model Council[/dim]{' ' * 14}[bold cyan]│[/bold cyan]")
-    console.print(f"[bold cyan]│[/bold cyan]{' ' * 58}[bold cyan]│[/bold cyan]")
-
-    # Working directory
-    cwd_display = cwd if len(cwd) <= 54 else "…" + cwd[-53:]
-    cwd_pad = 58 - len(cwd_display) - 2
-    console.print(f"[bold cyan]│[/bold cyan] [dim]{cwd_display}[/dim]{' ' * cwd_pad}[bold cyan]│[/bold cyan]")
-
-    # Mode & Model
-    mode_model = f"{mode_icon} {mode_text} • {model_display}"
-    if len(mode_model) > 56:
-        mode_model = mode_model[:53] + "..."
-    mode_pad = 58 - len(mode_model) - 2
-    console.print(f"[bold cyan]│[/bold cyan] [bold green]{mode_model}[/bold green]{' ' * mode_pad}[bold cyan]│[/bold cyan]")
-
-    # Tools
-    tools_str = f"{len(TOOL_REGISTRY)} tools available"
-    tools_pad = 58 - len(tools_str) - 2
-    console.print(f"[bold cyan]│[/bold cyan] [dim]{tools_str}[/dim]{' ' * tools_pad}[bold cyan]│[/bold cyan]")
-    console.print(f"[bold cyan]│[/bold cyan]{' ' * 58}[bold cyan]│[/bold cyan]")
-
-    # Quick tips
-    console.print(f"[bold cyan]│[/bold cyan] [dim]💡 Type[/dim] [bold white]/help[/bold white] [dim]for commands[/dim]{' ' * 21}[bold cyan]│[/bold cyan]")
-    console.print(f"[bold cyan]│[/bold cyan] [dim] Try:[/dim] [bold white]Write a Python function[/bold white]{' ' * 26}[bold cyan]│[/bold cyan]")
-    console.print(f"[bold cyan]╰{'─' * 58}╯[/bold cyan]")
+    console.print(Panel(
+        "\n".join(lines),
+        title=f"[bold]Claw Agent v{VERSION}[/bold]",
+        title_align="left",
+        border_style="dim",
+        padding=(1, 2),
+        expand=False,
+    ))
     console.print()
 
 
@@ -275,9 +271,9 @@ def print_help():
     
     console.print()
     console.print(Panel.fit(
-        "[bold]🦞 Claw AI v2.0 - Available Commands[/bold]\n"
-        "[dim]Type any command below to execute it[/dim]",
-        border_style="cyan",
+        "[bold]Claw Agent — Commands[/bold]\n"
+        "[dim]Type any command below[/dim]",
+        border_style="dim",
         padding=(1, 2)
     ))
     console.print()
@@ -287,7 +283,7 @@ def print_help():
     mode_footer = f"{mode['icon']} {mode['label']} Mode ({mode['detail']})"
 
     def _section(title: str, icon: str, items: list[tuple[str, str]]):
-        console.print(f"  [bold cyan]{icon} [bold]{title}[/bold][/bold cyan]")
+        console.print(f"  [bold]{icon} {title}[/bold]")
         for cmd, desc in items:
             console.print(f"    [bold white]{cmd:<28}[/bold white] [dim]{desc}[/dim]")
         console.print()
@@ -411,21 +407,20 @@ def stream_response_enhanced(agent: Agent, user_input: str):
             active_tool = True
             display = _tool_display_name(event.name, event.arguments)
             console.print(
-                f"  [bold bright_magenta]\u25cf {display}[/bold bright_magenta]"
+                f"  [bold bright_blue]⏺ {display}[/bold bright_blue]"
             )
 
         elif isinstance(event, ToolCallEnd):
             active_tool = False
             result_lines = event.result.strip().split("\n")
             preview = result_lines[0] if result_lines else ""
-            if len(preview) > 120:
-                preview = preview[:117] + "\u2026"
+            if len(preview) > 100:
+                preview = preview[:97] + "…"
             extra = f" (+{len(result_lines)-1} lines)" if len(result_lines) > 1 else ""
+            dur_str = f"{event.duration_ms:.0f}ms"
 
             console.print(
-                f"  [green]\u2713[/green] [dim]{event.name}[/dim]"
-                f" [dim]{event.duration_ms:.0f}ms[/dim]"
-                f" [dim]{preview}{extra}[/dim]"
+                f"  [dim]⎿ {preview}{extra} ({dur_str})[/dim]"
             )
 
         elif isinstance(event, AgentDone):
@@ -602,13 +597,17 @@ def cmd_compact(agent: Agent):
     system = agent.messages[0]
     old = agent.messages[1:-COMPACT_KEEP_RECENT]
     recent = agent.messages[-COMPACT_KEEP_RECENT:]
-    snippets = []
-    for m in old:
-        if m.get("content") and m.get("role") in ("user", "assistant"):
-            snippets.append(f"{m['role']}: {m['content'][:200]}")
-    compact = {"role": "system", "content": f"[Summary]\n" + "\n".join(snippets[-20:]) + "\n[/Summary]"}
-    agent.messages = [system, compact] + recent
-    console.print(f"  [claw.success]Compacted {len(old)} messages → summary[/claw.success]")
+    count = len(old)
+
+    # Use LLM-based summarization with truncation fallback (same as auto-compact)
+    summary = agent._llm_summarize(old)
+    method = "LLM"
+    if not summary:
+        summary = agent._truncation_summary(old)
+        method = "truncation"
+
+    agent.messages = [system, {"role": "system", "content": summary}] + recent
+    console.print(f"  [claw.success]Compacted {count} messages → {method} summary[/claw.success]")
 
 
 def cmd_continue(model: str) -> Agent | None:
@@ -827,7 +826,10 @@ def cmd_memory(agent: Agent):
     """Show context window usage."""
     console.print()
     total_chars = sum(len(str(m.get("content", ""))) for m in agent.messages)
-    est_tokens = total_chars // 4  # rough estimate
+    if _enc:
+        est_tokens = sum(len(_enc.encode(str(m.get("content", "")))) for m in agent.messages)
+    else:
+        est_tokens = total_chars // 4
     msg_count = len(agent.messages)
     console.print(f"  Messages: {msg_count}")
     console.print(f"  Estimated context: ~{est_tokens:,} tokens")
@@ -1690,22 +1692,14 @@ def main():
     models = []
 
     if USE_COUNCIL and OPENROUTER_API_KEY:
-        # Council mode - use OpenRouter with multiple models
-        model = args.model or "council"  # Special "council" model triggers council mode
+        model = args.model or "council"
         models = DEFAULT_COUNCIL_MODELS
-        provider_note = "OpenRouter + Alibaba" if os.environ.get("DASHSCOPE_API_KEY") else "OpenRouter"
-        console.print(f"[bold green]✓ Council Mode[/bold green] [dim]({len(models)} models via {provider_note})[/dim]")
-        console.print(f"[dim]  Models: {', '.join(m.split('/')[-1] for m in models[:4])}...[/dim]")
     elif OPENROUTER_API_KEY:
-        # Direct OpenRouter mode - no Ollama needed
         model = args.model or DEFAULT_MODEL
         models = list_models()
-        console.print("[bold green]✓ Cloud Mode[/bold green] [dim](using OpenRouter API)[/dim]")
     elif DEEPSEEK_API_KEY:
-        # Cloud mode - no Ollama needed
         model = args.model or DEFAULT_MODEL
         models = list_models()
-        console.print("[bold green]✓ Cloud Mode[/bold green] [dim](using DeepSeek API)[/dim]")
     else:
         # Local mode - check Ollama
         if not check_ollama():
@@ -1781,13 +1775,9 @@ def main():
 
     while True:
         try:
-            # Claude Code-style prompt with ❯
-            cwd_short = os.path.basename(os.getcwd())
-            prompt_html = HTML(
-                f'<style fg="ansibrightmagenta"><b>{cwd_short}</b></style>'
-                f' <style fg="ansibrightmagenta">\u276f</style> '
-            )
-            user_input = prompt_session.prompt(prompt_html).strip()
+            prompt_html = HTML('<b>&gt;</b> ')
+            toolbar = HTML('<style fg="ansigray">/help for shortcuts</style>')
+            user_input = prompt_session.prompt(prompt_html, bottom_toolbar=toolbar).strip()
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]\u2500 Goodbye![/dim]")
             break

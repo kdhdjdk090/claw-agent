@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Generator
 
 import httpx
@@ -20,6 +21,12 @@ from .sessions import Session
 from .cost_tracker import CostTracker
 from .hooks import HookRunner
 from .mcp import MCPManager
+
+try:
+    import tiktoken
+    _enc = tiktoken.encoding_for_model("gpt-4")
+except Exception:
+    _enc = None
 
 
 def _load_project_env() -> None:
@@ -532,24 +539,92 @@ class Agent:
 
     def _compact_if_needed(self):
         """Auto-compact when the live session is approaching the context ceiling."""
-        # H5: Use estimated current context size (chars/4), but also honor the
-        # latest provider-reported token count when available.
         total_chars = sum(len(str(m.get("content", ""))) for m in self.messages)
-        est_tokens = total_chars // 4
+        if _enc:
+            est_tokens = sum(len(_enc.encode(str(m.get("content", "")))) for m in self.messages)
+        else:
+            est_tokens = total_chars // 4
         recorded_tokens = self.cost.turns[-1].total_tokens if self.cost.turns else 0
         compact_pressure = max(est_tokens, recorded_tokens)
         if compact_pressure < AUTO_COMPACT_THRESHOLD:
             return
-        # Keep system message (index 0) + last COMPACT_KEEP_RECENT messages
         if len(self.messages) <= COMPACT_KEEP_RECENT + 1:
             return
         system = self.messages[0]
         old = self.messages[1:-COMPACT_KEEP_RECENT]
         recent = self.messages[-COMPACT_KEEP_RECENT:]
 
-        # Build a summary of discarded messages
+        # Try LLM-based summarization first, fall back to naive truncation
+        summary = self._llm_summarize(old)
+        if not summary:
+            summary = self._truncation_summary(old)
+
+        self.messages = [system, {"role": "system", "content": summary}] + recent
+        self.cost.turns.clear()
+        self._compacted = True
+
+    def _llm_summarize(self, old_messages: list[dict]) -> str | None:
+        """Ask the LLM to produce a concise summary of discarded messages."""
+        # Build a digest of old messages (capped to avoid huge payloads)
+        digest_parts = []
+        char_budget = 12000
+        used = 0
+        for m in old_messages:
+            role = m.get("role", "?")
+            content = str(m.get("content", ""))[:600]
+            tc = m.get("tool_calls")
+            if tc:
+                names = [t.get("function", {}).get("name", "?") for t in tc]
+                line = f"{role}: [called {', '.join(names)}]"
+            elif content:
+                line = f"{role}: {content}"
+            else:
+                continue
+            if used + len(line) > char_budget:
+                break
+            digest_parts.append(line)
+            used += len(line)
+
+        if not digest_parts:
+            return None
+
+        digest = "\n".join(digest_parts)
+        prompt = (
+            "Summarize this conversation history concisely. "
+            "Preserve: key decisions, file paths modified, tool results, "
+            "user requirements, and any unfinished tasks. "
+            "Use bullet points. Be factual and brief.\n\n"
+            f"{digest}"
+        )
+        try:
+            headers = {"Content-Type": "application/json"}
+            if self.is_cloud:
+                headers["Authorization"] = f"Bearer {os.environ.get('OPENROUTER_API_KEY') or os.environ.get('DEEPSEEK_API_KEY', '')}"
+            resp = self.client.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 1024,
+                    "temperature": 0.2,
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if text and len(text) > 20:
+                return f"CONVERSATION COMPACTED - LLM summary of earlier context:\n{text.strip()}"
+        except Exception:
+            pass
+        return None
+
+    @staticmethod
+    def _truncation_summary(old_messages: list[dict]) -> str:
+        """Fallback: build a summary by truncating old messages."""
         summary_parts = []
-        for m in old:
+        for m in old_messages:
             role = m.get("role", "?")
             content = m.get("content", "")
             if role == "tool":
@@ -563,12 +638,7 @@ class Agent:
                     summary_parts.append(f"[assistant: {content[:150]}]")
             elif role == "user":
                 summary_parts.append(f"[user: {content[:150]}]")
-
-        summary = "CONVERSATION COMPACTED - earlier context summary:\n" + "\n".join(summary_parts)
-        self.messages = [system, {"role": "system", "content": summary}] + recent
-        # Clear recorded turns so token count resets
-        self.cost.turns.clear()
-        self._compacted = True
+        return "CONVERSATION COMPACTED - earlier context summary:\n" + "\n".join(summary_parts)
 
     def _stream_loop(self) -> Generator[StreamEvent, None, None]:
         # ---- Loop protection (fresh per user message) ----
@@ -912,6 +982,8 @@ class Agent:
             yield AgentDone("[Agent hit iteration limit - task may be incomplete.]")
 
     def _execute_tool_calls(self, tool_calls: list[dict]) -> Generator[StreamEvent, None, None]:
+        # Parse all tool call arguments upfront
+        parsed: list[tuple[str, dict]] = []
         for tc in tool_calls:
             fn = tc.get("function", {})
             name = fn.get("name", "")
@@ -921,7 +993,115 @@ class Agent:
                     arguments = json.loads(arguments)
                 except json.JSONDecodeError:
                     arguments = {}
-            yield from self._run_single_tool(name, arguments)
+            parsed.append((name, arguments))
+
+        # Sequential fallback: single tool, or any tool needs interactive permission / shell
+        if len(parsed) <= 1 or any(
+            n in GATED_TOOLS or n == "run_command" for n, _ in parsed
+        ):
+            for name, args in parsed:
+                yield from self._run_single_tool(name, args)
+            return
+
+        # --- Parallel execution path for multiple non-interactive tools ---
+        # Phase 1: Validate all tools sequentially (fast)
+        ready: list[tuple[int, str, dict]] = []
+        for i, (name, args) in enumerate(parsed):
+            if not name or not name.strip():
+                yield ToolCallStart(name or "(empty)", args)
+                yield ToolCallEnd(name or "(empty)", "Error: empty tool name rejected", 0)
+                self.messages.append({"role": "tool", "content": "Error: empty tool name"})
+                continue
+            if not name.replace("_", "").replace("-", "").isalnum():
+                yield ToolCallStart(name, args)
+                yield ToolCallEnd(name, f"Error: invalid tool name '{name}'", 0)
+                self.messages.append({"role": "tool", "content": "Error: invalid tool name"})
+                continue
+            spam_found = False
+            for v in args.values():
+                if any(s in str(v).lower() for s in (".com\u590d\u5236", "\u5f00\u5956", "\u8d5b\u8f66", "\u5f69\u7968")):
+                    yield ToolCallStart(name, args)
+                    yield ToolCallEnd(name, "Rejected: hallucinated spam in arguments", 0)
+                    self.messages.append({"role": "tool", "content": "Error: invalid arguments rejected"})
+                    spam_found = True
+                    break
+            if spam_found:
+                continue
+            hook_result = self._hooks.run_pre_hooks(name, args)
+            if not hook_result.allow:
+                yield ToolCallStart(name, args)
+                yield ToolCallEnd(name, f"Blocked by hook: {hook_result.message}", 0)
+                self.messages.append({"role": "tool", "content": f"Blocked by hook: {hook_result.message}"})
+                continue
+            if self.permissions.blocks(name):
+                yield ToolCallStart(name, args)
+                yield ToolCallEnd(name, f"Permission denied: tool '{name}' is blocked.", 0)
+                self.messages.append({"role": "tool", "content": f"Permission denied: tool '{name}' is blocked."})
+                self.permissions.denials.append({"tool": name, "reason": "blocked"})
+                continue
+            ready.append((i, name, args))
+
+        if not ready:
+            return
+
+        # Phase 2: Execute valid tools in parallel
+        results: dict[int, str] = {}
+        timings: dict[int, float] = {}
+        with ThreadPoolExecutor(max_workers=min(len(ready), 8)) as pool:
+            futures = {}
+            for idx, name, args in ready:
+                timings[idx] = time.time()
+                futures[pool.submit(self._execute_tool, name, args)] = idx
+            for fut in as_completed(futures):
+                idx = futures[fut]
+                timings[idx] = (time.time() - timings[idx]) * 1000
+                try:
+                    results[idx] = fut.result()
+                except Exception as e:
+                    results[idx] = f"Error: {e}"
+
+        # Phase 3: Yield events in original order + post-processing
+        for idx, name, args in ready:
+            result = results.get(idx, "Error: no result")
+            dur = timings.get(idx, 0)
+            self._hooks.run_post_hooks(name, args, result)
+            self._store_tool_result(name, result)
+            if self._on_tool_call:
+                self._on_tool_call(name, args)
+            if self._on_tool_result:
+                self._on_tool_result(name, result[:500])
+            yield ToolCallStart(name, args)
+            yield ToolCallEnd(name, result, dur)
+
+    # ── image-aware tool result storage ──────────────────────────
+    _IMAGE_MARKER = "__IMAGE_DATA__:"
+
+    def _store_tool_result(self, name: str, result: str) -> None:
+        """Store a tool result in self.messages, promoting images to
+        multimodal content blocks so vision-capable models can see them."""
+        if self._IMAGE_MARKER in result:
+            # Split into text metadata and image data URI
+            parts = result.split(self._IMAGE_MARKER, 1)
+            metadata = parts[0].strip()
+            data_uri = parts[1].strip()
+            # Store compact metadata as the tool message
+            if metadata:
+                self.messages.append({"role": "tool", "content": metadata})
+            # Send image as a multimodal user message (OpenAI-compatible)
+            self.messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": f"[Image from tool '{name}']"},
+                    {"type": "image_url", "image_url": {"url": data_uri}},
+                ],
+            })
+        else:
+            # Normal text truncation for non-image results
+            hist = (
+                result if len(result) <= 8000
+                else result[:8000] + "\n... [truncated for context]"
+            )
+            self.messages.append({"role": "tool", "content": hist})
 
     def _run_single_tool(self, name: str, arguments: dict) -> Generator[StreamEvent, None, None]:
         # FIX: Reject empty or invalid tool names immediately (prevents crashes)
@@ -1003,9 +1183,7 @@ class Agent:
         self._hooks.run_post_hooks(name, arguments, result)
 
         dur = (time.time() - start) * 1000
-        # Truncate tool results stored in history to keep context manageable
-        hist_result = result if len(result) <= 8000 else result[:8000] + "\n... [truncated for context]"
-        self.messages.append({"role": "tool", "content": hist_result})
+        self._store_tool_result(name, result)
 
         if self._on_tool_call:
             self._on_tool_call(name, arguments)

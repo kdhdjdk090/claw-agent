@@ -597,7 +597,8 @@ class AuthManager:
             plan_row = self.client.get_plan(self.profile.plan_id, self.session.access_token)
             if plan_row and "error" not in plan_row:
                 self._plan = Plan.from_row(plan_row)
-                self._profile.plan = self._plan
+                if self._profile is not None:
+                    self._profile.plan = self._plan
         return self._plan
 
     def signup(self, email: str, password: str, display_name: str = "") -> tuple[bool, str]:

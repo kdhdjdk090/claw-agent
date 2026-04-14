@@ -60,8 +60,9 @@ def view_image(file_path: str) -> str:
     if size_bytes < 5 * 1024 * 1024:  # < 5 MB
         raw = path.read_bytes()
         b64 = base64.b64encode(raw).decode("ascii")
-        info_lines.append(f"\nData URI: data:{mime};base64,{b64[:100]}...")
         info_lines.append(f"Base64 length: {len(b64):,} chars")
+        # Full data URI — agent.py detects __IMAGE_DATA__ marker for vision
+        info_lines.append(f"__IMAGE_DATA__:data:{mime};base64,{b64}")
     else:
         info_lines.append("(File too large for base64 embedding)")
 
