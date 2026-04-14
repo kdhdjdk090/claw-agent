@@ -45,5 +45,8 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; connect-src https://openrouter.ai https://clean-claw-ai.vercel.app https://dashscope.aliyuncs.com http://localhost:11434 http://localhost:* https://api.deepseek.com; img-src 'self' data: https:; object-src 'none'"
   }
 }

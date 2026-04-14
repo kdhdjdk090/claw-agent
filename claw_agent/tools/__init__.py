@@ -1,4 +1,4 @@
-"""Tool registry — all 25 tools for Ollama tool-calling."""
+"""Tool registry — all tools for Ollama tool-calling."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from .advanced_edit_tools import multi_edit_file, insert_at_line, diff_files
 # ---- Web tools (2) ----------------------------------------------------------
 from .web_tools import web_fetch, web_search
 
-# ---- Agent tools (2) --------------------------------------------------------
-from .agent_tools import run_subagent, plan_and_execute
+# ---- Agent tools (4) --------------------------------------------------------
+from .agent_tools import run_subagent, plan_and_execute, enter_plan_mode, exit_plan_mode
 
 # ---- Task tools (4) ---------------------------------------------------------
 from .task_tools import task_create, task_update, task_list, task_get
@@ -34,8 +34,11 @@ from .notebook_tools import notebook_run
 # ---- Context tools (3) ------------------------------------------------------
 from .context_tools import get_workspace_context, git_diff, git_log
 
-# ---- Utility tools (3 — ported from Rust) ------------------------------------
-from .utility_tools import sleep_tool, config_get, config_set, powershell
+# ---- Utility tools (5 — ported from Rust + new) ----------------------------
+from .utility_tools import sleep_tool, config_get, config_set, powershell, ask_user, tool_search
+
+# ---- MCP resource tools (2) -------------------------------------------------
+from ..mcp import read_mcp_resource, list_mcp_resources
 
 # ---- Registry ----------------------------------------------------------------
 
@@ -57,9 +60,11 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     # Web (2)
     "web_fetch": web_fetch,
     "web_search": web_search,
-    # Agents (2)
+    # Agents (4)
     "run_subagent": run_subagent,
     "plan_and_execute": plan_and_execute,
+    "enter_plan_mode": enter_plan_mode,
+    "exit_plan_mode": exit_plan_mode,
     # Tasks (4)
     "task_create": task_create,
     "task_update": task_update,
@@ -71,11 +76,17 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     "get_workspace_context": get_workspace_context,
     "git_diff": git_diff,
     "git_log": git_log,
-    # Utility (3 — ported from Rust)
+    # Utility (4 — ported from Rust)
     "sleep": sleep_tool,
     "config_get": config_get,
     "config_set": config_set,
     "powershell": powershell,
+    # Interaction (2)
+    "ask_user": ask_user,
+    "tool_search": tool_search,
+    # MCP resources (2)
+    "read_mcp_resource": read_mcp_resource,
+    "list_mcp_resources": list_mcp_resources,
 }
 
 # ---- Ollama tool definitions (OpenAI-compatible) ----------------------------
@@ -476,6 +487,97 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "cwd": {"type": "string", "description": "Working directory."},
                 },
                 "required": ["command"],
+            },
+        },
+    },
+    # === INTERACTION ===
+    {
+        "type": "function",
+        "function": {
+            "name": "ask_user",
+            "description": (
+                "Ask the user a clarifying question and get their answer. "
+                "Use ONLY when you genuinely cannot proceed without human input — "
+                "e.g. choosing between approaches, confirming a destructive action, "
+                "or getting a value you cannot infer from the codebase. "
+                "Do NOT use to ask what files contain — read them yourself."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "description": "The question to ask the user."},
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Optional list of suggested answer choices shown to the user.",
+                    },
+                },
+                "required": ["question"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "tool_search",
+            "description": "Search available tools by name or description. Use to discover which tools exist before deciding which to call.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search term (tool name fragment or keyword)."},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    # === PLAN MODE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "enter_plan_mode",
+            "description": (
+                "Switch to Plan Mode — propose your action plan as numbered steps "
+                "WITHOUT executing any tools, then wait for user approval. "
+                "Use for complex multi-step tasks where you want human confirmation before acting."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "exit_plan_mode",
+            "description": "Exit Plan Mode and return to normal execution (tools allowed again).",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    # === MCP RESOURCES ===
+    {
+        "type": "function",
+        "function": {
+            "name": "list_mcp_resources",
+            "description": "List resources exposed by an MCP server (files, DB records, etc.).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "server_name": {"type": "string", "description": "Name of the configured MCP server."},
+                },
+                "required": ["server_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_mcp_resource",
+            "description": "Read a specific resource from an MCP server by URI. Use list_mcp_resources first to find URIs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "server_name": {"type": "string", "description": "Name of the configured MCP server."},
+                    "resource_uri": {"type": "string", "description": "URI of the resource (e.g. 'file:///path/to/doc')."},
+                },
+                "required": ["server_name", "resource_uri"],
             },
         },
     },

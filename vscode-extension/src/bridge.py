@@ -49,17 +49,21 @@ def format_args(args: dict) -> str:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", default="deepseek-r1:671b")
-    parser.add_argument("--base-url", default="http://localhost:11434")
+    parser.add_argument("--model", default=None)
+    parser.add_argument("--base-url", default=None)
     args = parser.parse_args()
 
     def create_agent():
-        return Agent(
-            model=args.model,
-            base_url=args.base_url,
-            permissions=PermissionContext.default(),
-            session=Session(model=args.model),
-        )
+        # Let agent.py auto-detect cloud vs local based on env vars
+        # Only pass base_url if explicitly provided (not the default)
+        kwargs = {}
+        if args.model:
+            kwargs["model"] = args.model
+        if args.base_url:
+            kwargs["base_url"] = args.base_url
+        kwargs["session"] = Session(model=args.model or "deepseek-v3.1:671b-cloud")
+        kwargs["permissions"] = PermissionContext.default()
+        return Agent(**kwargs)
 
     agent = create_agent()
     emit({"type": "status", "text": f"Ready — {args.model}"})

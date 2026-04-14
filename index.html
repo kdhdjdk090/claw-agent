@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="referrer" content="no-referrer">
 <title>Claw AI</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -35,68 +36,72 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .icon svg{width:100%;height:100%;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 
 /* Sidebar */
-.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:100}
-.sb-head{padding:16px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-.sb-logo{width:28px;height:28px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px}
-.sb-brand{font-size:15px;font-weight:700;flex:1;color:var(--text)}
-.sb-new{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sidebar{width:278px;background:color-mix(in srgb,var(--surface) 94%,var(--bg));border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:100}
+.sb-head{padding:18px 16px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sb-logo{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),#d78962);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;box-shadow:var(--sh)}
+.sb-brand{font-size:15px;font-weight:700;flex:1;color:var(--text);letter-spacing:-.2px}
+.sb-new{width:32px;height:32px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .sb-new:hover{background:var(--surface-alt);border-color:var(--border-h);color:var(--text)}
 
 .sb-nav{padding:8px}
-.sb-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 12px;border:none;background:none;border-radius:8px;font-size:13px;color:var(--text-2);cursor:pointer;transition:all .12s;font-family:inherit}
+.sb-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 12px;border:none;background:none;border-radius:10px;font-size:13px;color:var(--text-2);cursor:pointer;transition:all .12s;font-family:inherit}
 .sb-item:hover{background:var(--surface-alt);color:var(--text)}
 .sb-item.active{background:var(--accent-bg);color:var(--accent);font-weight:600}
 .sb-item .icon{color:inherit}
-.sb-sep{height:1px;background:var(--border);margin:4px 14px}
+.sb-sep{height:1px;background:var(--border);margin:6px 14px}
 
-.sb-scroll{flex:1;overflow-y:auto;padding-bottom:12px}
+.sb-scroll{flex:1;overflow-y:auto;padding-bottom:14px}
 .sb-scroll::-webkit-scrollbar{width:3px}.sb-scroll::-webkit-scrollbar-thumb{background:var(--sb-t);border-radius:2px}
-.sb-label{padding:12px 16px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-3);font-weight:600}
-.sb-skill{display:inline-block;padding:4px 10px;margin:2px;border-radius:14px;font-size:11px;background:var(--surface-alt);border:1px solid var(--border);color:var(--green);cursor:pointer;transition:all .12s;font-weight:500}
-.sb-skill:hover{background:var(--green-bg);border-color:var(--green-br)}
+.sb-label{padding:12px 16px 8px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text-3);font-weight:700}
+.sb-skill-grid{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px 8px}
+.sb-skill{display:inline-flex;align-items:center;justify-content:center;padding:7px 12px;border-radius:999px;font-size:12px;background:var(--surface);border:1px solid var(--border);color:var(--green);cursor:pointer;transition:all .12s;font-weight:600;font-family:inherit;text-align:center;box-shadow:var(--sh)}
+.sb-skill:hover{background:var(--green-bg);border-color:var(--green-br);transform:translateY(-1px)}
+.sb-skill-name{font-size:12px;font-weight:600;color:inherit}
+.sb-skill-meta{display:none}
+.sb-cap-foot{padding:0 12px 10px;font-size:10px;color:var(--text-3)}
 .sb-foot{padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-3);display:flex;justify-content:space-between}
 
 /* Main */
 .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
 
 /* Top bar */
-.topbar{padding:0 20px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;height:48px;flex-shrink:0}
-.tb-l{display:flex;align-items:center;gap:8px}
+.topbar{padding:0 22px;border-bottom:1px solid var(--border);background:color-mix(in srgb,var(--surface) 96%,var(--bg));display:flex;align-items:center;justify-content:space-between;height:54px;flex-shrink:0}
+.tb-l{display:flex;align-items:center;gap:10px}
 .menu-btn{display:none;width:32px;height:32px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;align-items:center;justify-content:center;font-family:inherit}
-.tb-status{font-size:12px;color:var(--text-3)}
-.tb-r{display:flex;align-items:center;gap:6px}
-.pill{padding:3px 10px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.2px}
+.tb-status{font-size:12px;color:var(--text-2);font-weight:500}
+.tb-r{display:flex;align-items:center;gap:8px}
+.pill{padding:4px 10px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.2px}
 .pill-m{background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-br)}
 .pill-s{background:var(--green-bg);color:var(--green);border:1px solid var(--green-br)}
 .pill-f{background:var(--surface-alt);color:var(--text-3);border:1px solid var(--border)}
-.theme-btn{width:32px;height:32px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;font-family:inherit}
+.theme-btn{width:32px;height:32px;border-radius:10px;background:none;border:1px solid var(--border);color:var(--text-2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s;font-family:inherit}
 .theme-btn:hover{border-color:var(--accent);color:var(--accent)}
 
 /* Chat */
-.chat{flex:1;overflow-y:auto;scroll-behavior:smooth;background:var(--bg)}
+.chat{flex:1;overflow-y:auto;scroll-behavior:smooth;background:linear-gradient(180deg,var(--bg),color-mix(in srgb,var(--bg) 94%,var(--surface)))}
 .chat::-webkit-scrollbar{width:5px}.chat::-webkit-scrollbar-thumb{background:var(--sb-t);border-radius:3px}
 
 /* Welcome */
-.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;min-height:100%;padding:40px 24px;text-align:center;gap:20px}
-.w-icon{width:48px;height:48px;border-radius:14px;background:var(--accent-bg);border:1px solid var(--accent-br);display:flex;align-items:center;justify-content:center;color:var(--accent)}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;min-height:100%;padding:56px 24px;text-align:center;gap:18px}
+.w-icon{width:52px;height:52px;border-radius:16px;background:var(--accent-bg);border:1px solid var(--accent-br);display:flex;align-items:center;justify-content:center;color:var(--accent)}
 .w-icon svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.5}
-.welcome h2{font-size:26px;font-weight:300;color:var(--text);letter-spacing:-.5px}.welcome h2 b{font-weight:700}
-.welcome-sub{font-size:14px;color:var(--text-2);max-width:440px;line-height:1.7}
-.qa-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:4px}
-.qa{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:9px 18px;font-size:13px;color:var(--text);cursor:pointer;transition:all .18s;font-weight:500;box-shadow:var(--sh);font-family:inherit}
+.welcome h2{font-size:34px;font-weight:400;color:var(--text);letter-spacing:-.8px;line-height:1.15}.welcome h2 b{font-weight:700}
+.welcome-sub{font-size:15px;color:var(--text-2);max-width:560px;line-height:1.75}
+.qa-row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px;max-width:720px}
+.qa{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:10px 16px;font-size:13px;color:var(--text);cursor:pointer;transition:all .18s;font-weight:500;box-shadow:var(--sh);font-family:inherit}
 .qa:hover{border-color:var(--accent-br);background:var(--accent-bg);transform:translateY(-1px)}
 .qa .icon{width:16px;height:16px}
 
 /* Messages */
-.msgs{max-width:760px;margin:0 auto;padding:16px 24px;display:flex;flex-direction:column;gap:4px;width:100%}
-.mr{display:flex;gap:10px;animation:fadeUp .3s ease;position:relative;padding:8px 0}
+.msgs{max-width:840px;margin:0 auto;padding:18px 24px;display:flex;flex-direction:column;gap:6px;width:100%}
+.mr{display:flex;gap:12px;animation:fadeUp .3s ease;position:relative;padding:10px 0}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
 
 .mr.user{justify-content:flex-end}
-.mr.user .bubble{background:var(--user-bg);color:var(--user-tx);border-radius:18px 18px 4px 18px;padding:8px 14px;max-width:75%;font-size:14px;line-height:1.55}
+.mr.user .bubble{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:18px 18px 6px 18px;padding:10px 14px;max-width:78%;font-size:14px;line-height:1.6;box-shadow:var(--sh)}
 
 .mr.ai{align-items:flex-start}
-.ai-av{width:24px;height:24px;border-radius:50%;background:var(--ai-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;color:var(--accent)}
+.ai-av{width:26px;height:26px;border-radius:8px;background:var(--ai-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px;color:var(--accent);border:1px solid var(--accent-br)}
 .ai-av svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
 .ai-body{flex:1;min-width:0}
 .ai-lbl{font-size:11px;font-weight:600;color:var(--accent);margin-bottom:2px;display:flex;align-items:center;gap:6px}
@@ -154,8 +159,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 @keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
 
 /* Input */
-.input-wrap{padding:0 24px 20px;background:var(--bg);display:flex;justify-content:center}
-.input-box{width:100%;max-width:760px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--sh);transition:border-color .15s,box-shadow .15s}
+.input-wrap{padding:10px 24px 20px;background:linear-gradient(180deg,transparent,var(--bg) 20%);display:flex;justify-content:center}
+.input-box{width:100%;max-width:840px;background:color-mix(in srgb,var(--surface) 97%,var(--bg));border:1px solid var(--border);border-radius:22px;box-shadow:var(--sh-l);transition:border-color .15s,box-shadow .15s}
 .input-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
 .fprev{padding:6px 12px;margin:4px 12px 0;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;font-size:11px;display:none;align-items:center;gap:6px;color:var(--text-2)}
 .fprev.show{display:flex}
@@ -265,12 +270,12 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="sb-new" onclick="doClear()" title="New chat"><span class="icon"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span></button>
 </div>
 <div class="sb-nav">
-<button class="sb-item active" onclick="goChat()"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>Chat</button>
-<button class="sb-item" onclick="sc('/models')"><span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>Models</button>
-<button class="sb-item" onclick="sc('/skills')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></span>Skills</button>
-<button class="sb-item" onclick="sc('/status')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Status</button>
-<button class="sb-item" onclick="sc('/help')"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>Help</button>
-<button class="sb-item" onclick="showInstall()"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</button>
+<button class="sb-item active" id="nav-chat" onclick="goChat()"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></span>Chat</button>
+<button class="sb-item" id="nav-models" onclick="sc('/models')"><span class="icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>Models</button>
+<button class="sb-item" id="nav-skills" onclick="sc('/skills')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></span>Skills</button>
+<button class="sb-item" id="nav-status" onclick="sc('/status')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>Status</button>
+<button class="sb-item" id="nav-help" onclick="sc('/help')"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>Help</button>
+<button class="sb-item" id="nav-install" onclick="showInstall()"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Install</button>
 </div>
 <div class="sb-sep"></div>
 <div class="sb-scroll">
@@ -283,10 +288,11 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <button class="sb-item" onclick="sc('/resume')"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg></span>Resume</button>
 <button class="sb-item" onclick="sc('/export')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span>Export</button>
 <button class="sb-item" onclick="doClear()"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></span>Clear</button>
+<button class="sb-item" onclick="window.open('/api/docs','_blank')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>API Docs</button>
 </div>
 <div class="sb-sep"></div>
 <div class="sb-label">Skills &middot; 18</div>
-<div style="padding:4px 12px" id="ss"></div>
+<div id="ss"></div>
 </div>
 <div class="sb-foot"><span>Claw AI</span><span>v2.0</span></div>
 </div>
@@ -294,23 +300,25 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <div class="topbar">
 <div class="tb-l">
 <button class="menu-btn" onclick="tSide()"><span class="icon"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></span></button>
-<span class="tb-status" id="ts">Loading...</span>
+<span class="tb-status" id="ts">Ready</span>
 </div>
 <div class="tb-r">
+<span class="pill pill-m">Claw Pro</span>
+<span class="pill pill-f">14 models</span>
 <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme"><span class="icon" id="themeIcon"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
 </div>
 </div>
 <div class="chat" id="ch">
 <div class="welcome" id="wl">
 <div class="w-icon"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
-<h2 id="greet">Good evening, <b>sinwa</b></h2>
-<p class="welcome-sub">How can I help you today?</p>
+<h2 id="greet">How can I help, <b>sinwa</b>?</h2>
+<p class="welcome-sub">Claude-style workspace for coding, writing, research, debugging, and planning with a cleaner sidebar and better capability options.</p>
 <div class="qa-row">
-<button class="qa" onclick="qs('Write a Python web scraper')"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>Code</button>
-<button class="qa" onclick="qs('Explain quantum computing simply')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>Write</button>
-<button class="qa" onclick="qs('Compare React vs Vue vs Svelte')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg></span>Learn</button>
+<button class="qa" onclick="qs('Build a production-ready Python web scraper with retries and CSV export')"><span class="icon"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></span>Code</button>
+<button class="qa" onclick="qs('Analyze this project architecture and suggest improvements')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 4-5"/></svg></span>Analyze</button>
+<button class="qa" onclick="qs('Write polished release notes for this project update')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></span>Write</button>
+<button class="qa" onclick="qs('Research the best stack for a Claude-like AI workspace')"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>Research</button>
 <button class="qa" onclick="sc('/skills')"><span class="icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></span>Skills</button>
-<button class="qa" onclick="sc('/help')"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>Help</button>
 </div>
 </div>
 </div>
@@ -548,16 +556,17 @@ const MD=[
 ];
 const TOTAL_B=MD.reduce((s,m)=>s+m.b,0),MAX_CTX=Math.max(...MD.map(m=>m.ctx));
 const SK=[
-{id:'code',d:'Generate, edit & debug code'},{id:'analyze',d:'Research & data analysis'},
-{id:'write',d:'Essays, emails, reports'},{id:'summarize',d:'Condense docs & articles'},
-{id:'translate',d:'Any language pair'},{id:'math',d:'Calculations & reasoning'},
-{id:'reason',d:'Logic & problem solving'},{id:'brainstorm',d:'Ideas & creative thinking'},
+{id:'code',d:'Generate, edit and debug code'},{id:'analyze',d:'Research and data analysis'},
+{id:'write',d:'Essays, emails and reports'},{id:'summarize',d:'Condense docs and articles'},
+{id:'translate',d:'Any language pair'},{id:'math',d:'Calculations and reasoning'},
+{id:'reason',d:'Logic and problem solving'},{id:'brainstorm',d:'Ideas and creative thinking'},
 {id:'explain',d:'Simplify complex topics'},{id:'extract',d:'Structure data from text'},
-{id:'vision',d:'Describe images & diagrams'},{id:'debug',d:'Find & fix bugs'},
-{id:'refactor',d:'Improve code quality'},{id:'review',d:'Code review & feedback'},
-{id:'test',d:'Write tests & QA'},{id:'docs',d:'Generate documentation'},
-{id:'design',d:'System architecture'},{id:'search',d:'Web research & lookup'}
+{id:'vision',d:'Describe images and diagrams'},{id:'debug',d:'Find and fix bugs'},
+{id:'refactor',d:'Improve code quality'},{id:'review',d:'Code review and feedback'},
+{id:'test',d:'Write tests and QA'},{id:'docs',d:'Generate documentation'},
+{id:'design',d:'System architecture'},{id:'search',d:'Web research and lookup'}
 ];
+
 let H=[],CM=false,AF=null,CID=null,CONVOS=[];
 
 /* Storage & Conversations */
@@ -574,13 +583,13 @@ function lss(){loadConvos();
 if(CONVOS.length){const last=CONVOS[0];try{const s=localStorage.getItem('claw_c_'+last.id);if(s){H=JSON.parse(s);CID=last.id;return H.length>0}}catch(e){}}
 try{const s=localStorage.getItem('claw_h');if(s){H=JSON.parse(s);if(H.length){CID=genId();saveConvo();localStorage.removeItem('claw_h');return true}}}catch(e){}
 return false;}
-function newConvo(){if(CID&&H.length)saveConvo();
+function newConvo(){hideInstall('chat');if(CID&&H.length)saveConvo();
 H=[];CID=genId();const old=document.getElementById('ma');if(old)old.remove();const wl=document.getElementById('wl');if(wl){wl.style.display='';updGreet()}
-renderConvos();if(window.innerWidth<768)tSide();}
+renderConvos();if(window.innerWidth<768&&document.getElementById('sb').classList.contains('open'))tSide();}
 function loadConvo(id){if(id===CID)return;
-if(CID&&H.length)saveConvo();try{const s=localStorage.getItem('claw_c_'+id);if(s){H=JSON.parse(s);CID=id;const old=document.getElementById('ma');if(old)old.remove();const wl=document.getElementById('wl');if(wl)wl.style.display='none';
+hideInstall('chat');if(CID&&H.length)saveConvo();try{const s=localStorage.getItem('claw_c_'+id);if(s){H=JSON.parse(s);CID=id;const old=document.getElementById('ma');if(old)old.remove();const wl=document.getElementById('wl');if(wl)wl.style.display='none';
 H.forEach((m,i)=>renderMsg(m,i));renderConvos();
-if(window.innerWidth<768)tSide()}}catch(e){}
+if(window.innerWidth<768&&document.getElementById('sb').classList.contains('open'))tSide()}}catch(e){}
 }
 function delConvo(id,ev){ev.stopPropagation();try{localStorage.removeItem('claw_c_'+id)}catch(e){}
 CONVOS=CONVOS.filter(c=>c.id!==id);saveConvos();
@@ -602,7 +611,11 @@ if(lss()&&H.length){document.getElementById('wl').style.display='none';H.forEach
 else{CID=genId()}
 renderConvos();fetchSt();
 }
-function rS(){document.getElementById('ss').innerHTML=SK.map(s=>'<span class="sb-skill" onclick="sc(\'/'+s.id+'\')">'+esc(s.id)+'</span>').join('')}
+function rS(){
+const root=document.getElementById('ss');if(!root)return;
+const items=SK.map(s=>'<button class="sb-skill" onclick="sc(\'/'+s.id+'\')"><span class="sb-skill-name">'+esc(s.id)+'</span></button>').join('');
+root.innerHTML='<div class="sb-skill-grid">'+items+'</div><div class="sb-cap-foot">Code, analyze, write, search, debug and more</div>';
+}
 async function fetchSt(){
 try{const r=await fetch('/api/status');const d=await r.json();
 if(d.status==='operational'){document.getElementById('ts').textContent='Ready · v'+d.version}
@@ -618,14 +631,30 @@ mi.textContent='Claw AI · '+MD.length+' Models · '+tb+'T Parameters · '+MAX_C
 
 /* Helpers */
 function tSide(){document.getElementById('sb').classList.toggle('open');document.getElementById('ov').classList.toggle('show')}
-function goChat(){if(window.innerWidth<768)tSide();document.getElementById('mi').focus()}
-function sc(t){document.getElementById('mi').value=t+' ';document.getElementById('mi').focus();if(window.innerWidth<768)tSide()}
-function qs(m){document.getElementById('mi').value=m;sm()}
+function setNav(which='chat'){
+document.querySelectorAll('.sb-item').forEach(el=>el.classList.remove('active'));
+const active=document.getElementById('nav-'+which);
+if(active)active.classList.add('active');
+}
+function goChat(){hideInstall('chat');if(window.innerWidth<768&&document.getElementById('sb').classList.contains('open'))tSide();document.getElementById('mi').focus()}
+function sc(t){
+if(t.startsWith('/models'))setNav('models');
+else if(t.startsWith('/skills'))setNav('skills');
+else if(t.startsWith('/status'))setNav('status');
+else if(t.startsWith('/help'))setNav('help');
+else setNav('chat');
+hideInstall();
+document.getElementById('mi').value=t+' ';
+document.getElementById('mi').focus();
+if(window.innerWidth<768&&document.getElementById('sb').classList.contains('open'))tSide()
+}
+function qs(m){hideInstall();setNav('chat');document.getElementById('mi').value=m;sm()}
 function ar(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,160)+'px'}
 function hk(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sm()}}
-function hf(e){const f=e.target.files[0];if(!f)return;AF=f;document.getElementById('fn').textContent=esc(f.name)+' ('+(f.size/1024).toFixed(1)+'KB)';document.getElementById('fp').classList.add('show')}
+function hf(e){const f=e.target.files[0];if(!f)return;if(f.size>5*1024*1024){alert('File too large (max 5MB)');e.target.value='';return}AF=f;document.getElementById('fn').textContent=esc(f.name)+' ('+(f.size/1024).toFixed(1)+'KB)';document.getElementById('fp').classList.add('show')}
 function rf(){AF=null;document.getElementById('fp').classList.remove('show');document.getElementById('fi').value=''}
 function esc(s){const el=document.createElement('span');el.textContent=String(s);return el.innerHTML}
+function scrollBottom(){const ch=document.getElementById('ch');if(ch)ch.scrollTop=ch.scrollHeight}
 
 /* Markdown */
 function fm(t){
@@ -638,7 +667,9 @@ s=s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
 s=s.replace(/^# (.+)$/gm,'<h1>$1</h1>');
 s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
 s=s.replace(/\*(.+?)\*/g,'<em>$1</em>');
-s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
+s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,function(_,text,url){
+try{const u=new URL(url,location.href);if(!['https:','http:','mailto:'].includes(u.protocol))return text;return'<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+text+'</a>'}catch(e){return text}
+});
 s=s.replace(/^---$/gm,'<hr>');
 s=s.replace(/^[\u2022\-\*] (.+)$/gm,'<li>$1</li>');
 s=s.replace(/((?:<li>.*<\/li>\n?)+)/g,'<ul>$1</ul>');
@@ -687,14 +718,14 @@ div.innerHTML='<div class="bubble" id="msg-'+idx+'"><div class="ac">'+fm(m.conte
 +'<button class="msg-btn" onclick="delMsg('+idx+')" title="Delete"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg></button>'
 +'</div>';
 }
-area.appendChild(div);addCodeCopyBtns(div);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
+area.appendChild(div);addCodeCopyBtns(div);scrollBottom();
 }
 function ensureArea(){let a=document.getElementById('ma');if(!a){a=document.createElement('div');a.id='ma';a.className='msgs';document.getElementById('ch').appendChild(a)}return a}
 
 function am(role,content,council,consensus){
 const m={role,content,c:council||false,p:consensus||0};
 H.push(m);document.getElementById('wl').style.display='none';
-renderMsg(m,H.length-1);ss();document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
+renderMsg(m,H.length-1);ss();scrollBottom();
 }
 function ae(text){am('s',text)}
 
@@ -793,7 +824,7 @@ abortCtrl=new AbortController();
 document.getElementById('stopBtn').classList.add('vis');
 const think=document.createElement('div');think.className='mr ai';think.id='thinking';
 think.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body"><div class="ai-lbl">Claw AI</div><div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Thinking...</span></div></div>';
-area.appendChild(think);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
+area.appendChild(think);scrollBottom();
 const btn=document.getElementById('sb2');btn.disabled=true;
 _streamBuf='';_streamIdx=-1;
 let msgCreated=false,usedModel='',partial=false;
@@ -896,7 +927,7 @@ window._resumeFromIdx=idx;
 }
 
 async function sm(){
-const inp=document.getElementById('mi'),t=inp.value.trim();
+const inp=document.getElementById('mi');if(!inp)return;const t=inp.value.trim();
 if(!t)return;inp.value='';inp.style.height='auto';rf();updCharCount();
 if(t.startsWith('/')){hc(t);return}
 am('u',t);
@@ -905,7 +936,7 @@ if(CM){
 const area=ensureArea();abortCtrl=new AbortController();document.getElementById('stopBtn').classList.add('vis');
 const think=document.createElement('div');think.className='mr ai';think.id='thinking';
 think.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body"><div class="ai-lbl">Claw AI</div><div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Thinking...</span></div></div>';
-area.appendChild(think);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
+area.appendChild(think);scrollBottom();
 const btn=document.getElementById('sb2');btn.disabled=true;
 try{
 let body={message:t,history:H.filter(m=>m.role==='u'||m.role==='a').slice(-20),use_council:true};
@@ -962,8 +993,8 @@ ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptim
 }catch(e){ae('**Status**\n- Connection: Offline\n- Messages: '+H.length)}break;
 case'/version':
 try{const r=await fetch('/api/health');const d=await r.json();
-ae('**Claw AI v'+d.version+'**\n- Status: '+d.status+'\n- 18 skills · 26 tools\n- Conversation history\n- File upload\n- Light/Dark theme')
-}catch(e){ae('**Claw AI v2.0**\n- 18 skills · 26 tools\n- Conversation history\n- File upload\n- Light/Dark theme')}break;
+ae('**Claw AI v'+d.version+'**\n- Status: '+d.status+'\n- 18 skills · 34 tools\n- Conversation history\n- File upload\n- Light/Dark theme')
+}catch(e){ae('**Claw AI v2.0**\n- 18 skills · 34 tools\n- Conversation history\n- File upload\n- Light/Dark theme')}break;
 case'/export':
 let md='# Claw AI Chat\n\n';H.forEach(m=>md+='## '+m.role+'\n'+(m.content||'')+'\n\n');
 const bl=new Blob([md],{type:'text/markdown'}),ur=URL.createObjectURL(bl),a=document.createElement('a');
@@ -1039,7 +1070,7 @@ async function callC(t){
 const area=ensureArea();
 const th=document.createElement('div');th.className='mr ai';th.id='thinking';
 th.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body"><div class="ai-lbl">Claw AI</div><div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Thinking...</span></div></div>';
-area.appendChild(th);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
+area.appendChild(th);scrollBottom();
 const btn=document.getElementById('sb2');btn.disabled=true;
 try{const r=await fw('/api/council',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})});
 const d=await r.json();th.remove();
@@ -1054,7 +1085,7 @@ async function callS(t){
 const area=ensureArea();
 const th=document.createElement('div');th.className='mr ai';th.id='thinking';
 th.innerHTML='<div class="ai-av"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="ai-body"><div class="ai-lbl">Claw AI</div><div class="thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span style="margin-left:4px">Thinking...</span></div></div>';
-area.appendChild(th);document.getElementById('ch').scrollTop=document.getElementById('ch').scrollHeight;
+area.appendChild(th);scrollBottom();
 const btn=document.getElementById('sb2');btn.disabled=true;
 try{const r=await fw('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})});
 const d=await r.json();th.remove();
@@ -1064,19 +1095,21 @@ finally{btn.disabled=false;ss()}}
 
 /* Install page */
 function showInstall(){
+setNav('install');
 document.getElementById('ch').style.display='none';
 document.querySelector('.input-wrap').style.display='none';
 document.getElementById('stopBtn').style.display='none';
 document.getElementById('scrollBot').style.display='none';
 document.getElementById('installPage').classList.add('vis');
-if(window.innerWidth<768)tSide();
+if(window.innerWidth<768&&document.getElementById('sb').classList.contains('open'))tSide();
 }
-function hideInstall(){
+function hideInstall(target='chat'){
 document.getElementById('installPage').classList.remove('vis');
 document.getElementById('ch').style.display='';
 document.querySelector('.input-wrap').style.display='';
 document.getElementById('stopBtn').style.display='';
 document.getElementById('scrollBot').style.display='';
+setNav(target);
 }
 function switchTab(id){
 document.querySelectorAll('.install-tab').forEach(t=>t.classList.remove('active'));

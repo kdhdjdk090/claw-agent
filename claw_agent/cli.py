@@ -115,12 +115,34 @@ def _cli_confirm() -> bool:
         return False
 
 
+def _cli_ask_user(question: str, options: list[str]) -> str:
+    """Interactive ask_user callback for the CLI — prompts the user and returns their answer."""
+    console.print()
+    console.print(f"  [bold bright_yellow]❓ {question}[/bold bright_yellow]")
+    if options:
+        for i, opt in enumerate(options, 1):
+            console.print(f"     [cyan]{i}.[/cyan] {opt}")
+    try:
+        raw = console.input("  [bold]Your answer:[/bold] ").strip()
+    except (KeyboardInterrupt, EOFError):
+        return "(user cancelled)"
+    if not raw:
+        return "(no answer provided)"
+    # If user typed a number and there are options, return the option text
+    if options and raw.isdigit():
+        idx = int(raw) - 1
+        if 0 <= idx < len(options):
+            return options[idx]
+    return raw
+
+
 def make_agent(model: str, session: Session | None = None, permissions: PermissionContext | None = None) -> Agent:
     return Agent(
         model=model,
         permissions=permissions or PermissionContext.default(),
         session=session or Session(model=model),
         confirm_fn=_cli_confirm,
+        ask_fn=_cli_ask_user,
     )
 
 
@@ -260,7 +282,6 @@ def print_help():
     ])
     
     _section("Workspace", "📁", [
-        ("/diff", "Git diff of changes"),
         ("/status", "Workspace & project info"),
         ("/config", "Agent configuration"),
         ("/permissions [mode]", "Permission mode"),
@@ -275,13 +296,35 @@ def print_help():
         ("/bug", "Debug information"),
     ])
     
-    _section("Skills & MCP", "", [
+    _section("Git & Version Control", "🌿", [
+        ("/commit", "AI-generated git commit message"),
+        ("/branch [name]", "List branches or switch to one"),
+        ("/diff", "Git diff of changes"),
+    ])
+
+    _section("Skills & MCP", "🔌", [
         ("/skills", "List installed skills"),
         ("/skill install <name>", "Install a skill (web-dev, data-science, etc.)"),
         ("/skill uninstall <name>", "Remove a skill"),
         ("/mcp", "List MCP servers"),
         ("/mcp add <name> <cmd>", "Add MCP server"),
         ("/mcp remove <name>", "Remove MCP server"),
+    ])
+
+    _section("Plan Mode", "📋", [
+        ("/plan", "Toggle Plan Mode — agent plans but doesn't execute"),
+        ("/context", "Show context window (messages, token usage)"),
+        ("/add-dir [path]", "Add a directory to agent context"),
+        ("/hooks [init]", "Show or initialize configured hooks"),
+    ])
+
+    _section("Account", "🔐", [
+        ("/login", "Login with email/password"),
+        ("/register", "Create a new account"),
+        ("/logout", "Sign out"),
+        ("/account", "View profile, plan & usage"),
+        ("/billing", "View/upgrade your subscription plan"),
+        ("/apikey", "Manage API keys"),
     ])
     
     _section("Settings", "⚙️", [
@@ -311,9 +354,21 @@ def print_help():
 
 
 
+def _render_markdown_response(text: str):
+    """Render accumulated LLM response text as formatted Markdown via Rich."""
+    if not text or not text.strip():
+        return
+    try:
+        md = Markdown(text.strip(), code_theme="monokai")
+        console.print(md)
+    except Exception:
+        # Fallback: print raw text if Markdown parsing fails
+        console.print(text)
+
+
 def stream_response_enhanced(agent: Agent, user_input: str):
-    """Claude Code-style streaming with tool call display."""
-    streamed_any_text = False
+    """Claude Code-style streaming with tool call display and Markdown rendering."""
+    text_buffer = []  # Accumulate text deltas for batch Markdown rendering
     active_tool = False
 
     console.print()
@@ -321,14 +376,13 @@ def stream_response_enhanced(agent: Agent, user_input: str):
     for event in agent.stream_chat(user_input):
         if isinstance(event, TextDelta):
             if not active_tool:
-                sys.stdout.write(event.text)
-                sys.stdout.flush()
-                streamed_any_text = True
+                text_buffer.append(event.text)
 
         elif isinstance(event, ToolCallStart):
-            if streamed_any_text:
-                sys.stdout.write("\n\n")
-                streamed_any_text = False
+            # Flush any accumulated text as rendered Markdown before tool display
+            if text_buffer:
+                _render_markdown_response("".join(text_buffer))
+                text_buffer.clear()
 
             active_tool = True
             display = _tool_display_name(event.name, event.arguments)
@@ -351,12 +405,18 @@ def stream_response_enhanced(agent: Agent, user_input: str):
             )
 
         elif isinstance(event, AgentDone):
-            if streamed_any_text:
-                sys.stdout.write("\n")
+            # Flush remaining text as rendered Markdown
+            if text_buffer:
+                _render_markdown_response("".join(text_buffer))
+                text_buffer.clear()
             # Show system messages (iteration limit, circuit breakers)
             if event.final_text and event.final_text.startswith("["):
                 console.print(f"  [dim]{event.final_text}[/dim]")
             break
+
+    # Safety flush: render any leftover text (e.g. if stream ended without AgentDone)
+    if text_buffer:
+        _render_markdown_response("".join(text_buffer))
 
     console.print()
 
@@ -472,7 +532,8 @@ def cmd_resume(args: str, model: str) -> Agent | None:
     else:
         match = [s for s in sessions if s.session_id.startswith(prefix)]
     if not match:
-        console.print(f"[claw.error]No session matching '{prefix or choice}'[/claw.error]")
+        label = prefix if prefix else '?'
+        console.print(f"[claw.error]No session matching '{label}'[/claw.error]")
         return None
     sess = match[0]
     agent = make_agent(sess.model, session=sess)
@@ -747,6 +808,206 @@ def cmd_memory(agent: Agent):
     console.print()
 
 
+# --- Auth Commands ---
+
+def cmd_login():
+    """Login with email/password via Supabase."""
+    from .auth import get_auth_manager
+    auth = get_auth_manager()
+    if not auth.configured:
+        console.print("  [yellow]Supabase not configured.[/yellow]")
+        console.print("  [dim]Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.[/dim]")
+        return
+    if auth.logged_in:
+        console.print(f"  [dim]Already logged in as {auth.email}[/dim]")
+        console.print(f"  [dim]Use /logout first to switch accounts[/dim]")
+        return
+    try:
+        email = console.input("  [bold]Email:[/bold] ").strip()
+        if not email:
+            return
+        import getpass
+        password = getpass.getpass("  Password: ")
+        if not password:
+            return
+    except (KeyboardInterrupt, EOFError):
+        return
+    ok, msg = auth.login(email, password)
+    if ok:
+        console.print(f"  [claw.success]{msg}[/claw.success]")
+    else:
+        console.print(f"  [claw.error]{msg}[/claw.error]")
+
+
+def cmd_register():
+    """Create a new Supabase account."""
+    from .auth import get_auth_manager
+    auth = get_auth_manager()
+    if not auth.configured:
+        console.print("  [yellow]Supabase not configured.[/yellow]")
+        console.print("  [dim]Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables.[/dim]")
+        return
+    try:
+        email = console.input("  [bold]Email:[/bold] ").strip()
+        if not email:
+            return
+        display_name = console.input("  [bold]Display name:[/bold] ").strip() or email.split("@")[0]
+        import getpass
+        password = getpass.getpass("  Password (min 8 chars): ")
+        if len(password) < 8:
+            console.print("  [claw.error]Password must be at least 8 characters[/claw.error]")
+            return
+        confirm = getpass.getpass("  Confirm password: ")
+        if password != confirm:
+            console.print("  [claw.error]Passwords don't match[/claw.error]")
+            return
+    except (KeyboardInterrupt, EOFError):
+        return
+    ok, msg = auth.signup(email, password, display_name)
+    if ok:
+        console.print(f"  [claw.success]{msg}[/claw.success]")
+    else:
+        console.print(f"  [claw.error]{msg}[/claw.error]")
+
+
+def cmd_logout():
+    """Sign out of Supabase."""
+    from .auth import get_auth_manager
+    auth = get_auth_manager()
+    ok, msg = auth.logout()
+    console.print(f"  [dim]{msg}[/dim]")
+
+
+def cmd_account():
+    """Show current account info, plan, and usage."""
+    from .auth import get_auth_manager
+    auth = get_auth_manager()
+    if not auth.logged_in:
+        console.print("  [dim]Not logged in. Use /login or /register[/dim]")
+        return
+    profile = auth.profile
+    plan = auth.plan
+    console.print()
+    console.print(f"  [bold cyan]🔐 Account[/bold cyan]")
+    console.print(f"    Email: [bold]{profile.email}[/bold]")
+    console.print(f"    Name: {profile.display_name}")
+    console.print(f"    Role: {profile.role}")
+    console.print(f"    Plan: [bold magenta]{plan.display_name if plan else 'Free'}[/bold magenta]")
+    console.print()
+    if plan:
+        day_used = profile.tokens_used_today
+        day_max = plan.max_tokens_per_day
+        month_used = profile.tokens_used_month
+        month_max = plan.max_tokens_per_month
+        console.print(f"  [bold]Token Usage[/bold]")
+        if day_max == -1:
+            console.print(f"    Today: {day_used:,} (unlimited)")
+        else:
+            pct = (day_used / day_max * 100) if day_max else 0
+            bar_f = int(pct / 5)
+            bar = "█" * bar_f + "░" * (20 - bar_f)
+            console.print(f"    Today: {day_used:,} / {day_max:,} [{bar}] {pct:.0f}%")
+        if month_max == -1:
+            console.print(f"    Month: {month_used:,} (unlimited)")
+        else:
+            pct = (month_used / month_max * 100) if month_max else 0
+            bar_f = int(pct / 5)
+            bar = "█" * bar_f + "░" * (20 - bar_f)
+            console.print(f"    Month: {month_used:,} / {month_max:,} [{bar}] {pct:.0f}%")
+        console.print(f"    Total: {profile.total_tokens_used:,}")
+        console.print()
+        console.print(f"  [bold]Features[/bold]")
+        features = []
+        if plan.council_access:
+            features.append("[green]✓[/green] Council")
+        if plan.cloud_models:
+            features.append("[green]✓[/green] Cloud Models")
+        if plan.ultrathink_mode:
+            features.append("[green]✓[/green] UltraThink")
+        if plan.mcp_access:
+            features.append("[green]✓[/green] MCP")
+        if plan.api_access:
+            features.append("[green]✓[/green] API Access")
+        if plan.custom_skills:
+            features.append("[green]✓[/green] Custom Skills")
+        for f in features:
+            console.print(f"    {f}")
+    console.print()
+
+
+def cmd_billing_plan():
+    """Show available subscription plans and current plan."""
+    from .auth import get_auth_manager
+    auth = get_auth_manager()
+    if not auth.configured:
+        console.print("  [dim]Supabase not configured — running in local mode (no plan limits)[/dim]")
+        return
+    plans = auth.client.get_plans(auth.session.access_token if auth.logged_in else "")
+    current_plan_id = auth.profile.plan_id if auth.logged_in and auth.profile else ""
+    console.print()
+    console.print(f"  [bold cyan]📋 Available Plans[/bold cyan]")
+    console.print()
+    for p in plans:
+        current = " [green]◄ CURRENT[/green]" if p.get("id") == current_plan_id else ""
+        price = f"${p.get('price_monthly', 0)}/mo" if p.get("price_monthly", 0) > 0 else "Free"
+        console.print(f"  [bold]{p.get('display_name', p.get('name'))}{current}[/bold] — {price}")
+        console.print(f"    [dim]{p.get('description', '')}[/dim]")
+        tok_day = p.get("max_tokens_per_day", 0)
+        tok_mo = p.get("max_tokens_per_month", 0)
+        console.print(f"    Tokens: {tok_day:,}/day, {tok_mo:,}/month" if tok_day != -1 else f"    Tokens: unlimited/day, unlimited/month")
+        features = []
+        if p.get("council_access"):
+            features.append("Council")
+        if p.get("cloud_models"):
+            features.append("Cloud")
+        if p.get("ultrathink_mode"):
+            features.append("UltraThink")
+        if p.get("mcp_access"):
+            features.append("MCP")
+        if p.get("api_access"):
+            features.append("API")
+        if features:
+            console.print(f"    Features: {', '.join(features)}")
+        console.print()
+
+
+def cmd_apikey(arg: str):
+    """Manage API keys."""
+    from .auth import get_auth_manager
+    auth = get_auth_manager()
+    if not auth.logged_in:
+        console.print("  [dim]Login first with /login[/dim]")
+        return
+    if not auth.plan or not auth.plan.api_access:
+        console.print("  [yellow]API access requires Pro plan or higher.[/yellow]")
+        return
+    sub = arg.strip().lower()
+    if sub == "create" or sub == "new":
+        try:
+            name = console.input("  [bold]Key name:[/bold] ").strip() or "Default"
+        except (KeyboardInterrupt, EOFError):
+            return
+        raw_key, result = auth.client.create_api_key(
+            auth.user_id, name, auth.session.access_token
+        )
+        console.print()
+        console.print(f"  [claw.success]API Key created![/claw.success]")
+        console.print(f"  [bold yellow]Key: {raw_key}[/bold yellow]")
+        console.print(f"  [claw.error]⚠ Save this key — it won't be shown again![/claw.error]")
+    elif sub == "list" or not sub:
+        keys = auth.client.list_api_keys(auth.user_id, auth.session.access_token)
+        if not keys:
+            console.print("  [dim]No API keys. Create one with /apikey create[/dim]")
+            return
+        console.print()
+        console.print(f"  [bold]Your API Keys[/bold]")
+        for k in keys:
+            status = "[green]active[/green]" if k.get("is_active") else "[red]revoked[/red]"
+            console.print(f"    {k.get('key_prefix', '???')}... — {k.get('name', '')} — {status}")
+    else:
+        console.print("  [dim]Usage: /apikey [list|create][/dim]")
+
+
 # --- Skills Commands ---
 
 def cmd_skills(arg: str):
@@ -821,6 +1082,204 @@ def cmd_skill_manage(arg: str):
     else:
         console.print(f"  [dim]Unknown action: {action}[/dim]")
         console.print("  [dim]Try: install, uninstall, or list[/dim]")
+
+
+# --- New Claude-parity commands ---
+
+def cmd_commit(agent: Agent):
+    """AI-generated git commit — stages changes and creates a commit with an AI message."""
+    import subprocess
+    # Check for changes
+    result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, timeout=10)
+    if not result.stdout.strip():
+        console.print("  [dim]No changes to commit.[/dim]")
+        return
+    # Get diff for AI to summarize
+    diff_result = subprocess.run(["git", "diff", "--cached", "--stat"], capture_output=True, text=True, timeout=10)
+    if not diff_result.stdout.strip():
+        # Nothing staged — stage all
+        subprocess.run(["git", "add", "-A"], timeout=10)
+        diff_result = subprocess.run(["git", "diff", "--cached", "--stat"], capture_output=True, text=True, timeout=10)
+    diff_text = diff_result.stdout.strip() or result.stdout.strip()
+    console.print("  [dim]Generating commit message...[/dim]")
+    msg = agent.chat(
+        f"Write a concise conventional git commit message for these changes (one line, imperative mood, <72 chars):\n\n{diff_text[:3000]}\n\nRespond with ONLY the commit message, nothing else."
+    )
+    msg = msg.strip().strip('"').strip("'").split("\n")[0][:72]
+    console.print(f"  [bold]Message:[/bold] {msg}")
+    try:
+        confirm = console.input("  [bold]Commit? (y/n/e to edit):[/bold] ").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        return
+    if confirm == "e":
+        try:
+            msg = console.input("  [bold]Edit message:[/bold] ").strip() or msg
+        except (KeyboardInterrupt, EOFError):
+            return
+        confirm = "y"
+    if confirm in ("y", "yes"):
+        r = subprocess.run(["git", "commit", "-m", msg], capture_output=True, text=True, timeout=30)
+        if r.returncode == 0:
+            console.print(f"  [claw.success]✓ Committed: {msg}[/claw.success]")
+        else:
+            console.print(f"  [claw.error]Commit failed: {r.stderr.strip()[:200]}[/claw.error]")
+    else:
+        console.print("  [dim]Cancelled.[/dim]")
+
+
+def cmd_hooks(arg: str = ""):
+    """Show configured hooks or set them up."""
+    from .hooks import HookRunner
+    runner = HookRunner.load()
+    hooks_path = os.path.join(os.path.expanduser("~"), ".claw-agent", "hooks.json")
+
+    sub = arg.strip().lower()
+    if sub == "init":
+        if os.path.exists(hooks_path):
+            console.print(f"  [dim]hooks.json already exists at {hooks_path}[/dim]")
+        else:
+            example = [
+                {"event": "pre_tool_use", "tools": ["run_command"], "command": "echo 'pre-hook'"},
+                {"event": "post_tool_use", "tools": ["write_file"], "command": "echo 'post-hook'"},
+            ]
+            import json as _json
+            os.makedirs(os.path.dirname(hooks_path), exist_ok=True)
+            with open(hooks_path, "w") as f:
+                _json.dump(example, f, indent=2)
+            console.print(f"  [claw.success]Created {hooks_path}[/claw.success]")
+        return
+
+    console.print()
+    console.print(f"  [bold cyan]🔗 Hooks[/bold cyan]")
+    console.print(f"  [dim]Config: {hooks_path}[/dim]")
+    console.print()
+    if not runner.hooks:
+        console.print("  [dim]No hooks configured.[/dim]")
+        console.print("  [dim]Create hooks.json at ~/.claw-agent/hooks.json or run /hooks init[/dim]")
+        console.print()
+        console.print("  [dim]Hook format:[/dim]")
+        console.print('  [dim]  {"event": "pre_tool_use", "tools": ["run_command"], "command": "your-script"}[/dim]')
+        console.print('  [dim]  {"event": "post_tool_use", "tools": ["write_file"], "command": "your-script"}[/dim]')
+    else:
+        console.print(f"  [bold]{len(runner.hooks)} hook(s) configured:[/bold]")
+        for i, h in enumerate(runner.hooks, 1):
+            event = h.get("event", "?")
+            tools = h.get("tools", "all")
+            cmd = h.get("command", "?")
+            console.print(f"  [cyan]{i}.[/cyan] [{event}] tools={tools!r}: {cmd}")
+    console.print()
+    console.print("  [dim]Events: pre_tool_use, post_tool_use[/dim]")
+    console.print("  [dim]Run /hooks init to create an example config.[/dim]")
+
+
+def cmd_plan(agent: Agent):
+    """Toggle Plan Mode — agent will propose steps without executing tools."""
+    agent._plan_mode = not agent._plan_mode
+    if agent._plan_mode:
+        # Inject plan mode system message
+        agent.messages.append({
+            "role": "system",
+            "content": (
+                "PLAN MODE ACTIVATED. You are now in plan-only mode. "
+                "DO NOT call any tools (except ask_user, enter_plan_mode, exit_plan_mode). "
+                "Instead, describe your plan as numbered steps and STOP. "
+                "Wait for the user to approve the plan before executing. "
+                "When the user approves, call exit_plan_mode to resume normal execution."
+            ),
+        })
+        console.print("  [bold yellow]📋 Plan Mode ON[/bold yellow] — agent will plan but not execute.")
+        console.print("  [dim]Ask a question to see a plan. Run /plan again to turn off.[/dim]")
+    else:
+        # Remove plan-mode system messages
+        agent.messages = [
+            m for m in agent.messages
+            if not (m.get("role") == "system" and "PLAN MODE ACTIVATED" in m.get("content", ""))
+        ]
+        console.print("  [bold green]▶ Plan Mode OFF[/bold green] — normal execution resumed.")
+
+
+def cmd_add_dir(arg: str, agent: Agent):
+    """Add a directory to the agent's workspace context."""
+    target = (arg or os.getcwd()).strip()
+    if not os.path.isdir(target):
+        console.print(f"  [claw.error]Not a directory: {target}[/claw.error]")
+        return
+    abs_target = os.path.abspath(target)
+    # Inject as a system message into the conversation
+    import glob as _glob
+    files = _glob.glob(os.path.join(abs_target, "**", "*"), recursive=True)
+    files = [f for f in files if os.path.isfile(f)][:200]  # cap at 200
+    rel_files = [os.path.relpath(f, abs_target) for f in files]
+    summary = f"ADDED DIRECTORY: {abs_target}\n{len(files)} files:\n" + "\n".join(rel_files[:50])
+    if len(rel_files) > 50:
+        summary += f"\n... and {len(rel_files) - 50} more"
+    agent.messages.append({"role": "system", "content": summary})
+    console.print(f"  [claw.success]Added {abs_target} ({len(files)} files) to context[/claw.success]")
+
+
+def cmd_branch(arg: str = ""):
+    """Switch git branches or list available branches."""
+    import subprocess
+    sub = arg.strip()
+    if not sub:
+        # List branches
+        result = subprocess.run(["git", "branch", "--all"], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            console.print("  [dim]Not a git repo or git not available.[/dim]")
+            return
+        console.print()
+        console.print("  [bold]Git Branches:[/bold]")
+        for line in result.stdout.strip().split("\n"):
+            line = line.strip()
+            if line.startswith("* "):
+                console.print(f"  [green]* {line[2:]}[/green] (current)")
+            elif line:
+                console.print(f"  [dim]  {line}[/dim]")
+        console.print()
+        console.print("  [dim]Switch with: /branch <name>[/dim]")
+        return
+
+    # Switch to branch
+    result = subprocess.run(["git", "checkout", sub], capture_output=True, text=True, timeout=15)
+    if result.returncode == 0:
+        console.print(f"  [claw.success]✓ Switched to branch: {sub}[/claw.success]")
+        if result.stdout.strip():
+            console.print(f"  [dim]{result.stdout.strip()}[/dim]")
+    else:
+        console.print(f"  [claw.error]Branch switch failed: {result.stderr.strip()[:200]}[/claw.error]")
+
+
+def cmd_context(agent: Agent):
+    """Show current context window — messages, sizes, types."""
+    console.print()
+    console.print("  [bold cyan]📐 Context Window[/bold cyan]")
+    console.print()
+    total_chars = 0
+    for i, msg in enumerate(agent.messages):
+        role = msg.get("role", "?")
+        content = str(msg.get("content", ""))
+        tc = msg.get("tool_calls")
+        chars = len(content)
+        total_chars += chars
+        tokens_est = chars // 4
+        role_color = {"system": "yellow", "user": "green", "assistant": "blue", "tool": "cyan"}.get(role, "white")
+        tc_label = f" +{len(tc)} tool_calls" if tc else ""
+        preview = content[:60].replace("\n", " ")
+        if len(content) > 60:
+            preview += "…"
+        console.print(
+            f"  [{role_color}][{i}] {role:<10}[/{role_color}] "
+            f"[dim]{tokens_est:>5} tok  {preview}{tc_label}[/dim]"
+        )
+    total_tokens = total_chars // 4
+    from .agent import MAX_CONTEXT_TOKENS
+    pct = total_tokens / MAX_CONTEXT_TOKENS * 100
+    bar_f = int(pct / 5)
+    bar = "█" * bar_f + "░" * (20 - bar_f)
+    console.print()
+    console.print(f"  Total: ~{total_tokens:,} tokens ({pct:.1f}%) [{bar}]")
+    console.print(f"  Max: {MAX_CONTEXT_TOKENS:,} tokens")
+    console.print()
 
 
 # --- MCP Commands ---
@@ -937,12 +1396,13 @@ def cmd_init():
     config_path = os.path.join(os.getcwd(), ".claw")
     if os.path.exists(config_path):
         console.print(f"  [dim].claw already exists[/dim]")
-        content = open(config_path).read()
+        with open(config_path, "r") as f:
+            content = f.read()
         console.print(Panel(content, title=".claw", border_style="cyan"))
         return
     # Auto-detect project
     config = {
-        "model": "deepseek-v3.1:671b-cloud",
+        "model": "deepseek-r1:671b",
         "auto_approve": False,
         "max_iterations": 200,
         "blocked_commands": list(BLOCKED_COMMANDS),
@@ -1034,11 +1494,31 @@ def cmd_delete(args: str):
 
 # --- One-shot mode ---
 
-def oneshot(model: str, prompt: str):
+def oneshot(model: str, prompt: str, output_format: str = "text"):
     """Run a single prompt, print result, exit."""
+    import json as _json_mod
     agent = make_agent(model)
-    console.print(f"[dim]Model: {model}[/dim]\n")
-    stream_response_enhanced(agent, prompt)
+    if output_format == "text":
+        console.print(f"[dim]Model: {model}[/dim]\n")
+        stream_response_enhanced(agent, prompt)
+    elif output_format in ("json", "stream-json"):
+        from .agent import TextDelta, ToolCallStart, AgentDone
+        result_chunks: list[str] = []
+        tool_calls_made: list[dict] = []
+        for event in agent.stream_chat(prompt):
+            if isinstance(event, TextDelta):
+                result_chunks.append(event.text)
+                if output_format == "stream-json":
+                    sys.stdout.write(_json_mod.dumps({"type": "text", "text": event.text}) + "\n")
+                    sys.stdout.flush()
+            elif isinstance(event, ToolCallStart):
+                tool_calls_made.append({"name": event.name, "args": event.arguments})
+        if output_format == "json":
+            full_text = "".join(result_chunks)
+            out = {"model": model, "result": full_text, "tool_calls": tool_calls_made}
+            sys.stdout.write(_json_mod.dumps(out, indent=2) + "\n")
+    else:
+        stream_response_enhanced(agent, prompt)
 
 
 def oneshot_print(model: str, prompt: str):
@@ -1095,6 +1575,22 @@ def main():
         "--max-turns", type=int, default=None,
         help="Max agent loop iterations per turn (default: 200)",
     )
+    parser.add_argument(
+        "-c", "--continue", dest="continue_session", action="store_true", default=False,
+        help="Continue the most recent conversation session",
+    )
+    parser.add_argument(
+        "--resume", dest="resume_session", default=None, metavar="SESSION_ID",
+        help="Resume a specific session by ID",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", default=False,
+        help="Verbose output — show token counts, timing, and tool details",
+    )
+    parser.add_argument(
+        "--output-format", choices=["text", "json", "stream-json"], default="text",
+        help="Output format for one-shot (non-interactive) mode",
+    )
     args = parser.parse_args()
 
     # Auto-detect: Priority 1) OpenRouter Council 2) DeepSeek 3) Ollama
@@ -1141,7 +1637,7 @@ def main():
             # Print-only mode: no tools, just text response
             oneshot_print(model, " ".join(args.prompt))
         else:
-            oneshot(model, " ".join(args.prompt))
+            oneshot(model, " ".join(args.prompt), output_format=args.output_format)
         sys.exit(0)
 
     # Interactive REPL
@@ -1150,6 +1646,35 @@ def main():
     # Apply --max-turns override
     if args.max_turns is not None:
         agent._max_iterations = max(1, args.max_turns)
+    # Apply --verbose
+    if args.verbose:
+        agent._verbose = True
+    # Apply --continue / --resume (load previous session)
+    resumed = False
+    if args.resume_session:
+        try:
+            from .sessions import load_session
+            sess = load_session(args.resume_session)
+            agent.messages = sess.messages
+            console.print(f"  [dim]Resumed session {args.resume_session} ({len(agent.messages)} messages)[/dim]")
+            resumed = True
+        except FileNotFoundError:
+            console.print(f"  [claw.error]Session not found: {args.resume_session}[/claw.error]")
+        except Exception as e:
+            console.print(f"  [dim]Could not resume session: {e}[/dim]")
+    elif args.continue_session:
+        try:
+            from .sessions import list_sessions
+            sessions = list_sessions()
+            if sessions:
+                latest = sessions[0]
+                agent.messages = latest.messages
+                console.print(f"  [dim]Continuing most recent session ({len(agent.messages)} messages)[/dim]")
+                resumed = True
+            else:
+                console.print("  [dim]No previous session found, starting fresh.[/dim]")
+        except Exception as e:
+            console.print(f"  [dim]Could not continue session: {e}[/dim]")
     prompt_session: PromptSession = PromptSession(
         history=FileHistory(HISTORY_PATH),
     )
@@ -1286,12 +1811,38 @@ def main():
                 cmd_skills(cmd_arg)
             elif cmd == "/skill":
                 cmd_skill_manage(cmd_arg)
+            # New parity commands
+            elif cmd == "/commit":
+                cmd_commit(agent)
+            elif cmd == "/hooks":
+                cmd_hooks(cmd_arg)
+            elif cmd == "/plan":
+                cmd_plan(agent)
+            elif cmd in ("/add-dir", "/adddir"):
+                cmd_add_dir(cmd_arg, agent)
+            elif cmd == "/branch":
+                cmd_branch(cmd_arg)
+            elif cmd == "/context":
+                cmd_context(agent)
             # MCP commands
             elif cmd == "/mcp":
                 cmd_mcp(cmd_arg)
             # Approval mode (Claude-like)
             elif cmd == "/approval":
                 cmd_approval(cmd_arg, agent)
+            # Auth commands
+            elif cmd == "/login":
+                cmd_login()
+            elif cmd == "/register":
+                cmd_register()
+            elif cmd == "/logout":
+                cmd_logout()
+            elif cmd == "/account":
+                cmd_account()
+            elif cmd in ("/billing",):
+                cmd_billing_plan()
+            elif cmd == "/apikey":
+                cmd_apikey(cmd_arg)
             else:
                 console.print(f"  [dim]Unknown: {cmd} — try /help[/dim]")
             continue

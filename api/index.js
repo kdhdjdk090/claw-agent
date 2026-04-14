@@ -4,6 +4,7 @@ const path = require('path');
 
 // Read the updated index.html from project root
 const HTML_PATH = path.join(__dirname, '..', 'index.html');
+const ADMIN_HTML_PATH = path.join(__dirname, '..', 'public', 'admin.html');
 const OPENAPI_PATH = path.join(__dirname, 'openapi.json');
 
 // Allowed CORS origins (add your production domain)
@@ -16,6 +17,10 @@ const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 // Alibaba Cloud (DashScope) configuration
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || '';
 const DASHSCOPE_API_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+
+// Supabase configuration (for lead storage)
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
 // Council models - OpenRouter (8) + Alibaba Cloud (6) = 14 total
 const OPENROUTER_MODELS = [
@@ -39,6 +44,9 @@ const ALIBABA_MODELS = [
 ];
 
 const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
+
+// Council mode is enabled when we have an OpenRouter key AND at least one model
+const COUNCIL_ENABLED = !!process.env.OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
 
 // Model chains — ALL OpenRouter (proven SSE streaming support)
 // 3 models per chain, 18s timeout each = 54s worst case (within 60s Vercel limit)
@@ -189,6 +197,16 @@ module.exports = async (req, res) => {
     return handleCouncil(req, res);
   }
 
+  // POST /api/lead-events - Capture lead attribution events
+  if (req.url.startsWith('/api/lead-events') && req.method === 'POST') {
+    return handleLeadEvents(req, res);
+  }
+
+  // POST /api/leads - Capture leads from popup form submissions
+  if (req.url.startsWith('/api/leads') && req.method === 'POST') {
+    return handleLeadEvents(req, res);
+  }
+
   // GET /api/models - List available models
   if (req.url.startsWith('/api/models') && req.method === 'GET') {
     return res.status(200).json({
@@ -298,13 +316,15 @@ module.exports = async (req, res) => {
     });
   }
 
-  // Serve the updated index.html with slash command support
+  // Serve the site UI or the LeadHub admin view
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   try {
-    const html = fs.readFileSync(HTML_PATH, 'utf-8');
+    const requestedPath = (req.url || '').split('?')[0];
+    const filePath = requestedPath.startsWith('/dashboard/leadhub') ? ADMIN_HTML_PATH : HTML_PATH;
+    const html = fs.readFileSync(filePath, 'utf-8');
     return res.status(200).end(html);
   } catch (err) {
-    // Fallback if index.html not found
+    // Fallback if target html not found
     res.status(200).end('<h1>Claw AI - Coming Soon</h1>');
   }
 };
@@ -828,6 +848,107 @@ function callOpenRouterAPI(apiKey, payload) {
 
     request.write(payload);
     request.end();
+  });
+}
+
+async function handleLeadEvents(req, res) {
+  let body = '';
+  let bodySize = 0;
+  const MAX_BODY_SIZE = 64 * 1024;
+
+  req.on('data', chunk => {
+    bodySize += chunk.length;
+    if (bodySize > MAX_BODY_SIZE) {
+      req.destroy();
+      return res.status(413).json({ error: 'Lead event too large (max 64KB)' });
+    }
+    body += chunk;
+  });
+
+  req.on('end', () => {
+    try {
+      const event = JSON.parse(body || '{}');
+      const payload = event.payload || {};
+      const eventType = event.event_type || 'unknown';
+      const leadScore = Number(payload.lead_score || 0);
+
+      const trackingSummary = {
+        eventType,
+        ts: event.ts || new Date().toISOString(),
+        path: event.page?.path || '',
+        source: payload.source || '',
+        medium: payload.medium || '',
+        campaign: payload.campaign || '',
+        campaign_id: payload.campaign_id || '',
+        keyword: payload.keyword || payload.term || '',
+        search_term: payload.search_term || '',
+        click_ids: {
+          gclid: payload.gclid || '',
+          fbclid: payload.fbclid || '',
+          msclkid: payload.msclkid || '',
+          ttclid: payload.ttclid || '',
+          twclid: payload.twclid || '',
+          li_fat_id: payload.li_fat_id || '',
+          gbraid: payload.gbraid || '',
+          wbraid: payload.wbraid || '',
+          yclid: payload.yclid || '',
+        },
+        lead_score: Number.isFinite(leadScore) ? leadScore : 0,
+      };
+
+      console.log('[lead-event]', JSON.stringify(trackingSummary));
+
+      // Persist lead to Supabase (fire-and-forget, don't block response)
+      if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+        const leadRow = {
+          email: payload.email || event.email || '',
+          name: payload.name || event.name || '',
+          phone: payload.phone || event.phone || '',
+          event_type: eventType,
+          page_path: trackingSummary.path,
+          source: trackingSummary.source,
+          medium: trackingSummary.medium,
+          campaign: trackingSummary.campaign,
+          campaign_id: trackingSummary.campaign_id,
+          keyword: trackingSummary.keyword,
+          search_term: trackingSummary.search_term,
+          lead_score: trackingSummary.lead_score,
+          click_ids: trackingSummary.click_ids,
+          payload: payload,
+          ip_address: (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').split(',')[0].trim(),
+          user_agent: (req.headers['user-agent'] || '').substring(0, 512),
+        };
+        const postData = JSON.stringify(leadRow);
+        const supaUrl = new URL(`${SUPABASE_URL}/rest/v1/leads`);
+        const opts = {
+          hostname: supaUrl.hostname,
+          port: 443,
+          path: supaUrl.pathname,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Prefer': 'return=minimal',
+            'Content-Length': Buffer.byteLength(postData),
+          },
+        };
+        const insertReq = https.request(opts, (insertRes) => {
+          let d = '';
+          insertRes.on('data', c => d += c);
+          insertRes.on('end', () => {
+            if (insertRes.statusCode >= 400) console.error('[lead-insert-error]', insertRes.statusCode, d);
+          });
+        });
+        insertReq.on('error', e => console.error('[lead-insert-error]', e.message));
+        insertReq.write(postData);
+        insertReq.end();
+      }
+
+      return res.status(202).json({ ok: true, received: true });
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid lead event payload' });
+    }
   });
 }
 

@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claw AI — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f0f0f;--surface:#1a1a1a;--surface2:#242424;--border:#2e2e2e;
+  --text:#e8e8e8;--text2:#999;--text3:#666;
+  --accent:#c96442;--accent-h:#e08a66;--accent-bg:rgba(201,100,66,.12);
+  --green:#3dd9a0;--green-bg:rgba(61,217,160,.1);
+  --red:#ff6b6b;--red-bg:rgba(255,107,107,.1);
+  --blue:#5b9bf5;--blue-bg:rgba(91,155,245,.1);
+  --yellow:#ffd93d;--yellow-bg:rgba(255,217,61,.1);
+  --radius:10px;--sh:0 2px 8px rgba(0,0,0,.3);
+}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex}
+a{color:var(--accent);text-decoration:none}
+
+/* Layout */
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:10}
+.sb-head{padding:20px;border-bottom:1px solid var(--border)}
+.sb-head h2{font-size:16px;display:flex;align-items:center;gap:8px}
+.sb-head span{font-size:11px;color:var(--text3);display:block;margin-top:4px}
+.sb-nav{flex:1;padding:12px 8px;overflow-y:auto}
+.sb-link{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;font-size:13px;color:var(--text2);cursor:pointer;transition:all .15s;border:none;background:none;width:100%;text-align:left;font-family:inherit}
+.sb-link:hover{background:var(--surface2);color:var(--text)}
+.sb-link.active{background:var(--accent-bg);color:var(--accent);font-weight:600}
+.sb-link svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5}
+.sb-sep{height:1px;background:var(--border);margin:8px 14px}
+.sb-foot{padding:14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+.main{margin-left:240px;flex:1;min-height:100vh}
+
+/* Header */
+.header{padding:16px 28px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+.header h1{font-size:18px;font-weight:600}
+.header-r{display:flex;align-items:center;gap:12px}
+.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-admin{background:var(--accent-bg);color:var(--accent)}
+.badge-active{background:var(--green-bg);color:var(--green)}
+.badge-banned{background:var(--red-bg);color:var(--red)}
+.badge-plan{background:var(--blue-bg);color:var(--blue)}
+
+/* Content */
+.content{padding:24px 28px}
+
+/* Cards */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.stat-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.stat-value{font-size:28px;font-weight:700}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:4px}
+.stat.green .stat-value{color:var(--green)}
+.stat.red .stat-value{color:var(--red)}
+.stat.blue .stat-value{color:var(--blue)}
+.stat.accent .stat-value{color:var(--accent)}
+
+/* Tables */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.table-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.table-head h3{font-size:14px;font-weight:600}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 16px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--surface2)}
+td{padding:10px 16px;font-size:13px;border-bottom:1px solid var(--border)}
+tr:hover td{background:var(--surface2)}
+tr:last-child td{border-bottom:none}
+
+/* Buttons */
+.btn{padding:6px 14px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text);transition:all .15s;font-family:inherit}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-h);border-color:var(--accent-h)}
+.btn-danger{color:var(--red);border-color:rgba(255,107,107,.3)}
+.btn-danger:hover{background:var(--red-bg);border-color:var(--red)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-group{display:flex;gap:6px}
+
+/* Forms */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:13px;font-family:inherit}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:var(--accent)}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto;box-shadow:var(--sh)}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-head h3{font-size:15px}
+.modal-close{background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer}
+.modal-body{padding:20px}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px;width:fit-content}
+.tab{padding:6px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);border:none;background:none;font-family:inherit;transition:all .15s}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--accent);color:#fff}
+
+/* Page sections */
+.page{display:none}.page.active{display:block}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:13px;z-index:200;animation:slideUp .3s;box-shadow:var(--sh)}
+.toast-ok{background:#1a4d33;color:var(--green);border:1px solid rgba(61,217,160,.3)}
+.toast-err{background:#4d1a1a;color:var(--red);border:1px solid rgba(255,107,107,.3)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Login page */
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:40px;width:380px;text-align:center}
+.login-box h2{margin-bottom:6px}
+.login-box p{font-size:13px;color:var(--text2);margin-bottom:24px}
+
+/* Responsive */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .main{margin-left:0}
+  .stats{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage" class="login-page">
+  <div class="login-box">
+    <h2>🦞 Claw AI Admin</h2>
+    <p>Sign in with your admin account</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="admin@claw.ai">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;margin-top:8px" onclick="doLogin()">Sign In</button>
+    <p id="loginError" style="color:var(--red);font-size:12px;margin-top:12px;display:none"></p>
+  </div>
+</div>
+
+<!-- ADMIN APP -->
+<div id="adminApp" style="display:none;width:100%">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-head">
+      <h2>🦞 Claw Admin</h2>
+      <span id="adminEmail">admin@claw.ai</span>
+    </div>
+    <div class="sb-nav">
+      <button class="sb-link active" onclick="showPage('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="sb-link" onclick="showPage('users')">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Users
+      </button>
+      <button class="sb-link" onclick="showPage('plans')">
+        <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Plans & Tiers
+      </button>
+      <button class="sb-link" onclick="showPage('usage')">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Usage & Tokens
+      </button>
+      <button class="sb-link" onclick="showPage('leads')">
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+        Leads
+      </button>
+      <div class="sb-sep"></div>
+      <button class="sb-link" onclick="showPage('audit')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Audit Log
+      </button>
+      <button class="sb-link" onclick="showPage('announce')">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Announcements
+      </button>
+    </div>
+    <div class="sb-foot">
+      <span id="footVersion">Claw AI v2.0</span>
+      <button class="btn btn-sm btn-danger" onclick="doLogout()" style="float:right">Logout</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="header">
+      <h1 id="pageTitle">Dashboard</h1>
+      <div class="header-r">
+        <span class="badge badge-admin" id="roleBadge">ADMIN</span>
+        <span class="badge badge-active">ONLINE</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- ===== DASHBOARD ===== -->
+      <div id="page-dashboard" class="page active">
+        <div class="stats" id="dashStats"></div>
+        <div class="table-wrap">
+          <div class="table-head"><h3>Recent Users</h3></div>
+          <table><thead><tr><th>User</th><th>Email</th><th>Plan</th><th>Tokens</th><th>Status</th></tr></thead>
+          <tbody id="dashUsers"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ===== USERS ===== -->
+      <div id="page-users" class="page">
+        <div class="table-wrap">
+          <div class="table-head">
+            <h3>All Users</h3>
+            <input type="text" id="userSearch" placeholder="Search users..." style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);color:var(--text);font-size:12px;width:200px">
+          </div>
+          <table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Plan</th><th>Tokens Today</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="usersTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ===== PLANS ===== -->
+      <div id="page-plans" class="page">
+        <div style="margin-bottom:16px"><button class="btn btn-primary" onclick="openPlanModal()">+ New Plan</button></div>
+        <div id="plansGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px"></div>
+      </div>
+
+      <!-- ===== USAGE ===== -->
+      <div id="page-usage" class="page">
+        <div class="stats" id="usageStats"></div>
+        <div class="table-wrap">
+          <div class="table-head"><h3>Recent Usage</h3></div>
+          <table><thead><tr><th>User</th><th>Model</th><th>Tokens</th><th>Tools</th><th>Duration</th><th>Time</th></tr></thead>
+          <tbody id="usageTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ===== LEADS ===== -->
+      <div id="page-leads" class="page">
+        <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center">
+          <input type="text" id="leadSearch" placeholder="Search by name or email..." oninput="filterLeads()" style="flex:1;padding:8px 12px;border:1px solid #333;border-radius:6px;background:#1a1a2e;color:#fff">
+          <span id="leadCount" style="color:#888;font-size:13px"></span>
+        </div>
+        <div class="table-wrap">
+          <div class="table-head"><h3>Captured Leads</h3></div>
+          <table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Source</th><th>Campaign</th><th>Score</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="leadsTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ===== AUDIT ===== -->
+      <div id="page-audit" class="page">
+        <div class="table-wrap">
+          <div class="table-head"><h3>Admin Audit Log</h3></div>
+          <table><thead><tr><th>Admin</th><th>Action</th><th>Target</th><th>Details</th><th>Time</th></tr></thead>
+          <tbody id="auditTable"></tbody></table>
+        </div>
+      </div>
+
+      <!-- ===== ANNOUNCEMENTS ===== -->
+      <div id="page-announce" class="page">
+        <div style="margin-bottom:16px">
+          <div class="form-group"><label>Title</label><input type="text" id="annTitle" placeholder="Announcement title"></div>
+          <div class="form-group"><label>Content</label><textarea id="annContent" rows="3" placeholder="Write your announcement..."></textarea></div>
+          <div class="form-group"><label>Type</label>
+            <select id="annType"><option value="info">Info</option><option value="warning">Warning</option><option value="critical">Critical</option><option value="maintenance">Maintenance</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="postAnnouncement()">Post Announcement</button>
+        </div>
+        <div id="annList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- USER EDIT MODAL -->
+<div class="modal-overlay" id="userModal">
+  <div class="modal">
+    <div class="modal-head"><h3>Edit User</h3><button class="modal-close" onclick="closeModal('userModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Display Name</label><input type="text" id="editName"></div>
+      <div class="form-group"><label>Role</label>
+        <select id="editRole"><option value="user">User</option><option value="admin">Admin</option><option value="superadmin">Super Admin</option></select>
+      </div>
+      <div class="form-group"><label>Plan</label><select id="editPlan"></select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="editStatus"><option value="active">Active</option><option value="banned">Banned</option></select>
+      </div>
+      <div class="form-group" id="banReasonGroup" style="display:none"><label>Ban Reason</label><input type="text" id="editBanReason"></div>
+      <div class="form-group"><label>Reset Daily Tokens</label>
+        <button class="btn btn-sm" onclick="resetTokens('day')">Reset Today's Tokens</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('userModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLAN MODAL -->
+<div class="modal-overlay" id="planModal">
+  <div class="modal">
+    <div class="modal-head"><h3 id="planModalTitle">New Plan</h3><button class="modal-close" onclick="closeModal('planModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name (slug)</label><input type="text" id="planName" placeholder="pro-plus"></div>
+      <div class="form-group"><label>Display Name</label><input type="text" id="planDisplay" placeholder="Pro Plus"></div>
+      <div class="form-group"><label>Description</label><input type="text" id="planDesc"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Monthly Price ($)</label><input type="number" id="planPriceM" step="0.01"></div>
+        <div class="form-group"><label>Yearly Price ($)</label><input type="number" id="planPriceY" step="0.01"></div>
+        <div class="form-group"><label>Max Tokens/Day (-1=∞)</label><input type="number" id="planTokDay"></div>
+        <div class="form-group"><label>Max Tokens/Month (-1=∞)</label><input type="number" id="planTokMonth"></div>
+        <div class="form-group"><label>Max Sessions (-1=∞)</label><input type="number" id="planSessions"></div>
+        <div class="form-group"><label>Max Turns/Session (-1=∞)</label><input type="number" id="planTurns"></div>
+        <div class="form-group"><label>Max Tools</label><input type="number" id="planTools"></div>
+        <div class="form-group"><label>Max Models</label><input type="number" id="planModels"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+        <label><input type="checkbox" id="planCouncil"> Council Access</label>
+        <label><input type="checkbox" id="planCloud"> Cloud Models</label>
+        <label><input type="checkbox" id="planUltra"> UltraThink Mode</label>
+        <label><input type="checkbox" id="planMcp"> MCP Access</label>
+        <label><input type="checkbox" id="planApi"> API Access</label>
+        <label><input type="checkbox" id="planSkills"> Custom Skills</label>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('planModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePlan()">Save Plan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== STATE ==========
+const API = window.location.origin;
+let token = localStorage.getItem('claw_admin_token') || '';
+let currentUser = null;
+let allPlans = [];
+let allLeads = [];
+let editingUserId = null;
+let editingPlanId = null;
+
+// ========== AUTH ==========
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value;
+  const pass = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const r = await fetch(`${API}/api/auth/login`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass})
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) { errEl.textContent = d.error || 'Login failed'; errEl.style.display = 'block'; return; }
+    token = d.access_token;
+    localStorage.setItem('claw_admin_token', token);
+    localStorage.setItem('claw_refresh_token', d.refresh_token || '');
+    currentUser = d.profile;
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) {
+      errEl.textContent = 'Admin access required'; errEl.style.display = 'block';
+      token = ''; localStorage.removeItem('claw_admin_token'); return;
+    }
+    showAdmin();
+  } catch(e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+}
+
+function doLogout() {
+  fetch(`${API}/api/auth/logout`, { method: 'POST', headers: authHeaders() }).catch(()=>{});
+  token = ''; currentUser = null;
+  localStorage.removeItem('claw_admin_token');
+  localStorage.removeItem('claw_refresh_token');
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('adminApp').style.display = 'none';
+}
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+}
+
+async function api(url, opts = {}) {
+  const r = await fetch(`${API}${url}`, { ...opts, headers: { ...authHeaders(), ...(opts.headers||{}) } });
+  const d = await r.json();
+  if (r.status === 401) { doLogout(); throw new Error('Session expired'); }
+  if (!r.ok) throw new Error(d.error || 'Request failed');
+  return d;
+}
+
+// ========== INIT ==========
+async function showAdmin() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('adminApp').style.display = 'flex';
+  document.getElementById('adminEmail').textContent = currentUser?.email || '';
+  document.getElementById('roleBadge').textContent = (currentUser?.role || 'admin').toUpperCase();
+  const initialPage = window.location.pathname.includes('/dashboard/leadhub') ? 'leads' : 'dashboard';
+  showPage(initialPage);
+}
+
+async function checkSession() {
+  if (!token) return;
+  try {
+    const d = await api('/api/auth/me');
+    currentUser = d.profile;
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'superadmin')) {
+      doLogout(); return;
+    }
+    showAdmin();
+  } catch { doLogout(); }
+}
+
+// ========== PAGES ==========
+function showPage(name, btn = null) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.querySelectorAll('.sb-link').forEach(l => l.classList.remove('active'));
+  const activeBtn = btn || globalThis.event?.target?.closest('.sb-link') || document.querySelector(`.sb-link[onclick="showPage('${name}')"]`);
+  activeBtn?.classList.add('active');
+  const titles = {dashboard:'Dashboard',users:'Users',plans:'Plans & Tiers',usage:'Usage & Tokens',leads:'Leads',audit:'Audit Log',announce:'Announcements'};
+  document.getElementById('pageTitle').textContent = titles[name] || name;
+  const loaders = {dashboard:loadDashboard,users:loadUsers,plans:loadPlans,usage:loadUsage,leads:loadLeads,audit:loadAudit,announce:loadAnnouncements};
+  loaders[name]?.();
+}
+
+function renderLeads(rows = allLeads) {
+  document.getElementById('leadCount').textContent = `${rows.length} lead${rows.length === 1 ? '' : 's'}`;
+  document.getElementById('leadsTable').innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${esc(r.name || '—')}</strong></td>
+      <td>${esc(r.email || '—')}</td>
+      <td>${esc(r.phone || '—')}</td>
+      <td>${esc(r.source || '—')}</td>
+      <td>${esc(r.campaign || '—')}</td>
+      <td>${Number(r.lead_score || 0)}</td>
+      <td>${fmt(r.created_at)}</td>
+      <td class="btn-group">
+        <button class="btn btn-sm" onclick="editLead('${r.id}')">Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLead('${r.id}')">Delete</button>
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" style="color:var(--text3)">No leads found.</td></tr>';
+}
+
+async function loadLeads() {
+  try {
+    const d = await api('/api/admin/leads');
+    allLeads = d.leads || [];
+    renderLeads(allLeads);
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+function filterLeads() {
+  const q = (document.getElementById('leadSearch').value || '').toLowerCase().trim();
+  if (!q) return renderLeads(allLeads);
+  const filtered = allLeads.filter(r =>
+    (r.name || '').toLowerCase().includes(q) ||
+    (r.email || '').toLowerCase().includes(q) ||
+    (r.phone || '').toLowerCase().includes(q) ||
+    (r.source || '').toLowerCase().includes(q) ||
+    (r.campaign || '').toLowerCase().includes(q)
+  );
+  renderLeads(filtered);
+}
+
+async function editLead(id) {
+  const lead = allLeads.find(x => x.id === id);
+  if (!lead) return;
+
+  const name = prompt('Lead name:', lead.name || '');
+  if (name === null) return;
+  const email = prompt('Lead email:', lead.email || '');
+  if (email === null) return;
+  const phone = prompt('Lead phone:', lead.phone || '');
+  if (phone === null) return;
+  const source = prompt('Lead source:', lead.source || '');
+  if (source === null) return;
+  const campaign = prompt('Lead campaign:', lead.campaign || '');
+  if (campaign === null) return;
+  const scoreRaw = prompt('Lead score:', String(lead.lead_score ?? 0));
+  if (scoreRaw === null) return;
+
+  try {
+    await api('/api/admin/leads', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        id,
+        updates: {
+          name: name.trim(),
+          email: email.trim(),
+          phone: phone.trim(),
+          source: source.trim(),
+          campaign: campaign.trim(),
+          lead_score: parseInt(scoreRaw, 10) || 0,
+        }
+      })
+    });
+    toast('Lead updated');
+    await loadLeads();
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+async function deleteLead(id) {
+  if (!confirm('Delete this lead? This cannot be undone.')) return;
+  try {
+    await api('/api/admin/leads', {
+      method: 'DELETE',
+      body: JSON.stringify({ id })
+    });
+    toast('Lead deleted');
+    await loadLeads();
+  } catch (e) {
+    toast(e.message, 'err');
+  }
+}
+
+// ========== DASHBOARD ==========
+async function loadDashboard() {
+  try {
+    const d = await api('/api/admin/stats');
+    document.getElementById('dashStats').innerHTML = `
+      <div class="stat green"><div class="stat-label">Total Users</div><div class="stat-value">${d.total_users}</div><div class="stat-sub">${d.recent_signups} new this week</div></div>
+      <div class="stat blue"><div class="stat-label">Active Users</div><div class="stat-value">${d.active_users}</div></div>
+      <div class="stat red"><div class="stat-label">Banned</div><div class="stat-value">${d.banned_users}</div></div>
+      <div class="stat accent"><div class="stat-label">Total Tokens</div><div class="stat-value">${fmt(d.total_tokens)}</div><div class="stat-sub">${fmt(d.total_tool_calls)} tool calls</div></div>
+      <div class="stat"><div class="stat-label">Sessions</div><div class="stat-value">${fmt(d.total_sessions)}</div></div>
+      <div class="stat"><div class="stat-label">Admin Users</div><div class="stat-value">${d.admin_users}</div></div>
+    `;
+    // Recent users
+    const u = await api('/api/admin/users');
+    const rows = (u.users || []).slice(0, 10);
+    document.getElementById('dashUsers').innerHTML = rows.map(r => `
+      <tr>
+        <td><strong>${esc(r.display_name || '—')}</strong></td>
+        <td>${esc(r.email)}</td>
+        <td><span class="badge badge-plan">${esc(r.plans?.display_name || 'Free')}</span></td>
+        <td>${fmt(r.total_tokens_used || 0)}</td>
+        <td>${r.is_banned ? '<span class="badge badge-banned">BANNED</span>' : '<span class="badge badge-active">Active</span>'}</td>
+      </tr>
+    `).join('');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ========== USERS ==========
+async function loadUsers() {
+  try {
+    const d = await api('/api/admin/users');
+    allPlans = (await api('/api/admin/plans')).plans || [];
+    const rows = d.users || [];
+    renderUsers(rows);
+    document.getElementById('userSearch').oninput = (e) => {
+      const q = e.target.value.toLowerCase();
+      renderUsers(rows.filter(r => (r.email||'').toLowerCase().includes(q) || (r.display_name||'').toLowerCase().includes(q)));
+    };
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function renderUsers(rows) {
+  document.getElementById('usersTable').innerHTML = rows.map(r => `
+    <tr>
+      <td><strong>${esc(r.display_name || '—')}</strong></td>
+      <td>${esc(r.email)}</td>
+      <td><span class="badge ${r.role==='admin'||r.role==='superadmin'?'badge-admin':''}">${r.role}</span></td>
+      <td><span class="badge badge-plan">${esc(r.plans?.display_name || 'Free')}</span></td>
+      <td>${fmt(r.tokens_used_today || 0)}</td>
+      <td>${r.is_banned ? '<span class="badge badge-banned">BANNED</span>' : r.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge">Inactive</span>'}</td>
+      <td class="btn-group">
+        <button class="btn btn-sm" onclick="editUser('${r.id}',${JSON.stringify(JSON.stringify(r))})">Edit</button>
+        ${r.is_banned
+          ? `<button class="btn btn-sm" onclick="quickAction('${r.id}',{is_banned:false,is_active:true})">Unban</button>`
+          : `<button class="btn btn-sm btn-danger" onclick="quickAction('${r.id}',{is_banned:true,ban_reason:'Admin action'})">Ban</button>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function editUser(userId, dataStr) {
+  const r = JSON.parse(dataStr);
+  editingUserId = userId;
+  document.getElementById('editName').value = r.display_name || '';
+  document.getElementById('editRole').value = r.role || 'user';
+  document.getElementById('editStatus').value = r.is_banned ? 'banned' : 'active';
+  document.getElementById('editBanReason').value = r.ban_reason || '';
+  // Populate plan dropdown
+  const sel = document.getElementById('editPlan');
+  sel.innerHTML = allPlans.map(p => `<option value="${p.id}" ${p.id===r.plan_id?'selected':''}>${esc(p.display_name)}</option>`).join('');
+  document.getElementById('editStatus').onchange = () => {
+    document.getElementById('banReasonGroup').style.display = document.getElementById('editStatus').value === 'banned' ? 'block' : 'none';
+  };
+  document.getElementById('banReasonGroup').style.display = r.is_banned ? 'block' : 'none';
+  openModal('userModal');
+}
+
+async function saveUser() {
+  const updates = {
+    display_name: document.getElementById('editName').value,
+    role: document.getElementById('editRole').value,
+    plan_id: document.getElementById('editPlan').value,
+  };
+  if (document.getElementById('editStatus').value === 'banned') {
+    updates.is_banned = true;
+    updates.is_active = false;
+    updates.ban_reason = document.getElementById('editBanReason').value || 'Admin action';
+  } else {
+    updates.is_banned = false;
+    updates.is_active = true;
+    updates.ban_reason = '';
+  }
+  try {
+    await api('/api/admin/users', { method: 'PATCH', body: JSON.stringify({ user_id: editingUserId, updates }) });
+    toast('User updated');
+    closeModal('userModal');
+    loadUsers();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function quickAction(userId, updates) {
+  try {
+    await api('/api/admin/users', { method: 'PATCH', body: JSON.stringify({ user_id: userId, updates }) });
+    toast('Done');
+    loadUsers();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function resetTokens(scope) {
+  const updates = scope === 'day' ? { tokens_used_today: 0 } : { tokens_used_month: 0 };
+  try {
+    await api('/api/admin/users', { method: 'PATCH', body: JSON.stringify({ user_id: editingUserId, updates }) });
+    toast('Tokens reset');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ========== PLANS ==========
+async function loadPlans() {
+  try {
+    const d = await api('/api/admin/plans');
+    allPlans = d.plans || [];
+    document.getElementById('plansGrid').innerHTML = allPlans.map(p => `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px">
+          <div>
+            <h3 style="font-size:16px">${esc(p.display_name)}</h3>
+            <span style="font-size:11px;color:var(--text3)">${esc(p.name)}</span>
+          </div>
+          <span style="font-size:20px;font-weight:700;color:var(--accent)">$${p.price_monthly}/mo</span>
+        </div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px">${esc(p.description||'')}</p>
+        <div style="font-size:11px;color:var(--text2);display:grid;grid-template-columns:1fr 1fr;gap:4px">
+          <span>Tokens/day: ${p.max_tokens_per_day===-1?'∞':fmt(p.max_tokens_per_day)}</span>
+          <span>Tokens/mo: ${p.max_tokens_per_month===-1?'∞':fmt(p.max_tokens_per_month)}</span>
+          <span>Sessions: ${p.max_sessions===-1?'∞':p.max_sessions}</span>
+          <span>Turns: ${p.max_turns_per_session===-1?'∞':p.max_turns_per_session}</span>
+          <span>Tools: ${p.max_tools}</span>
+          <span>Models: ${p.max_models}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
+          ${p.council_access?'<span class="badge badge-active">Council</span>':''}
+          ${p.cloud_models?'<span class="badge badge-plan">Cloud</span>':''}
+          ${p.ultrathink_mode?'<span class="badge badge-admin">UltraThink</span>':''}
+          ${p.mcp_access?'<span class="badge">MCP</span>':''}
+          ${p.api_access?'<span class="badge">API</span>':''}
+        </div>
+        <div style="margin-top:12px" class="btn-group">
+          <button class="btn btn-sm" onclick="editPlan('${p.id}')">Edit</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+function openPlanModal(plan) {
+  editingPlanId = plan ? plan.id : null;
+  document.getElementById('planModalTitle').textContent = plan ? 'Edit Plan' : 'New Plan';
+  document.getElementById('planName').value = plan?.name || '';
+  document.getElementById('planDisplay').value = plan?.display_name || '';
+  document.getElementById('planDesc').value = plan?.description || '';
+  document.getElementById('planPriceM').value = plan?.price_monthly || 0;
+  document.getElementById('planPriceY').value = plan?.price_yearly || 0;
+  document.getElementById('planTokDay').value = plan?.max_tokens_per_day ?? 50000;
+  document.getElementById('planTokMonth').value = plan?.max_tokens_per_month ?? 1000000;
+  document.getElementById('planSessions').value = plan?.max_sessions ?? 10;
+  document.getElementById('planTurns').value = plan?.max_turns_per_session ?? 50;
+  document.getElementById('planTools').value = plan?.max_tools ?? 10;
+  document.getElementById('planModels').value = plan?.max_models ?? 1;
+  document.getElementById('planCouncil').checked = plan?.council_access || false;
+  document.getElementById('planCloud').checked = plan?.cloud_models || false;
+  document.getElementById('planUltra').checked = plan?.ultrathink_mode || false;
+  document.getElementById('planMcp').checked = plan?.mcp_access || false;
+  document.getElementById('planApi').checked = plan?.api_access || false;
+  document.getElementById('planSkills').checked = plan?.custom_skills || false;
+  openModal('planModal');
+}
+
+function editPlan(planId) {
+  const plan = allPlans.find(p => p.id === planId);
+  if (plan) openPlanModal(plan);
+}
+
+async function savePlan() {
+  const data = {
+    name: document.getElementById('planName').value,
+    display_name: document.getElementById('planDisplay').value,
+    description: document.getElementById('planDesc').value,
+    price_monthly: parseFloat(document.getElementById('planPriceM').value) || 0,
+    price_yearly: parseFloat(document.getElementById('planPriceY').value) || 0,
+    max_tokens_per_day: parseInt(document.getElementById('planTokDay').value),
+    max_tokens_per_month: parseInt(document.getElementById('planTokMonth').value),
+    max_sessions: parseInt(document.getElementById('planSessions').value),
+    max_turns_per_session: parseInt(document.getElementById('planTurns').value),
+    max_tools: parseInt(document.getElementById('planTools').value),
+    max_models: parseInt(document.getElementById('planModels').value),
+    council_access: document.getElementById('planCouncil').checked,
+    cloud_models: document.getElementById('planCloud').checked,
+    ultrathink_mode: document.getElementById('planUltra').checked,
+    mcp_access: document.getElementById('planMcp').checked,
+    api_access: document.getElementById('planApi').checked,
+    custom_skills: document.getElementById('planSkills').checked,
+  };
+  try {
+    if (editingPlanId) {
+      await api('/api/admin/plans', { method: 'PATCH', body: JSON.stringify({ plan_id: editingPlanId, updates: data }) });
+    } else {
+      await api('/api/admin/plans', { method: 'POST', body: JSON.stringify(data) });
+    }
+    toast('Plan saved');
+    closeModal('planModal');
+    loadPlans();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ========== USAGE ==========
+async function loadUsage() {
+  try {
+    const d = await api('/api/admin/usage');
+    const rows = d.usage || [];
+    const totalTok = rows.reduce((s,r) => s + (r.total_tokens||0), 0);
+    const totalTools = rows.reduce((s,r) => s + (r.tool_calls||0), 0);
+    document.getElementById('usageStats').innerHTML = `
+      <div class="stat accent"><div class="stat-label">Total Tokens (shown)</div><div class="stat-value">${fmt(totalTok)}</div></div>
+      <div class="stat blue"><div class="stat-label">Tool Calls</div><div class="stat-value">${fmt(totalTools)}</div></div>
+      <div class="stat"><div class="stat-label">Log Entries</div><div class="stat-value">${rows.length}</div></div>
+    `;
+    document.getElementById('usageTable').innerHTML = rows.slice(0,100).map(r => `
+      <tr>
+        <td>${esc(r.profiles?.email || r.user_id?.slice(0,8) || '—')}</td>
+        <td>${esc(r.model)}</td>
+        <td>${fmt(r.total_tokens)}</td>
+        <td>${r.tool_calls}</td>
+        <td>${r.duration_ms ? r.duration_ms.toFixed(0)+'ms' : '—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${ago(r.created_at)}</td>
+      </tr>
+    `).join('');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ========== AUDIT ==========
+async function loadAudit() {
+  try {
+    const d = await api('/api/admin/audit');
+    document.getElementById('auditTable').innerHTML = (d.audit||[]).map(r => `
+      <tr>
+        <td>${esc(r.admin_id?.slice(0,8) || '—')}</td>
+        <td><span class="badge">${esc(r.action)}</span></td>
+        <td>${esc(r.target_user_id?.slice(0,8) || '—')}</td>
+        <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(JSON.stringify(r.details||{}))}</td>
+        <td style="font-size:11px;color:var(--text3)">${ago(r.created_at)}</td>
+      </tr>
+    `).join('');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ========== ANNOUNCEMENTS ==========
+async function loadAnnouncements() {
+  try {
+    const d = await api('/api/admin/announcements');
+    document.getElementById('annList').innerHTML = (d.announcements||[]).map(a => `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <strong>${esc(a.title)}</strong>
+          <span class="badge ${a.type==='critical'?'badge-banned':a.type==='warning'?'badge-admin':'badge-plan'}">${a.type}</span>
+        </div>
+        <p style="font-size:13px;color:var(--text2)">${esc(a.content)}</p>
+        <span style="font-size:11px;color:var(--text3)">${ago(a.created_at)}</span>
+      </div>
+    `).join('') || '<p style="color:var(--text3)">No announcements yet.</p>';
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function postAnnouncement() {
+  const title = document.getElementById('annTitle').value;
+  const content = document.getElementById('annContent').value;
+  const type = document.getElementById('annType').value;
+  if (!title || !content) return toast('Title and content required', 'err');
+  try {
+    await api('/api/admin/announce', { method: 'POST', body: JSON.stringify({ title, content, type }) });
+    toast('Announcement posted');
+    document.getElementById('annTitle').value = '';
+    document.getElementById('annContent').value = '';
+    loadAnnouncements();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ========== HELPERS ==========
+function fmt(n) { return (n||0).toLocaleString(); }
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function ago(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts); const s = Math.floor((Date.now()-d)/1000);
+  if (s<60) return s+'s ago'; if (s<3600) return Math.floor(s/60)+'m ago';
+  if (s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago';
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function toast(msg, type='ok') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ========== BOOT ==========
+checkSession();
+</script>
+</body>
+</html>

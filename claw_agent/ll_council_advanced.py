@@ -244,7 +244,7 @@ REASONING INSTRUCTIONS:
             consensus_percentage = 1.0 / len(valid_responses)
 
         total_tokens = sum(r.token_count for r in responses)
-        votes = {model: 1 for model in valid_responses}
+        votes = {r.model: 1 for r in valid_responses}
 
         return CouncilResult(
             consensus_answer=consensus_answer,
@@ -349,10 +349,49 @@ REASONING INSTRUCTIONS:
         return header + "\n" + best_response.content
 
     def _deliberate(self, user_message: str, initial_result: CouncilResult) -> CouncilResult:
-        """Run deliberation round when consensus is low."""
-        # For now, just return initial result
-        # TODO: Implement actual deliberation by showing disagreements and asking for re-evaluation
-        return initial_result
+        """Run deliberation round when consensus is low.
+        
+        Re-queries dissenting models with the majority position,
+        asking them to reconsider or strengthen their disagreement.
+        """
+        valid = [r for r in initial_result.all_responses if not r.error]
+        if len(valid) < 2:
+            return initial_result
+
+        # Identify consensus group vs dissenters
+        groups = self._semantic_group_responses(valid)
+        if not groups:
+            return initial_result
+
+        best_sig, consensus_models = max(groups.items(), key=lambda x: len(x[1]))
+        dissenting = [r for r in valid if r not in consensus_models]
+
+        if not dissenting:
+            return initial_result
+
+        majority_answer = max(consensus_models, key=lambda r: len(r.content)).content
+
+        # Re-query dissenting models with the majority position
+        deliberation_responses: list[CouncilResponse] = []
+        for resp in dissenting:
+            delib_prompt = (
+                f"Original question: {user_message}\n\n"
+                f"Your previous answer differed from the majority ({len(consensus_models)}/{len(valid)} models). "
+                f"The majority answered:\n\n{majority_answer[:1500]}\n\n"
+                f"Please reconsider. If you still disagree, explain why with evidence. "
+                f"If the majority is correct, revise your answer."
+            )
+            new_resp = self._query_model(resp.model, delib_prompt)
+            deliberation_responses.append(new_resp)
+            if self.on_response:
+                self.on_response(new_resp)
+
+        # Re-aggregate: combine original consensus + new deliberation responses
+        all_round2 = list(consensus_models) + deliberation_responses
+        result = self._aggregate_responses(all_round2)
+        result.deliberation_rounds = 2
+        self.deliberation_history.append(result)
+        return result
 
     def get_council_info(self) -> dict[str, Any]:
         """Get information about the council configuration."""

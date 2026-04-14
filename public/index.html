@@ -324,7 +324,9 @@
         function addMessage(content, role) {
             const messageElement = document.createElement('div');
             messageElement.className = `message ${role}`;
-            messageElement.innerHTML = `<div class="message-content">${escapeHtml(content)}</div>`;
+            // Use markdown rendering for assistant messages, plain text for user
+            const rendered = role === 'assistant' ? formatMarkdown(content) : escapeHtml(content);
+            messageElement.innerHTML = `<div class="message-content">${rendered}</div>`;
             chatContainer.appendChild(messageElement);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
@@ -333,6 +335,58 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function formatMarkdown(t) {
+            if (!t) return '';
+            let s = String(t);
+            // Escape HTML first
+            s = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // Code blocks (fenced)
+            s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, function(_, lang, code) {
+                return '<pre><code>' + code.trim() + '</code></pre>';
+            });
+            // Inline code
+            s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Headers
+            s = s.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            s = s.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            s = s.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+            // Bold and italic
+            s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            // Links (with URL validation)
+            s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(_, text, url) {
+                try {
+                    const u = new URL(url, location.href);
+                    if (!['https:', 'http:', 'mailto:'].includes(u.protocol)) return text;
+                    return '<a href="' + url + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+                } catch(e) { return text; }
+            });
+            // Horizontal rule
+            s = s.replace(/^---$/gm, '<hr>');
+            // Bullet lists
+            s = s.replace(/^[\u2022\-\*] (.+)$/gm, '<li>$1</li>');
+            s = s.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+            // Ordered lists
+            s = s.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            // Blockquotes
+            s = s.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+            // Paragraphs
+            s = s.replace(/\n\n/g, '</p><p>');
+            s = s.replace(/\n/g, '<br>');
+            s = '<p>' + s + '</p>';
+            // Clean up artifacts inside pre/code blocks
+            s = s.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, function(_, c) {
+                return '<pre><code>' + c.replace(/<br>/g, '\n').replace(/<\/?p>/g, '') + '</code></pre>';
+            });
+            // Remove stray breaks/paragraphs around block elements
+            s = s.replace(/<\/(h[1-3]|pre|ul|ol|blockquote|hr)><br>/g, '</$1>');
+            s = s.replace(/<br><(h[1-3]|pre|ul|ol|blockquote|hr)/g, '<$1');
+            s = s.replace(/<p><(h[1-3]|pre|ul|ol|blockquote|hr)/g, '<$1');
+            s = s.replace(/<\/(h[1-3]|pre|ul|ol|blockquote|hr)><\/p>/g, '</$1>');
+            s = s.replace(/<p><\/p>/g, '');
+            return s;
         }
 
         // Focus input on load

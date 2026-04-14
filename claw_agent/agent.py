@@ -24,23 +24,25 @@ from .mcp import MCPManager
 SYSTEM_PROMPT_TEMPLATE = """\
 You are Claw, an expert autonomous AI coding agent running on model "{model}".
 You have deep expertise in all programming languages, frameworks, databases, DevOps, cloud, \
-system administration, and software engineering. You act decisively — you NEVER ask questions.
+system administration, and software engineering. You act decisively.
 When asked what model you are, say you are Claw running on "{model}" {mode_label}.
 
 WORKSPACE: {cwd}
 PLATFORM: {platform}
 
-TOOLS (26):
+TOOLS (34):
   File: read_file, write_file, list_directory, find_files
   Shell: run_command, powershell
   Search: grep_search
   Edit: replace_in_file, multi_edit_file, insert_at_line, diff_files
   Web: web_fetch, web_search
-  Agent: run_subagent, plan_and_execute
+  Agent: run_subagent, plan_and_execute, enter_plan_mode, exit_plan_mode
   Tasks: task_create, task_update, task_list, task_get
   Code: notebook_run
   Context: get_workspace_context, git_diff, git_log
   Utility: sleep, config_get, config_set
+  Interaction: ask_user, tool_search
+  MCP: list_mcp_resources, read_mcp_resource
 
 SUPERPOWERS — your approach to any task:
 1. EXPLORE first: list_directory, find_files, grep_search, get_workspace_context to map the codebase.
@@ -50,7 +52,7 @@ SUPERPOWERS — your approach to any task:
 5. VERIFY: read_file the result. Run tests with run_command. Check git_diff. Confirm correctness.
 
 CRITICAL RULES:
-1. NEVER ask the user to clarify. Use tools to figure it out yourself.
+1. Only use ask_user when you genuinely cannot proceed — prefer reading files, code, and context to infer answers.
 2. Use "." or "{cwd}" for the current directory. Use relative paths.
 3. Read files before editing. Verify changes after making them.
 4. Be concise in final responses. Summarize what you did and what changed.
@@ -68,6 +70,18 @@ CRITICAL RULES:
 16. When debugging: read error messages carefully, grep for the error, find the root cause.
 17. When refactoring: understand all callers before changing a function signature.
 18. If you see 'SYSTEM: STOP' in a tool result, respond with text only — no more tools.
+
+RESPONSE FORMATTING — always structure your output clearly:
+- Use **markdown** for all responses: headers (## / ###), bold (**key terms**), code blocks (```lang), lists.
+- Use fenced code blocks with language tags for ALL code: ```python, ```javascript, ```bash, etc.
+- Use bullet lists (-) for multiple items. Use numbered lists (1. 2. 3.) for ordered steps.
+- Use ### headers to separate major sections in long answers.
+- Use inline `code` for file names, function names, variable names, commands.
+- Use > blockquotes for important warnings or notes.
+- Keep paragraphs short (2-4 sentences max). Use blank lines between sections.
+- For explanations: lead with the answer, then explain why. Never bury the answer.
+- NEVER output raw unformatted text walls. NEVER mix broken markdown fragments.
+- When showing file changes: show the relevant diff or code block, not a verbal description.
 """
 
 MAX_ITERATIONS = 200
@@ -90,7 +104,17 @@ AUTO_COMPACT_THRESHOLD = MAX_CONTEXT_TOKENS // 2
 COMPACT_KEEP_RECENT = 8
 
 # Project config files loaded into system prompt (searched in cwd, then parents)
-CONFIG_FILES = ("MEMORY.md", "SOUL.md", ".claw")
+# Core identity + reasoning + style are loaded every time
+# Reference docs (TOOLS.md, WORKFLOW.md, PROMPTS.md, SKILLS.md) are kept as
+# files the agent can read on demand — loading them all would bloat the prompt.
+CONFIG_FILES = (
+    "MEMORY.md",       # project memory & conventions
+    "SOUL.md",         # personality & response principles
+    "CLAW.md",         # master config: architecture, rules, decision framework
+    "REASONING.md",    # thinking framework & reasoning patches
+    "STYLEGUIDE.md",   # response quality & formatting standards
+    ".claw",           # JSON runtime settings (parsed separately by _load_claw_config)
+)
 
 
 def _load_project_context() -> str:
@@ -201,24 +225,39 @@ class Agent:
 
     def __init__(
         self,
-        model: str = None,
-        base_url: str = None,
+        model: str | None = None,
+        base_url: str | None = None,
         permissions: PermissionContext | None = None,
         session: Session | None = None,
         on_tool_call: Callable[[str, dict], None] | None = None,
         on_tool_result: Callable[[str, str], None] | None = None,
         confirm_fn: Callable[[], bool] | None = None,
+        ask_fn: Callable[[str, list], str] | None = None,
     ):
         # Auto-detect: Use DeepSeek API if key is set, otherwise Ollama
         self.model = model or DEFAULT_MODEL
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
-        self.is_cloud = DEEPSEEK_API_KEY and not base_url
+        # Cloud mode if API key is set AND we're not explicitly pointed at Ollama,
+        # OR if the base_url is a known cloud endpoint
+        _is_ollama_url = self.base_url.startswith("http://localhost") or self.base_url.startswith("http://127.0.0.1")
+        self.is_cloud = bool(DEEPSEEK_API_KEY) and not _is_ollama_url
         self.client = httpx.Client(timeout=300)
         self.permissions = permissions or PermissionContext.default()
-        self.session = session or Session(model=model)
+        self.session = session or Session(model=self.model)
         self.cost = CostTracker()
         self._confirm_fn = confirm_fn
+        self._ask_fn = ask_fn
+        self._plan_mode: bool = False
         self._hooks = HookRunner.load()  # Cache hooks once at init (M1)
+
+        # Register ask_fn so the ask_user tool can call back into the CLI
+        if ask_fn is not None:
+            from .tools.utility_tools import register_ask_user_fn
+            register_ask_user_fn(ask_fn)
+
+        # Register self with agent_tools so enter/exit_plan_mode can toggle flag
+        import claw_agent.tools.agent_tools as _at
+        _at._PLAN_MODE_CALLBACK = self
 
         # Determine mode label for system prompt
         self._mode_label = "via Cloud API" if self.is_cloud else "via local Ollama"
@@ -258,11 +297,39 @@ class Agent:
         if project_ctx:
             system_content += "\n\nPROJECT CONTEXT (loaded from workspace files):" + project_ctx
         
-        # Add skills context
+        # Add skills context (built-in + custom installed)
         from .skills import get_all_skills_context
         skills_ctx = get_all_skills_context()
         if skills_ctx:
             system_content += "\n\nSKILLS & CAPABILITIES:" + skills_ctx
+
+        # Add skill library awareness (315+ skills, dynamically detected per-turn)
+        try:
+            from .skill_library import get_skill_count, get_category_counts, ALL_CATEGORIES
+            count = get_skill_count()
+            cats = get_category_counts()
+            system_content += f"\n\nSKILL LIBRARY ({count} skills across {len(cats)} categories):"
+            system_content += "\nYou have deep expertise loaded on-demand via keyword detection."
+            system_content += "\nCategories: " + ", ".join(
+                f"{c} ({cats.get(c, 0)})" for c in ALL_CATEGORIES if cats.get(c, 0) > 0
+            )
+            system_content += "\nRelevant skills are automatically injected when the user's message matches skill triggers."
+        except Exception:
+            pass
+        
+        # Add reasoning wisdom patches (deep logic, anti-hallucination, self-audit)
+        from .ai_lab.arena import get_enhanced_system_prompt_addition
+        system_content += get_enhanced_system_prompt_addition()
+        
+        # SEAKS: Load self-evolving kernel and inject live rules into system prompt
+        try:
+            from .ai_lab.seaks import SEAKS
+            self._seaks = SEAKS()
+            seaks_patch = self._seaks.get_system_prompt_patch()
+            if seaks_patch:
+                system_content += "\n" + seaks_patch
+        except Exception:
+            self._seaks = None
         
         # Initialize MCP tool manager — discover tools from configured servers
         self._mcp = MCPManager()
@@ -330,6 +397,14 @@ class Agent:
 
     def stream_chat(self, user_message: str) -> Generator[StreamEvent, None, None]:
         """Stream events as the agent thinks, calls tools, and responds."""
+        # Dynamic skill detection: inject relevant skill context per-turn
+        try:
+            from .skill_detector import get_detected_skills_context
+            skill_ctx = get_detected_skills_context(user_message)
+            if skill_ctx:
+                self.messages.append({"role": "system", "content": skill_ctx})
+        except Exception:
+            pass  # Graceful degradation if detector fails
         self.messages.append({"role": "user", "content": user_message})
         self.session.total_turns += 1
         yield from self._stream_loop()
@@ -429,82 +504,89 @@ class Agent:
             prompt_tokens = 0
             completion_tokens = 0
 
-            with self.client.stream(
-                "POST", api_url, json=payload, headers=extra_headers, timeout=300
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if not line:
-                        continue
-                    
-                    # Handle SSE format (DeepSeek/OpenAI use "data: " prefix)
-                    if self.is_cloud and line.startswith("data: "):
-                        line = line[6:]  # Strip "data: " prefix
-                    
-                    if line.strip() == "[DONE]":
-                        break
-                    
-                    try:
-                        chunk = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-
-                    if self.is_cloud:
-                        # OpenAI/DeepSeek streaming format
-                        choices = chunk.get("choices", [])
-                        if not choices:
+            try:
+                with self.client.stream(
+                    "POST", api_url, json=payload, headers=extra_headers, timeout=300
+                ) as response:
+                    response.raise_for_status()
+                    for line in response.iter_lines():
+                        if not line:
                             continue
-                        choice = choices[0]
-                        delta = choice.get("delta", {})
-                        content = delta.get("content", "")
-                        tool_calls_delta = delta.get("tool_calls", [])
-                        finish_reason = choice.get("finish_reason", "")
-
-                        if content:
-                            collected_content += content
-                            yield TextDelta(content)
-
-                        if tool_calls_delta:
-                            for tc in tool_calls_delta:
-                                # Merge tool call chunks
-                                if tool_calls and tool_calls[-1].get("id") == tc.get("id"):
-                                    # Append to existing tool call
-                                    prev_fn = tool_calls[-1].get("function", {})
-                                    curr_fn = tc.get("function", {})
-                                    if curr_fn.get("arguments"):
-                                        prev_fn["arguments"] = prev_fn.get("arguments", "") + curr_fn["arguments"]
-                                    if curr_fn.get("name"):
-                                        prev_fn["name"] = curr_fn["name"]
-                                else:
-                                    tool_calls.append(tc)
-
-                        # Final chunk has usage or finish_reason
-                        if chunk.get("usage"):
-                            prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
-                            completion_tokens = chunk["usage"].get("completion_tokens", 0)
                         
-                        if finish_reason == "stop":
-                            break
-                    else:
-                        # Ollama format
-                        msg = chunk.get("message", {})
+                        # Handle SSE format (DeepSeek/OpenAI use "data: " prefix)
+                        if self.is_cloud and line.startswith("data: "):
+                            line = line[6:]  # Strip "data: " prefix
                         
-                        delta = msg.get("content", "")
-                        if delta:
-                            collected_content += delta
-                            yield TextDelta(delta)
-                        
-                        # Detect repetitive text (model stuck in generation loop)
-                        if _is_repetitive(collected_content):
-                            collected_content = collected_content[:-(40 * 2)]
+                        if line.strip() == "[DONE]":
                             break
                         
-                        if msg.get("tool_calls"):
-                            tool_calls.extend(msg["tool_calls"])
-                        
-                        if chunk.get("done"):
-                            prompt_tokens = chunk.get("prompt_eval_count", 0)
-                            completion_tokens = chunk.get("eval_count", 0)
+                        try:
+                            chunk = json.loads(line)
+                        except json.JSONDecodeError:
+                            continue
+
+                        if self.is_cloud:
+                            # OpenAI/DeepSeek streaming format
+                            choices = chunk.get("choices", [])
+                            if not choices:
+                                continue
+                            choice = choices[0]
+                            delta = choice.get("delta", {})
+                            content = delta.get("content", "")
+                            tool_calls_delta = delta.get("tool_calls", [])
+                            finish_reason = choice.get("finish_reason", "")
+
+                            if content:
+                                collected_content += content
+                                yield TextDelta(content)
+
+                            if tool_calls_delta:
+                                for tc in tool_calls_delta:
+                                    # Merge tool call chunks
+                                    if tool_calls and tool_calls[-1].get("id") == tc.get("id"):
+                                        # Append to existing tool call
+                                        prev_fn = tool_calls[-1].get("function", {})
+                                        curr_fn = tc.get("function", {})
+                                        if curr_fn.get("arguments"):
+                                            prev_fn["arguments"] = prev_fn.get("arguments", "") + curr_fn["arguments"]
+                                        if curr_fn.get("name"):
+                                            prev_fn["name"] = curr_fn["name"]
+                                    else:
+                                        tool_calls.append(tc)
+
+                            # Final chunk has usage or finish_reason
+                            if chunk.get("usage"):
+                                prompt_tokens = chunk["usage"].get("prompt_tokens", 0)
+                                completion_tokens = chunk["usage"].get("completion_tokens", 0)
+                            
+                            if finish_reason == "stop":
+                                break
+                        else:
+                            # Ollama format
+                            msg = chunk.get("message", {})
+                            
+                            delta = msg.get("content", "")
+                            if delta:
+                                collected_content += delta
+                                yield TextDelta(delta)
+                            
+                            # Detect repetitive text (model stuck in generation loop)
+                            if _is_repetitive(collected_content):
+                                collected_content = collected_content[:-(40 * 2)]
+                                break
+                            
+                            if msg.get("tool_calls"):
+                                tool_calls.extend(msg["tool_calls"])
+                            
+                            if chunk.get("done"):
+                                prompt_tokens = chunk.get("prompt_eval_count", 0)
+                                completion_tokens = chunk.get("eval_count", 0)
+            except httpx.HTTPStatusError as e:
+                yield TextDelta(f"\n\n[API Error: HTTP {e.response.status_code}]")
+                return
+            except (httpx.ConnectError, httpx.TimeoutException, httpx.ReadError) as e:
+                yield TextDelta(f"\n\n[Connection error: {e}]")
+                return
 
             duration_ms = (time.time() - start) * 1000
 
@@ -560,6 +642,19 @@ class Agent:
 
             # --- Execute tool calls if any ---
             if tool_calls:
+
+                # Plan mode: skip execution of all tools EXCEPT plan-mode controls and ask_user
+                _PLAN_PASSTHROUGH = {"enter_plan_mode", "exit_plan_mode", "ask_user"}
+                if self._plan_mode:
+                    exec_calls = [tc for tc in tool_calls if tc.get("function", {}).get("name", "") in _PLAN_PASSTHROUGH]
+                    skipped = [tc.get("function", {}).get("name", "") for tc in tool_calls if tc.get("function", {}).get("name", "") not in _PLAN_PASSTHROUGH]
+                    if skipped:
+                        skip_note = f"PLAN MODE: skipped execution of [{', '.join(skipped)}] — list your plan steps as text, then call exit_plan_mode when the user approves."
+                        self.messages.append({"role": "system", "content": skip_note})
+                    tool_calls = exec_calls
+                    if not tool_calls:
+                        yield AgentDone(collected_content or "[Plan mode — describe your plan as numbered steps]")
+                        return
 
                 # Track tool results for circuit breakers
                 msgs_before = len(self.messages)

@@ -7,6 +7,13 @@ from typing import Any
 
 import httpx
 
+# Global plan-mode toggle callback registered by the Agent instance.
+_PLAN_MODE_CALLBACK: Any = None  # type: ignore[assignment]
+
+
+def _get_plan_mode_agent() -> Any:
+    return _PLAN_MODE_CALLBACK
+
 
 def run_subagent(
     task: str,
@@ -98,3 +105,29 @@ def plan_and_execute(goal: str, model: str | None = None) -> str:
         results.append(step_result)
 
     return "\n".join(results)
+
+
+def enter_plan_mode() -> str:
+    """Switch to Plan Mode — you will only produce plans, no tool calls.
+    
+    In plan mode you describe your intended sequence of actions as a numbered
+    list and wait for the user to confirm before executing anything.
+    Use this when you want to show the user what you intend to do before doing it.
+    """
+    agent = _get_plan_mode_agent()
+    if agent is not None:
+        agent._plan_mode = True
+    return (
+        "PLAN MODE ACTIVATED.\n"
+        "From now on, describe each step you plan to take as a numbered list "
+        "WITHOUT calling any tools. Wait for user approval before executing.\n"
+        "Type your plan now."
+    )
+
+
+def exit_plan_mode() -> str:
+    """Exit Plan Mode and return to normal tool-calling mode."""
+    agent = _get_plan_mode_agent()
+    if agent is not None:
+        agent._plan_mode = False
+    return "Plan mode deactivated — resuming normal tool execution."

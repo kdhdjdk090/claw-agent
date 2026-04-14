@@ -91,14 +91,18 @@ BUILTIN_SKILLS = {
     },
     "reason": {
         "name": "reason",
-        "version": "1.0.0",
-        "description": "Logic, critical thinking & problem solving",
-        "tools": ["read_file", "web_fetch"],
+        "version": "2.0.0",
+        "description": "Logic, critical thinking, feasibility analysis & problem solving (PATCH 8 enabled)",
+        "tools": ["read_file", "web_fetch", "run_command"],
         "prompts": {
             "logic": "Solve a logic puzzle",
             "decision": "Decision analysis with trade-offs",
             "debug-logic": "Find the flaw in an argument",
+            "feasibility": "Check if a constrained problem is information-theoretically solvable",
+            "impossibility-proof": "Prove a problem is unsolvable via Shannon bound",
         },
+        "engine": "claw_agent.ai_lab.reasoning_engine",
+        "patches": ["PATCH 8: Constraint Feasibility Checker"],
     },
     "brainstorm": {
         "name": "brainstorm",
@@ -221,6 +225,127 @@ BUILTIN_SKILLS = {
             "answer": "Research and answer a question",
         },
     },
+    # === NEW SKILLS — Claude-equivalent power pack ===
+    "security": {
+        "name": "security",
+        "version": "1.0.0",
+        "description": "Security audit, vulnerability scanning & hardening",
+        "tools": ["read_file", "grep_search", "run_command", "web_fetch"],
+        "prompts": {
+            "audit": "Audit code for OWASP Top 10 vulnerabilities",
+            "secrets": "Scan for leaked secrets, keys & credentials",
+            "harden": "Harden a configuration or deployment",
+            "dependencies": "Check dependencies for known CVEs",
+        },
+    },
+    "git": {
+        "name": "git",
+        "version": "1.0.0",
+        "description": "Git operations, branching, merging & history analysis",
+        "tools": ["run_command", "read_file", "grep_search"],
+        "prompts": {
+            "status": "Show git status and suggest next actions",
+            "diff": "Analyze staged or unstaged changes",
+            "history": "Analyze commit history for a file or project",
+            "conflict": "Resolve a merge conflict",
+        },
+    },
+    "database": {
+        "name": "database",
+        "version": "1.0.0",
+        "description": "Database design, queries, migrations & optimization",
+        "tools": ["read_file", "write_file", "run_command", "grep_search"],
+        "prompts": {
+            "schema": "Design or review a database schema",
+            "query": "Write or optimize a SQL query",
+            "migration": "Create a database migration",
+            "index": "Analyze and recommend indexes",
+        },
+    },
+    "devops": {
+        "name": "devops",
+        "version": "1.0.0",
+        "description": "CI/CD, Docker, deployment & infrastructure",
+        "tools": ["read_file", "write_file", "run_command", "web_fetch"],
+        "prompts": {
+            "docker": "Create or optimize a Dockerfile",
+            "ci": "Set up CI/CD pipeline (GitHub Actions / GitLab CI)",
+            "deploy": "Create deployment configuration",
+            "monitor": "Set up monitoring and alerting",
+        },
+    },
+    "api": {
+        "name": "api",
+        "version": "1.0.0",
+        "description": "API design, integration & debugging",
+        "tools": ["read_file", "write_file", "run_command", "web_fetch"],
+        "prompts": {
+            "design": "Design a REST or GraphQL API",
+            "integrate": "Integrate with an external API",
+            "debug": "Debug API request/response issues",
+            "openapi": "Generate OpenAPI/Swagger spec",
+        },
+    },
+    "performance": {
+        "name": "performance",
+        "version": "1.0.0",
+        "description": "Performance profiling, optimization & benchmarking",
+        "tools": ["read_file", "run_command", "grep_search"],
+        "prompts": {
+            "profile": "Profile code for bottlenecks",
+            "optimize": "Optimize slow code paths",
+            "benchmark": "Create benchmarks for comparison",
+            "memory": "Analyze memory usage and leaks",
+        },
+    },
+    "project": {
+        "name": "project",
+        "version": "1.0.0",
+        "description": "Project scaffolding, setup & configuration",
+        "tools": ["write_file", "run_command", "read_file"],
+        "prompts": {
+            "init": "Initialize a new project from scratch",
+            "config": "Set up tooling (linter, formatter, etc.)",
+            "structure": "Recommend project structure",
+            "monorepo": "Set up monorepo with workspaces",
+        },
+    },
+    "migrate": {
+        "name": "migrate",
+        "version": "1.0.0",
+        "description": "Code migration between frameworks, languages & versions",
+        "tools": ["read_file", "write_file", "grep_search", "run_command"],
+        "prompts": {
+            "framework": "Migrate between frameworks (e.g. CRA → Next.js)",
+            "language": "Port code to a different language",
+            "upgrade": "Upgrade to a newer version of a dependency",
+            "legacy": "Modernize legacy code",
+        },
+    },
+    "data": {
+        "name": "data",
+        "version": "1.0.0",
+        "description": "Data processing, ETL, CSV/JSON manipulation",
+        "tools": ["read_file", "write_file", "notebook_run", "run_command"],
+        "prompts": {
+            "transform": "Transform data between formats",
+            "clean": "Clean and normalize messy data",
+            "pipeline": "Build a data processing pipeline",
+            "visualize": "Create data visualizations",
+        },
+    },
+    "teach": {
+        "name": "teach",
+        "version": "1.0.0",
+        "description": "Interactive teaching, tutorials & learning paths",
+        "tools": ["read_file", "write_file", "web_fetch"],
+        "prompts": {
+            "concept": "Teach a programming concept with examples",
+            "tutorial": "Create a step-by-step tutorial",
+            "quiz": "Generate quiz questions to test understanding",
+            "roadmap": "Create a learning roadmap for a topic",
+        },
+    },
 }
 
 
@@ -236,8 +361,12 @@ class SkillInfo:
     is_builtin: bool = False
 
 
-def list_skills() -> list[SkillInfo]:
-    """List all installed skills."""
+def list_skills(include_library: bool = False) -> list[SkillInfo]:
+    """List all installed skills.
+    
+    Args:
+        include_library: If True, also include skills from the 315+ skill library.
+    """
     skills = []
     
     # List installed skills
@@ -269,6 +398,23 @@ def list_skills() -> list[SkillInfo]:
             prompts=info.get("prompts", {}),
             is_builtin=True,
         ))
+    
+    # Add skill library entries (auto-detected per-turn)
+    if include_library:
+        try:
+            from .skill_library import SKILL_REGISTRY
+            seen = {s.name for s in skills}
+            for entry in SKILL_REGISTRY:
+                if entry.name not in seen:
+                    skills.append(SkillInfo(
+                        name=entry.name,
+                        version="1.0.0",
+                        description=entry.description,
+                        installed_at="library",
+                        is_builtin=True,
+                    ))
+        except Exception:
+            pass
     
     return skills
 
@@ -359,6 +505,18 @@ def format_skills_table(skills: list[SkillInfo]) -> str:
     
     for skill in skills:
         skill_type = "builtin" if skill.is_builtin else "custom"
+        if skill.installed_at == "library":
+            skill_type = "library"
         lines.append(f"{skill.name:<20} {skill.version:<12} {skill_type:<10} {skill.description}")
+    
+    # Append library summary if available
+    try:
+        from .skill_library import get_skill_count, get_category_counts
+        count = get_skill_count()
+        cats = get_category_counts()
+        lines.append("")
+        lines.append(f"Skill Library: {count} skills across {len(cats)} categories (auto-detected per query)")
+    except Exception:
+        pass
     
     return "\n".join(lines)

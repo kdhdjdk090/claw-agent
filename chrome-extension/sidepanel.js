@@ -1152,49 +1152,6 @@ async function fetchUrl(url) {
   }
 }
 
-async function evalOnPage(code) {
-  // Safety check — block dangerous operations
-  const dangerous = ["document.cookie", "localStorage.clear", "eval(", "Function("];
-  for (const d of dangerous) {
-    if (code.includes(d)) {
-      return { error: `Blocked: ${d} not allowed` };
-    }
-  }
-  return new Promise((resolve) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0]) { resolve({ error: "No active tab" }); return; }
-      chrome.scripting.executeScript({
-        target: { tabId: tabs[0].id },
-        func: (expr) => {
-          try { return { result: String(eval(expr)).substring(0, 5000) }; }
-          catch (e) { return { error: e.message }; }
-        },
-        args: [code],
-      }).then((results) => {
-        const r = results[0]?.result || { error: "No result" };
-        // Detect CSP blocking eval and give a clear message
-        if (r.error && /content.security.policy|unsafe-eval|CSP/i.test(r.error)) {
-          resolve({
-            error: "BLOCKED by Content Security Policy — this site does not allow javascript_eval. " +
-                   "Use read_page, extract_links, extract_forms, or click_element instead. Do NOT retry javascript_eval."
-          });
-        } else {
-          resolve(r);
-        }
-      }).catch((err) => {
-        if (/content.security.policy|unsafe-eval|CSP/i.test(err.message)) {
-          resolve({
-            error: "BLOCKED by Content Security Policy — this site does not allow javascript_eval. " +
-                   "Use read_page, extract_links, extract_forms, or click_element instead. Do NOT retry javascript_eval."
-          });
-        } else {
-          resolve({ error: err.message });
-        }
-      });
-    });
-  });
-}
-
 // ============================================================================
 // Ollama Streaming
 // ============================================================================

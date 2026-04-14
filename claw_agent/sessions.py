@@ -24,6 +24,7 @@ class Session:
     output_tokens: int = 0
     tags: list[str] = field(default_factory=list)
     title: str = ""
+    user_id: str = ""  # Supabase user ID (empty = anonymous/local)
 
     def auto_title(self) -> str:
         """Generate a title from the first user message."""
@@ -51,6 +52,7 @@ def save_session(session: Session, directory: Path | None = None) -> Path:
         "output_tokens": session.output_tokens,
         "tags": session.tags,
         "title": session.title or session.auto_title(),
+        "user_id": session.user_id,
     }
     path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
     return path
@@ -73,6 +75,7 @@ def load_session(session_id: str, directory: Path | None = None) -> Session:
         output_tokens=data.get("output_tokens", 0),
         tags=data.get("tags", []),
         title=data.get("title", ""),
+        user_id=data.get("user_id", ""),
     )
 
 
@@ -95,6 +98,7 @@ def list_sessions(directory: Path | None = None) -> list[Session]:
                 output_tokens=data.get("output_tokens", 0),
                 tags=data.get("tags", []),
                 title=data.get("title", ""),
+                user_id=data.get("user_id", ""),
             ))
         except (json.JSONDecodeError, KeyError):
             continue

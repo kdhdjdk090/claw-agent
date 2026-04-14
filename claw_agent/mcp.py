@@ -426,3 +426,77 @@ class MCPManager:
             else:
                 parts.append(f"- **{srv_name}** ({server.transport}): no tools discovered")
         return "\n".join(parts)
+
+
+# ---- Standalone tool functions for MCP resource access ---------------------
+
+def read_mcp_resource(server_name: str, resource_uri: str) -> str:
+    """Read a resource from an MCP server.
+    
+    MCP servers can expose resources (files, database records, etc.) via URIs.
+    Use list_mcp_resources first to discover available resource URIs.
+    
+    server_name: name of the configured MCP server
+    resource_uri: URI of the resource (e.g. 'file:///path/to/doc.md')
+    """
+    servers = load_mcp_config()
+    server = servers.get(server_name)
+    if not server:
+        configured = list(servers.keys()) or ["(none)"]
+        return f"Error: MCP server '{server_name}' not found. Configured servers: {', '.join(configured)}"
+    conn = MCPClientConnection(server)
+    if not conn.connect():
+        return f"Error: could not connect to MCP server '{server_name}'"
+    try:
+        resp = conn._request("resources/read", {"uri": resource_uri})
+        if resp and "result" in resp:
+            contents = resp["result"].get("contents", [])
+            parts = []
+            for c in contents:
+                if c.get("type") == "text" or "text" in c:
+                    parts.append(c.get("text", ""))
+                elif c.get("type") == "blob":
+                    parts.append(f"[binary blob: {c.get('mimeType', 'unknown')} {len(c.get('blob', ''))} bytes]")
+            return "\n".join(parts) if parts else "(empty resource)"
+        if resp and "error" in resp:
+            err = resp["error"]
+            return f"MCP error ({err.get('code', '?')}): {err.get('message', 'unknown')}"
+        return "(no response from server)"
+    except Exception as exc:
+        return f"Error reading MCP resource: {exc}"
+    finally:
+        conn.disconnect()
+
+
+def list_mcp_resources(server_name: str) -> str:
+    """List available resources from an MCP server.
+    
+    Returns the URI and description of each resource exposed by the server.
+    """
+    servers = load_mcp_config()
+    server = servers.get(server_name)
+    if not server:
+        configured = list(servers.keys()) or ["(none)"]
+        return f"Error: MCP server '{server_name}' not found. Configured servers: {', '.join(configured)}"
+    conn = MCPClientConnection(server)
+    if not conn.connect():
+        return f"Error: could not connect to MCP server '{server_name}'"
+    try:
+        resp = conn._request("resources/list", {})
+        if resp and "result" in resp:
+            resources = resp["result"].get("resources", [])
+            if not resources:
+                return f"No resources available from '{server_name}'"
+            lines = [f"Resources from '{server_name}' ({len(resources)}):"]
+            for r in resources:
+                uri = r.get("uri", "?")
+                name = r.get("name", "")
+                desc = r.get("description", "")
+                lines.append(f"  {uri}" + (f" — {name}" if name else "") + (f": {desc}" if desc else ""))
+            return "\n".join(lines)
+        return f"No resources response from '{server_name}'"
+    except Exception as exc:
+        return f"Error listing MCP resources: {exc}"
+    finally:
+        conn.disconnect()
+
