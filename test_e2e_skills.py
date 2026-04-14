@@ -8,7 +8,7 @@ print(f"  Total skills: {len(SKILL_REGISTRY)}")
 print(f"  Unique names: {len(SKILL_BY_NAME)}")
 print(f"  Categories: {len(SKILLS_BY_CATEGORY)}")
 print(f"  Trigger keywords: {len(TRIGGER_INDEX)}")
-assert len(SKILL_REGISTRY) >= 500, f"Expected 500+, got {len(SKILL_REGISTRY)}"
+assert len(SKILL_REGISTRY) >= 650, f"Expected 650+, got {len(SKILL_REGISTRY)}"
 assert len(SKILL_BY_NAME) == len(SKILL_REGISTRY), "Duplicate names exist"
 assert len(SKILLS_BY_CATEGORY) == 18, f"Expected 18 categories, got {len(SKILLS_BY_CATEGORY)}"
 
@@ -64,6 +64,26 @@ for query, expected_name in expansion_tests:
     status = "OK" if found else "MISS"
     print(f"  [{status}] \"{query[:45]}\" -> expected={expected_name}, top5={detected_names}")
 
+# === EXPANSION WAVE 3 DETECTION ===
+print("\n=== EXPANSION WAVE 3 DETECTION ===")
+wave3_tests = [
+    ("Encrypt and password-protect a PDF document", "pdf-encryption"),
+    ("Generate documentation from OpenAPI spec", "api-doc-generation"),
+    ("Build a drag and drop form builder component", "form-builder-patterns"),
+    ("Deploy to edge with Deno runtime", "deno-patterns"),
+    ("Create IoT device firmware with MQTT telemetry", "iot-firmware"),
+    ("Compile WebAssembly module from Rust", "webassembly-patterns"),
+    ("Build an ERC-20 token with vesting", "token-vesting"),
+    ("Set up Elasticsearch cluster monitoring", "elasticsearch-patterns"),
+]
+
+for query, expected_name in wave3_tests:
+    result = detect_skills(query)
+    detected_names = list(result.matched_skills[:5])
+    found = expected_name in detected_names
+    status = "OK" if found else "MISS"
+    print(f"  [{status}] \"{query[:45]}\" -> expected={expected_name}, top5={detected_names}")
+
 print("\n" + "=" * 60)
-print("ALL E2E TESTS PASSED — 520 skills, 18 categories, full pipeline")
+print(f"ALL E2E TESTS PASSED — {len(SKILL_REGISTRY)} skills, 18 categories, full pipeline")
 print("=" * 60)
