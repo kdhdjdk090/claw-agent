@@ -123,6 +123,33 @@ from .db_tools import sqlite_query, sqlite_schema
 # ---- Regex tools (2) --------------------------------------------------------
 from .regex_tools import test_regex, explain_regex
 
+# ---- Test tools (3) ---------------------------------------------------------
+from .test_tools import run_tests, parse_test_output, generate_test_stub
+
+# ---- Lint tools (3) ---------------------------------------------------------
+from .lint_tools import format_code, lint_check, auto_fix_lint
+
+# ---- Package tools (3) ------------------------------------------------------
+from .package_tools import list_dependencies, check_outdated, audit_dependencies
+
+# ---- Docker tools (4) -------------------------------------------------------
+from .docker_tools import docker_ps, docker_build, docker_compose_up, docker_compose_down
+
+# ---- Log tools (3) ----------------------------------------------------------
+from .log_tools import parse_log, tail_file, search_logs
+
+# ---- Crypto tools (4) -------------------------------------------------------
+from .crypto_tools import generate_token, hash_string, base64_codec, checksum_file
+
+# ---- Metrics tools (3) ------------------------------------------------------
+from .metrics_tools import count_lines, code_complexity, file_type_stats
+
+# ---- Math tools (3) ---------------------------------------------------------
+from .math_tools import evaluate_expr, convert_units, number_base
+
+# ---- Datetime tools (3) -----------------------------------------------------
+from .datetime_tools import now_tz, date_diff, parse_cron
+
 # ---- Registry ----------------------------------------------------------------
 
 TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
@@ -257,6 +284,44 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     # Regex (2)
     "test_regex": test_regex,
     "explain_regex": explain_regex,
+    # Testing (3)
+    "run_tests": run_tests,
+    "parse_test_output": parse_test_output,
+    "generate_test_stub": generate_test_stub,
+    # Linting (3)
+    "format_code": format_code,
+    "lint_check": lint_check,
+    "auto_fix_lint": auto_fix_lint,
+    # Packages (3)
+    "list_dependencies": list_dependencies,
+    "check_outdated": check_outdated,
+    "audit_dependencies": audit_dependencies,
+    # Docker (4)
+    "docker_ps": docker_ps,
+    "docker_build": docker_build,
+    "docker_compose_up": docker_compose_up,
+    "docker_compose_down": docker_compose_down,
+    # Logging (3)
+    "parse_log": parse_log,
+    "tail_file": tail_file,
+    "search_logs": search_logs,
+    # Crypto (4)
+    "generate_token": generate_token,
+    "hash_string": hash_string,
+    "base64_codec": base64_codec,
+    "checksum_file": checksum_file,
+    # Metrics (3)
+    "count_lines": count_lines,
+    "code_complexity": code_complexity,
+    "file_type_stats": file_type_stats,
+    # Math (3)
+    "evaluate_expr": evaluate_expr,
+    "convert_units": convert_units,
+    "number_base": number_base,
+    # Datetime (3)
+    "now_tz": now_tz,
+    "date_diff": date_diff,
+    "parse_cron": parse_cron,
 }
 
 # ---- Ollama tool definitions (OpenAI-compatible) ----------------------------
@@ -1707,6 +1772,453 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "pattern": {"type": "string", "description": "Regular expression pattern to explain."},
                 },
                 "required": ["pattern"],
+            },
+        },
+    },
+    # === TESTING ===
+    {
+        "type": "function",
+        "function": {
+            "name": "run_tests",
+            "description": "Auto-detect test framework and run tests in a directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Project root directory."},
+                    "framework": {"type": "string", "description": "Force framework: pytest, jest, go, cargo, unittest, mocha."},
+                    "pattern": {"type": "string", "description": "File/test name pattern filter."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "parse_test_output",
+            "description": "Parse test output into structured results (passed, failed, skipped, errors).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "output": {"type": "string", "description": "Raw test output text."},
+                },
+                "required": ["output"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_test_stub",
+            "description": "Generate a test file skeleton for a source file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source_file": {"type": "string", "description": "Path to the source file to generate tests for."},
+                    "framework": {"type": "string", "description": "Test framework: pytest, jest, go."},
+                },
+                "required": ["source_file"],
+            },
+        },
+    },
+    # === LINTING ===
+    {
+        "type": "function",
+        "function": {
+            "name": "format_code",
+            "description": "Run code formatter on a file (black, prettier, gofmt, rustfmt).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "File to format."},
+                    "formatter": {"type": "string", "description": "Force formatter: black, prettier, gofmt, rustfmt."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "lint_check",
+            "description": "Run linter on a file (ruff, eslint, go vet, clippy).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "File to lint."},
+                    "linter": {"type": "string", "description": "Force linter: ruff, eslint, go, clippy."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "auto_fix_lint",
+            "description": "Run linter with auto-fix on a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "File to auto-fix."},
+                    "linter": {"type": "string", "description": "Linter to use: ruff, eslint, go, clippy."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    # === PACKAGES ===
+    {
+        "type": "function",
+        "function": {
+            "name": "list_dependencies",
+            "description": "List project dependencies (pip, npm, cargo, go).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Project root directory."},
+                    "ecosystem": {"type": "string", "description": "Force ecosystem: python, node, rust, go."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_outdated",
+            "description": "Check for outdated dependencies.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Project root directory."},
+                    "ecosystem": {"type": "string", "description": "Force ecosystem: python, node, rust, go."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "audit_dependencies",
+            "description": "Audit dependencies for known security vulnerabilities.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Project root directory."},
+                    "ecosystem": {"type": "string", "description": "Force ecosystem: python, node."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    # === DOCKER ===
+    {
+        "type": "function",
+        "function": {
+            "name": "docker_ps",
+            "description": "List Docker containers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "all_containers": {"type": "boolean", "description": "Show all containers including stopped ones."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "docker_build",
+            "description": "Build a Docker image from a Dockerfile.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Build context directory."},
+                    "tag": {"type": "string", "description": "Image tag (e.g. myapp:latest)."},
+                    "dockerfile": {"type": "string", "description": "Path to Dockerfile (default: Dockerfile)."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "docker_compose_up",
+            "description": "Start Docker Compose services.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Directory containing docker-compose.yml."},
+                    "detach": {"type": "boolean", "description": "Run in background (default true)."},
+                    "services": {"type": "string", "description": "Specific services to start (space-separated)."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "docker_compose_down",
+            "description": "Stop Docker Compose services.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Directory containing docker-compose.yml."},
+                    "remove_volumes": {"type": "boolean", "description": "Also remove volumes (default false)."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    # === LOGGING ===
+    {
+        "type": "function",
+        "function": {
+            "name": "parse_log",
+            "description": "Parse a log file with optional level and pattern filtering.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to log file."},
+                    "level": {"type": "string", "description": "Filter by level: ERROR, WARN, INFO, DEBUG."},
+                    "pattern": {"type": "string", "description": "Regex pattern to filter lines."},
+                    "last_n": {"type": "integer", "description": "Return only the last N matching lines."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "tail_file",
+            "description": "Return the last N lines of a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "File to tail."},
+                    "lines": {"type": "integer", "description": "Number of lines (default 20, max 500)."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_logs",
+            "description": "Search for a pattern across all log files in a directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Directory to search."},
+                    "pattern": {"type": "string", "description": "Regex pattern to search."},
+                    "extensions": {"type": "string", "description": "File extensions to search (comma-separated, default: .log,.txt)."},
+                    "max_results": {"type": "integer", "description": "Max matching lines to return (default 50)."},
+                },
+                "required": ["directory", "pattern"],
+            },
+        },
+    },
+    # === CRYPTO ===
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_token",
+            "description": "Generate a cryptographically secure random token or password.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "length": {"type": "integer", "description": "Token length (default 32)."},
+                    "charset": {"type": "string", "description": "Type: hex, alphanumeric, base64, urlsafe, digits, password."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "hash_string",
+            "description": "Hash a string with a given algorithm.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Text to hash."},
+                    "algorithm": {"type": "string", "description": "Algorithm: sha256, sha512, sha1, md5, blake2b."},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "base64_codec",
+            "description": "Encode or decode base64 text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Text to encode or decode."},
+                    "operation": {"type": "string", "description": "'encode' or 'decode' (default encode)."},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "checksum_file",
+            "description": "Compute the checksum of a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to file."},
+                    "algorithm": {"type": "string", "description": "Algorithm: sha256, sha512, sha1, md5, blake2b."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    # === METRICS ===
+    {
+        "type": "function",
+        "function": {
+            "name": "count_lines",
+            "description": "Count lines of code by language in a directory (code, blank, comment breakdown).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Root directory to scan."},
+                    "include": {"type": "string", "description": "Comma-separated extensions to include (e.g. '.py,.js')."},
+                    "exclude_dirs": {"type": "string", "description": "Comma-separated directories to skip."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "code_complexity",
+            "description": "Calculate cyclomatic complexity for a Python file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to Python file."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "file_type_stats",
+            "description": "Show file extension distribution in a directory (count and size).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Directory to analyze."},
+                },
+                "required": ["directory"],
+            },
+        },
+    },
+    # === MATH ===
+    {
+        "type": "function",
+        "function": {
+            "name": "evaluate_expr",
+            "description": "Safely evaluate a math expression (supports +,-,*,/,**,sqrt,sin,cos,log,etc.).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Math expression to evaluate."},
+                },
+                "required": ["expression"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "convert_units",
+            "description": "Convert between units (length, weight, data, time, volume, temperature).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "value": {"type": "number", "description": "Numeric value to convert."},
+                    "from_unit": {"type": "string", "description": "Source unit (e.g. 'km', 'lb', 'gb', 'C')."},
+                    "to_unit": {"type": "string", "description": "Target unit (e.g. 'mi', 'kg', 'mb', 'F')."},
+                },
+                "required": ["value", "from_unit", "to_unit"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "number_base",
+            "description": "Convert a number between bases (2-36, or aliases: bin, oct, dec, hex).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "number": {"type": "string", "description": "Number string (e.g. '255', '0xff', '0b1010')."},
+                    "from_base": {"type": "string", "description": "Source base: 2-36 or bin/oct/dec/hex."},
+                    "to_base": {"type": "string", "description": "Target base: 2-36 or bin/oct/dec/hex."},
+                },
+                "required": ["number", "from_base", "to_base"],
+            },
+        },
+    },
+    # === DATETIME ===
+    {
+        "type": "function",
+        "function": {
+            "name": "now_tz",
+            "description": "Get current date and time in any timezone.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tz": {"type": "string", "description": "Timezone: UTC, EST, PST, JST, IST, CET, or offset like '+5'."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "date_diff",
+            "description": "Calculate the difference between two dates.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date1": {"type": "string", "description": "First date (YYYY-MM-DD or 'today')."},
+                    "date2": {"type": "string", "description": "Second date (YYYY-MM-DD or 'today'). Defaults to today."},
+                },
+                "required": ["date1"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "parse_cron",
+            "description": "Explain a cron expression in plain English.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "expression": {"type": "string", "description": "Cron expression (e.g. '*/5 * * * *')."},
+                },
+                "required": ["expression"],
             },
         },
     },
