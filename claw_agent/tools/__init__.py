@@ -96,6 +96,33 @@ from .hash_tools import compute_hash, encode_decode
 # ---- Clipboard tools (2) ----------------------------------------------------
 from .clipboard_tools import clipboard_copy, clipboard_read
 
+# ---- Image edit tools (4) ---------------------------------------------------
+from .image_edit_tools import resize_image, crop_image, convert_image, create_thumbnail
+
+# ---- PDF tools (2) ----------------------------------------------------------
+from .pdf_tools import read_pdf, pdf_info
+
+# ---- Data tools (3) ---------------------------------------------------------
+from .data_tools import parse_csv, csv_stats, json_query
+
+# ---- Config tools (3) -------------------------------------------------------
+from .config_tools import read_config, write_config, validate_json
+
+# ---- Diff tools (2) ---------------------------------------------------------
+from .diff_tools import file_diff, compare_dirs
+
+# ---- Network tools (3) ------------------------------------------------------
+from .network_tools import ping_host, dns_lookup, check_port
+
+# ---- Text tools (3) ---------------------------------------------------------
+from .text_tools import word_count, markdown_to_html, render_template
+
+# ---- Database tools (2) -----------------------------------------------------
+from .db_tools import sqlite_query, sqlite_schema
+
+# ---- Regex tools (2) --------------------------------------------------------
+from .regex_tools import test_regex, explain_regex
+
 # ---- Registry ----------------------------------------------------------------
 
 TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
@@ -197,6 +224,39 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     # Clipboard (2)
     "clipboard_copy": clipboard_copy,
     "clipboard_read": clipboard_read,
+    # Image editing (4)
+    "resize_image": resize_image,
+    "crop_image": crop_image,
+    "convert_image": convert_image,
+    "create_thumbnail": create_thumbnail,
+    # PDF (2)
+    "read_pdf": read_pdf,
+    "pdf_info": pdf_info,
+    # Data (3)
+    "parse_csv": parse_csv,
+    "csv_stats": csv_stats,
+    "json_query": json_query,
+    # Config (3)
+    "read_config": read_config,
+    "write_config": write_config,
+    "validate_json": validate_json,
+    # Diff (2)
+    "file_diff": file_diff,
+    "compare_dirs": compare_dirs,
+    # Network (3)
+    "ping_host": ping_host,
+    "dns_lookup": dns_lookup,
+    "check_port": check_port,
+    # Text (3)
+    "word_count": word_count,
+    "markdown_to_html": markdown_to_html,
+    "render_template": render_template,
+    # Database (2)
+    "sqlite_query": sqlite_query,
+    "sqlite_schema": sqlite_schema,
+    # Regex (2)
+    "test_regex": test_regex,
+    "explain_regex": explain_regex,
 }
 
 # ---- Ollama tool definitions (OpenAI-compatible) ----------------------------
@@ -1270,6 +1330,384 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "name": "clipboard_read",
             "description": "Read current contents of system clipboard.",
             "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    # === IMAGE EDITING ===
+    {
+        "type": "function",
+        "function": {
+            "name": "resize_image",
+            "description": "Resize an image to specified dimensions, preserving aspect ratio.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the image file."},
+                    "width": {"type": "integer", "description": "Target width in pixels."},
+                    "height": {"type": "integer", "description": "Target height in pixels (0 = auto)."},
+                    "output": {"type": "string", "description": "Output path (default: overwrite)."},
+                },
+                "required": ["file_path", "width"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "crop_image",
+            "description": "Crop an image to a bounding box (left, top, right, bottom).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the image file."},
+                    "left": {"type": "integer", "description": "Left pixel coordinate."},
+                    "top": {"type": "integer", "description": "Top pixel coordinate."},
+                    "right": {"type": "integer", "description": "Right pixel coordinate."},
+                    "bottom": {"type": "integer", "description": "Bottom pixel coordinate."},
+                    "output": {"type": "string", "description": "Output path."},
+                },
+                "required": ["file_path", "left", "top", "right", "bottom"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "convert_image",
+            "description": "Convert image to another format (png, jpg, webp, bmp, gif, tiff).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the image file."},
+                    "format": {"type": "string", "description": "Target format: png, jpg, webp, bmp, gif, tiff."},
+                    "output": {"type": "string", "description": "Output path."},
+                },
+                "required": ["file_path", "format"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_thumbnail",
+            "description": "Create a square thumbnail of an image.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the image file."},
+                    "size": {"type": "integer", "description": "Thumbnail size in pixels (default 128)."},
+                    "output": {"type": "string", "description": "Output path."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    # === PDF ===
+    {
+        "type": "function",
+        "function": {
+            "name": "read_pdf",
+            "description": "Extract text from a PDF file, optionally specific pages.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the PDF file."},
+                    "pages": {"type": "string", "description": "Page range, e.g. '1-3' or '1,3,5' (default: all)."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "pdf_info",
+            "description": "Get PDF metadata: page count, author, title, file size.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the PDF file."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    # === DATA ===
+    {
+        "type": "function",
+        "function": {
+            "name": "parse_csv",
+            "description": "Parse and display a CSV/TSV file in a readable table format.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the CSV file."},
+                    "limit": {"type": "integer", "description": "Max rows to display (default 50)."},
+                    "delimiter": {"type": "string", "description": "Delimiter character (default ','). Use '\\t' for TSV."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "csv_stats",
+            "description": "Compute statistics (count, mean, median, stdev, min, max) for a CSV column.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the CSV file."},
+                    "column": {"type": "string", "description": "Column name to analyze."},
+                },
+                "required": ["file_path", "column"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "json_query",
+            "description": "Read and query JSON data using dot-notation paths (e.g. 'data.items.0.name').",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path_or_text": {"type": "string", "description": "Path to a JSON file or inline JSON text."},
+                    "query": {"type": "string", "description": "Dot-notation query path (optional)."},
+                },
+                "required": ["file_path_or_text"],
+            },
+        },
+    },
+    # === CONFIG ===
+    {
+        "type": "function",
+        "function": {
+            "name": "read_config",
+            "description": "Read a config file (JSON, YAML, TOML, INI, .env) and return its contents.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the config file."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_config",
+            "description": "Set a value in a JSON config file using dot-notation key path.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the JSON config file."},
+                    "key": {"type": "string", "description": "Dot-notation key path (e.g. 'server.port')."},
+                    "value": {"type": "string", "description": "Value to set (auto-detects type)."},
+                },
+                "required": ["file_path", "key", "value"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "validate_json",
+            "description": "Validate JSON syntax, optionally against a JSON Schema.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text_or_file": {"type": "string", "description": "JSON text or path to a JSON file."},
+                    "schema": {"type": "string", "description": "Optional JSON Schema to validate against."},
+                },
+                "required": ["text_or_file"],
+            },
+        },
+    },
+    # === DIFF ===
+    {
+        "type": "function",
+        "function": {
+            "name": "file_diff",
+            "description": "Show unified diff between two files.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_a": {"type": "string", "description": "Path to the first file."},
+                    "file_b": {"type": "string", "description": "Path to the second file."},
+                    "context_lines": {"type": "integer", "description": "Lines of context (default 3)."},
+                },
+                "required": ["file_a", "file_b"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compare_dirs",
+            "description": "Compare two directories recursively, showing files unique to each and differing.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "dir_a": {"type": "string", "description": "Path to the first directory."},
+                    "dir_b": {"type": "string", "description": "Path to the second directory."},
+                    "extensions": {"type": "string", "description": "Comma-separated file extensions to filter (e.g. '.py,.js')."},
+                },
+                "required": ["dir_a", "dir_b"],
+            },
+        },
+    },
+    # === NETWORK ===
+    {
+        "type": "function",
+        "function": {
+            "name": "ping_host",
+            "description": "Ping a host and return latency statistics.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "host": {"type": "string", "description": "Hostname or IP address."},
+                    "count": {"type": "integer", "description": "Number of pings (default 4, max 20)."},
+                },
+                "required": ["host"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "dns_lookup",
+            "description": "Look up DNS records for a hostname.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hostname": {"type": "string", "description": "Domain name to look up."},
+                    "record_type": {"type": "string", "description": "Record type: A, AAAA, MX, TXT, NS, CNAME (default A)."},
+                },
+                "required": ["hostname"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_port",
+            "description": "Check if a TCP port is open on a host, with optional banner grab.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "host": {"type": "string", "description": "Hostname or IP address."},
+                    "port": {"type": "integer", "description": "Port number to check."},
+                    "timeout": {"type": "number", "description": "Timeout in seconds (default 5)."},
+                },
+                "required": ["host", "port"],
+            },
+        },
+    },
+    # === TEXT ===
+    {
+        "type": "function",
+        "function": {
+            "name": "word_count",
+            "description": "Count words, lines, characters, sentences, and paragraphs in text or a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text_or_file": {"type": "string", "description": "Text content or path to a file."},
+                },
+                "required": ["text_or_file"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "markdown_to_html",
+            "description": "Convert Markdown text to HTML.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "markdown_text": {"type": "string", "description": "Markdown content to convert."},
+                },
+                "required": ["markdown_text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "render_template",
+            "description": "Render a Python format-string template with variables.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template": {"type": "string", "description": "Template string with {variable} placeholders."},
+                    "variables": {"type": "string", "description": "JSON object of variable name→value pairs."},
+                },
+                "required": ["template", "variables"],
+            },
+        },
+    },
+    # === DATABASE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "sqlite_query",
+            "description": "Execute a SQL query on a SQLite database file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "db_path": {"type": "string", "description": "Path to the SQLite database file."},
+                    "query": {"type": "string", "description": "SQL query to execute."},
+                    "params": {"type": "string", "description": "JSON array of query parameters for ? placeholders."},
+                },
+                "required": ["db_path", "query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sqlite_schema",
+            "description": "Show the schema of all tables in a SQLite database.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "db_path": {"type": "string", "description": "Path to the SQLite database file."},
+                },
+                "required": ["db_path"],
+            },
+        },
+    },
+    # === REGEX ===
+    {
+        "type": "function",
+        "function": {
+            "name": "test_regex",
+            "description": "Test a regex pattern against text, showing all matches with positions and groups.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string", "description": "Regular expression pattern."},
+                    "text": {"type": "string", "description": "Text to match against."},
+                    "flags": {"type": "string", "description": "Regex flags: i=ignorecase, m=multiline, s=dotall, x=verbose."},
+                },
+                "required": ["pattern", "text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "explain_regex",
+            "description": "Explain a regex pattern in human-readable terms.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string", "description": "Regular expression pattern to explain."},
+                },
+                "required": ["pattern"],
+            },
         },
     },
 ]
