@@ -150,6 +150,33 @@ from .math_tools import evaluate_expr, convert_units, number_base
 # ---- Datetime tools (3) -----------------------------------------------------
 from .datetime_tools import now_tz, date_diff, parse_cron
 
+# ---- Scaffold tools (3) -----------------------------------------------------
+from .scaffold_tools import init_project, add_gitignore, add_license
+
+# ---- Doc tools (3) ----------------------------------------------------------
+from .doc_tools import extract_signatures, generate_docstring, generate_readme
+
+# ---- Profile tools (3) ------------------------------------------------------
+from .profile_tools import time_command, memory_usage, benchmark
+
+# ---- Validation tools (3) ---------------------------------------------------
+from .validation_tools import validate_json_schema, validate_yaml, check_url
+
+# ---- Template tools (3) -----------------------------------------------------
+from .template_tools import tpl_render, tpl_list_vars, tpl_render_file
+
+# ---- Snippet tools (3) ------------------------------------------------------
+from .snippet_tools import save_snippet, load_snippet, search_snippets
+
+# ---- Backup tools (3) -------------------------------------------------------
+from .backup_tools import backup_file, restore_backup, list_backups
+
+# ---- SQL tools (3) ----------------------------------------------------------
+from .sql_tools import sql_run, sql_tables, csv_to_sqlite
+
+# ---- API mock tools (3) -----------------------------------------------------
+from .api_mock_tools import mock_endpoint, mock_server, stop_mock
+
 # ---- Registry ----------------------------------------------------------------
 
 TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
@@ -322,6 +349,42 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     "now_tz": now_tz,
     "date_diff": date_diff,
     "parse_cron": parse_cron,
+    # Scaffold (3)
+    "init_project": init_project,
+    "add_gitignore": add_gitignore,
+    "add_license": add_license,
+    # Doc (3)
+    "extract_signatures": extract_signatures,
+    "generate_docstring": generate_docstring,
+    "generate_readme": generate_readme,
+    # Profile (3)
+    "time_command": time_command,
+    "memory_usage": memory_usage,
+    "benchmark": benchmark,
+    # Validation (3)
+    "validate_json_schema": validate_json_schema,
+    "validate_yaml": validate_yaml,
+    "check_url": check_url,
+    # Template (3)
+    "tpl_render": tpl_render,
+    "tpl_list_vars": tpl_list_vars,
+    "tpl_render_file": tpl_render_file,
+    # Snippet (3)
+    "save_snippet": save_snippet,
+    "load_snippet": load_snippet,
+    "search_snippets": search_snippets,
+    # Backup (3)
+    "backup_file": backup_file,
+    "restore_backup": restore_backup,
+    "list_backups": list_backups,
+    # SQL (3)
+    "sql_run": sql_run,
+    "sql_tables": sql_tables,
+    "csv_to_sqlite": csv_to_sqlite,
+    # API Mock (3)
+    "mock_endpoint": mock_endpoint,
+    "mock_server": mock_server,
+    "stop_mock": stop_mock,
 }
 
 # ---- Ollama tool definitions (OpenAI-compatible) ----------------------------
@@ -2219,6 +2282,416 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "expression": {"type": "string", "description": "Cron expression (e.g. '*/5 * * * *')."},
                 },
                 "required": ["expression"],
+            },
+        },
+    },
+    # === SCAFFOLD ===
+    {
+        "type": "function",
+        "function": {
+            "name": "init_project",
+            "description": "Initialize a project directory with boilerplate files for a given language.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Directory to create the project in."},
+                    "language": {"type": "string", "description": "Language: python, node, go, or rust."},
+                    "name": {"type": "string", "description": "Project name (defaults to directory name)."},
+                },
+                "required": ["path", "language"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_gitignore",
+            "description": "Add a language-appropriate .gitignore to a directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Directory to add .gitignore to."},
+                    "language": {"type": "string", "description": "Language: python, node, go, rust, or general."},
+                },
+                "required": ["path", "language"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_license",
+            "description": "Create a LICENSE file in a directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Directory to add the LICENSE to."},
+                    "license_type": {"type": "string", "description": "License: mit, apache2, or gpl3."},
+                    "author": {"type": "string", "description": "Copyright holder name."},
+                },
+                "required": ["path", "license_type"],
+            },
+        },
+    },
+    # === DOC ===
+    {
+        "type": "function",
+        "function": {
+            "name": "extract_signatures",
+            "description": "Extract all function and class signatures from a Python file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to a .py file."},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_docstring",
+            "description": "Generate docstring templates for undocumented functions in a Python file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to a .py file."},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_readme",
+            "description": "Generate a README.md skeleton from a project directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the project root directory."},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    # === PROFILE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "time_command",
+            "description": "Time a shell command over N runs, returning min/avg/max.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Shell command to time."},
+                    "runs": {"type": "integer", "description": "Number of runs (default 3)."},
+                },
+                "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "memory_usage",
+            "description": "Run a Python script and report peak memory usage via tracemalloc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "script_path": {"type": "string", "description": "Path to the Python script to profile."},
+                },
+                "required": ["script_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "benchmark",
+            "description": "Compare two commands side-by-side with timing results.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cmd_a": {"type": "string", "description": "First command."},
+                    "cmd_b": {"type": "string", "description": "Second command."},
+                    "runs": {"type": "integer", "description": "Number of runs each (default 3)."},
+                },
+                "required": ["cmd_a", "cmd_b"],
+            },
+        },
+    },
+    # === VALIDATION ===
+    {
+        "type": "function",
+        "function": {
+            "name": "validate_json_schema",
+            "description": "Validate a JSON string against a JSON Schema.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "data": {"type": "string", "description": "JSON string to validate."},
+                    "schema": {"type": "string", "description": "JSON Schema string to validate against."},
+                },
+                "required": ["data", "schema"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "validate_yaml",
+            "description": "Validate YAML syntax and optionally check structure.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "YAML string to validate."},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_url",
+            "description": "Check if a URL is reachable and return status code and headers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "URL to check."},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    # === TEMPLATE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "tpl_render",
+            "description": "Render a string template by substituting {{ var }} placeholders.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template": {"type": "string", "description": "Template string with {{ varname }} placeholders."},
+                    "variables": {"type": "string", "description": "JSON dict of variable→value mappings."},
+                },
+                "required": ["template", "variables"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "tpl_list_vars",
+            "description": "Extract all {{ var }} placeholder names from a template string.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template": {"type": "string", "description": "Template string to scan."},
+                },
+                "required": ["template"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "tpl_render_file",
+            "description": "Read a template file, substitute variables, and optionally write result.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "template_path": {"type": "string", "description": "Path to the template file."},
+                    "variables": {"type": "string", "description": "JSON dict of variable→value mappings."},
+                    "output_path": {"type": "string", "description": "Optional output path to write rendered result."},
+                },
+                "required": ["template_path", "variables"],
+            },
+        },
+    },
+    # === SNIPPET ===
+    {
+        "type": "function",
+        "function": {
+            "name": "save_snippet",
+            "description": "Save a named code snippet for later reuse.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Unique name for the snippet."},
+                    "code": {"type": "string", "description": "The code/text content to save."},
+                    "language": {"type": "string", "description": "Language hint (e.g. python, js)."},
+                    "tags": {"type": "string", "description": "Comma-separated tags."},
+                },
+                "required": ["name", "code"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "load_snippet",
+            "description": "Load a previously saved code snippet by name.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Name of the snippet to load."},
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_snippets",
+            "description": "Search saved snippets by name, tags, or content.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search term to match against names, tags, and content."},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    # === BACKUP ===
+    {
+        "type": "function",
+        "function": {
+            "name": "backup_file",
+            "description": "Create a timestamped backup of a file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Path to the file to back up."},
+                },
+                "required": ["path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "restore_backup",
+            "description": "Restore a file from a named backup.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "backup_name": {"type": "string", "description": "Name of the backup file (from list_backups)."},
+                    "dest": {"type": "string", "description": "Destination path to restore to. Defaults to original location."},
+                },
+                "required": ["backup_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_backups",
+            "description": "List available backups, optionally filtered by filename.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filter_name": {"type": "string", "description": "Optional substring to filter backup names."},
+                },
+                "required": [],
+            },
+        },
+    },
+    # === SQL ===
+    {
+        "type": "function",
+        "function": {
+            "name": "sql_run",
+            "description": "Execute a SQL query on a SQLite database, returning formatted results.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "db_path": {"type": "string", "description": "Path to the SQLite database file."},
+                    "sql": {"type": "string", "description": "SQL query to execute."},
+                },
+                "required": ["db_path", "sql"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "sql_tables",
+            "description": "Show tables, columns, types, and row counts for a SQLite database.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "db_path": {"type": "string", "description": "Path to the SQLite database file."},
+                },
+                "required": ["db_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "csv_to_sqlite",
+            "description": "Import a CSV file into a SQLite table.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "csv_path": {"type": "string", "description": "Path to the CSV file."},
+                    "db_path": {"type": "string", "description": "Path to the SQLite database (created if needed)."},
+                    "table": {"type": "string", "description": "Table name (defaults to CSV filename)."},
+                },
+                "required": ["csv_path", "db_path"],
+            },
+        },
+    },
+    # === API MOCK ===
+    {
+        "type": "function",
+        "function": {
+            "name": "mock_endpoint",
+            "description": "Register a mock HTTP endpoint with a canned response.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "URL path to mock (e.g. /api/users)."},
+                    "method": {"type": "string", "description": "HTTP method: GET, POST, PUT, DELETE (default GET)."},
+                    "status": {"type": "integer", "description": "HTTP status code (default 200)."},
+                    "body": {"type": "string", "description": "Response body string."},
+                    "content_type": {"type": "string", "description": "Content-Type header (default application/json)."},
+                },
+                "required": ["path", "body"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mock_server",
+            "description": "Start a mock HTTP server with all registered endpoints.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "port": {"type": "integer", "description": "Port to listen on (default 8089)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "stop_mock",
+            "description": "Stop a running mock HTTP server.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "port": {"type": "integer", "description": "Port of the server to stop (default 8089)."},
+                },
+                "required": [],
             },
         },
     },
