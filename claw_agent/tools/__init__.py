@@ -37,6 +37,35 @@ from .context_tools import get_workspace_context, git_diff, git_log
 # ---- Utility tools (5 — ported from Rust + new) ----------------------------
 from .utility_tools import sleep_tool, config_get, config_set, powershell, ask_user, tool_search
 
+# ---- Memory tools (1 unified) ------------------------------------------------
+from .memory_tools import memory
+
+# ---- Image tools (2) --------------------------------------------------------
+from .image_tools import view_image, list_images
+
+# ---- Semantic search tools (1) -----------------------------------------------
+from .semantic_search_tools import semantic_search
+
+# ---- Diagnostic tools (2) ----------------------------------------------------
+from .diagnostic_tools import get_errors, check_syntax
+
+# ---- Terminal tools (5) ------------------------------------------------------
+from .terminal_tools import (
+    terminal_run_async, terminal_get_output, terminal_send,
+    terminal_kill, terminal_list,
+)
+
+# ---- Git tools (5) -----------------------------------------------------------
+from .git_tools import (
+    get_changed_files, git_stash, git_branch, git_blame, git_show_commit,
+)
+
+# ---- Browser tools (2) ------------------------------------------------------
+from .browser_tools import open_browser, open_file_in_browser
+
+# ---- Diagram tools (2) ------------------------------------------------------
+from .diagram_tools import render_mermaid, mermaid_template
+
 # ---- MCP resource tools (2) -------------------------------------------------
 from ..mcp import read_mcp_resource, list_mcp_resources
 
@@ -87,6 +116,34 @@ TOOL_REGISTRY: dict[str, Callable[..., Any]] = {
     # MCP resources (2)
     "read_mcp_resource": read_mcp_resource,
     "list_mcp_resources": list_mcp_resources,
+    # Memory (1)
+    "memory": memory,
+    # Image (2)
+    "view_image": view_image,
+    "list_images": list_images,
+    # Semantic search (1)
+    "semantic_search": semantic_search,
+    # Diagnostics (2)
+    "get_errors": get_errors,
+    "check_syntax": check_syntax,
+    # Terminal (5)
+    "terminal_run_async": terminal_run_async,
+    "terminal_get_output": terminal_get_output,
+    "terminal_send": terminal_send,
+    "terminal_kill": terminal_kill,
+    "terminal_list": terminal_list,
+    # Git (5)
+    "get_changed_files": get_changed_files,
+    "git_stash": git_stash,
+    "git_branch": git_branch,
+    "git_blame": git_blame,
+    "git_show_commit": git_show_commit,
+    # Browser (2)
+    "open_browser": open_browser,
+    "open_file_in_browser": open_file_in_browser,
+    # Diagrams (2)
+    "render_mermaid": render_mermaid,
+    "mermaid_template": mermaid_template,
 }
 
 # ---- Ollama tool definitions (OpenAI-compatible) ----------------------------
@@ -578,6 +635,314 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "resource_uri": {"type": "string", "description": "URI of the resource (e.g. 'file:///path/to/doc')."},
                 },
                 "required": ["server_name", "resource_uri"],
+            },
+        },
+    },
+    # === MEMORY ===
+    {
+        "type": "function",
+        "function": {
+            "name": "memory",
+            "description": "Persistent memory system. Commands: view, create, str_replace, insert, delete, rename. Scopes: /memories/ (user), /memories/session/ (conversation), /memories/repo/ (project).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Operation: view|create|str_replace|insert|delete|rename."},
+                    "path": {"type": "string", "description": "Path under /memories/ e.g. '/memories/notes.md'."},
+                    "content": {"type": "string", "description": "For create: file content. For str_replace: (use old_str/new_str)."},
+                    "old_str": {"type": "string", "description": "For str_replace: exact string to replace."},
+                    "new_str": {"type": "string", "description": "For str_replace: replacement string."},
+                    "line": {"type": "integer", "description": "For insert: 0-based line number."},
+                    "text": {"type": "string", "description": "For insert: text to insert."},
+                    "new_path": {"type": "string", "description": "For rename: new path."},
+                },
+                "required": ["command"],
+            },
+        },
+    },
+    # === IMAGE ===
+    {
+        "type": "function",
+        "function": {
+            "name": "view_image",
+            "description": "View image file metadata and content (PNG, JPG, GIF, WebP, SVG). Returns dimensions, size, format, and base64 data.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the image file."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_images",
+            "description": "List all image files in a directory recursively.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Directory to scan."},
+                },
+                "required": [],
+            },
+        },
+    },
+    # === SEMANTIC SEARCH ===
+    {
+        "type": "function",
+        "function": {
+            "name": "semantic_search",
+            "description": "Natural language search across codebase using TF-IDF. Finds relevant code by keyword similarity.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Natural language search query."},
+                    "directory": {"type": "string", "description": "Root directory to search."},
+                    "max_results": {"type": "integer", "description": "Max results to return (default 10)."},
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    # === DIAGNOSTICS ===
+    {
+        "type": "function",
+        "function": {
+            "name": "get_errors",
+            "description": "Get compile/lint errors for files. Supports Python (py_compile+flake8), JS/TS (node --check), JSON.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_paths": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of file paths to check.",
+                    },
+                    "workspace": {"type": "string", "description": "Workspace root directory."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_syntax",
+            "description": "Check syntax of a single file (Python, JSON, JS/TS).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to the file to check."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    # === TERMINAL (async persistent sessions) ===
+    {
+        "type": "function",
+        "function": {
+            "name": "terminal_run_async",
+            "description": "Start a long-running command in a persistent background terminal session. Returns a session ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Command to run."},
+                    "cwd": {"type": "string", "description": "Working directory."},
+                },
+                "required": ["command"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "terminal_get_output",
+            "description": "Get collected output from a persistent terminal session.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Session ID returned by terminal_run_async."},
+                },
+                "required": ["session_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "terminal_send",
+            "description": "Send input text to a running terminal session's stdin.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Session ID."},
+                    "text": {"type": "string", "description": "Text to send (newline appended automatically)."},
+                },
+                "required": ["session_id", "text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "terminal_kill",
+            "description": "Kill a persistent terminal session.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string", "description": "Session ID."},
+                },
+                "required": ["session_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "terminal_list",
+            "description": "List all active persistent terminal sessions.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    # === GIT (enhanced) ===
+    {
+        "type": "function",
+        "function": {
+            "name": "get_changed_files",
+            "description": "Get all changed files in a git repo: staged, unstaged, untracked, and merge conflicts.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cwd": {"type": "string", "description": "Repository directory."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_stash",
+            "description": "Git stash operations: list, push, pop, apply, drop.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "Action: list|push|pop|apply|drop."},
+                    "message": {"type": "string", "description": "Stash message (for push)."},
+                    "cwd": {"type": "string", "description": "Repository directory."},
+                },
+                "required": ["action"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_branch",
+            "description": "Git branch operations: list, create, switch, delete, current.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "description": "Action: list|create|switch|delete|current."},
+                    "name": {"type": "string", "description": "Branch name (for create/switch/delete)."},
+                    "cwd": {"type": "string", "description": "Repository directory."},
+                },
+                "required": ["action"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_blame",
+            "description": "Show git blame for a file or line range.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "File to blame."},
+                    "start_line": {"type": "integer", "description": "Start line (optional)."},
+                    "end_line": {"type": "integer", "description": "End line (optional)."},
+                    "cwd": {"type": "string", "description": "Repository directory."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "git_show_commit",
+            "description": "Show details of a specific commit (message, diff, author, date).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ref": {"type": "string", "description": "Commit hash or ref (HEAD, branch name)."},
+                    "cwd": {"type": "string", "description": "Repository directory."},
+                },
+                "required": [],
+            },
+        },
+    },
+    # === BROWSER ===
+    {
+        "type": "function",
+        "function": {
+            "name": "open_browser",
+            "description": "Open a URL in the default web browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "URL to open (auto-prepends https:// if no scheme)."},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "open_file_in_browser",
+            "description": "Open a local file (HTML, SVG, PDF) in the default browser.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to local file."},
+                },
+                "required": ["file_path"],
+            },
+        },
+    },
+    # === DIAGRAMS ===
+    {
+        "type": "function",
+        "function": {
+            "name": "render_mermaid",
+            "description": "Render a Mermaid diagram to an image file (SVG/PNG/PDF). Falls back to raw code if mmdc not installed.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "code": {"type": "string", "description": "Mermaid diagram code."},
+                    "output_path": {"type": "string", "description": "Output file path."},
+                    "format": {"type": "string", "description": "Output format: svg|png|pdf (default svg)."},
+                },
+                "required": ["code"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "mermaid_template",
+            "description": "Get a Mermaid diagram template. Types: flowchart, sequence, class, state, er, gantt.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "diagram_type": {"type": "string", "description": "Template type: flowchart|sequence|class|state|er|gantt."},
+                },
+                "required": ["diagram_type"],
             },
         },
     },
