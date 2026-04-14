@@ -65,8 +65,48 @@ def check_ollama() -> bool:
         return False
 
 
+def _get_runtime_mode() -> dict[str, str]:
+    """Return the active runtime/provider mode for UI and diagnostics."""
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+    from .ll_council import DEFAULT_COUNCIL_MODELS
+
+    has_dashscope = bool(os.environ.get("DASHSCOPE_API_KEY", ""))
+
+    if USE_COUNCIL and OPENROUTER_API_KEY:
+        provider = "OpenRouter + Alibaba" if has_dashscope else "OpenRouter"
+        return {
+            "kind": "council",
+            "icon": "🏛️",
+            "label": "Council",
+            "detail": f"{len(DEFAULT_COUNCIL_MODELS)} models via {provider}",
+        }
+    if OPENROUTER_API_KEY:
+        return {
+            "kind": "openrouter",
+            "icon": "☁️",
+            "label": "Cloud",
+            "detail": "OpenRouter API",
+        }
+    if DEEPSEEK_API_KEY:
+        return {
+            "kind": "deepseek",
+            "icon": "☁️",
+            "label": "Cloud",
+            "detail": "DeepSeek API",
+        }
+    return {
+        "kind": "local",
+        "icon": "💻",
+        "label": "Local",
+        "detail": "Ollama",
+    }
+
+
 def list_models() -> list[str]:
     import httpx
+    from .agent import DEFAULT_MODEL
+    from .ll_council import DEFAULT_COUNCIL_MODELS
+
     # Get local Ollama models
     local_models = []
     try:
@@ -75,18 +115,21 @@ def list_models() -> list[str]:
         local_models = [m["name"] for m in r.json().get("models", [])]
     except Exception:
         pass
-    
-    # FIX: Add cloud/OpenRouter models when in cloud mode
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
-    from .ll_council import DEFAULT_COUNCIL_MODELS
-    
+
+    mode = _get_runtime_mode()
     cloud_models = []
-    if USE_COUNCIL and OPENROUTER_API_KEY:
+    if mode["kind"] == "council":
         cloud_models = DEFAULT_COUNCIL_MODELS
-    elif DEEPSEEK_API_KEY:
-        cloud_models = ["deepseek-reasoner", "deepseek-chat", "deepseek-coder"]
-    
-    return local_models + cloud_models
+    elif mode["kind"] == "openrouter":
+        cloud_models = [
+            DEFAULT_MODEL,
+            "openai/gpt-4o-mini",
+            "anthropic/claude-3-haiku-20240307",
+        ]
+    elif mode["kind"] == "deepseek":
+        cloud_models = [DEFAULT_MODEL, "deepseek-reasoner", "deepseek-chat", "deepseek-coder"]
+
+    return list(dict.fromkeys(local_models + cloud_models))
 
 
 def pick_model(models: list[str]) -> str:
@@ -188,21 +231,12 @@ def print_banner(model: str, models: list[str]):
     cwd = os.getcwd()
 
     # Detect mode type
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
-    is_council = USE_COUNCIL and OPENROUTER_API_KEY
-    is_cloud = bool(DEEPSEEK_API_KEY) and not is_council
-    
-    if is_council:
-        mode_icon = "🏛️"
-        mode_text = "Council"
-        model_display = f"{len(models)} models via OpenRouter"
-    elif is_cloud:
-        mode_icon = "☁️"
-        mode_text = "Cloud"
-        model_display = model
+    mode = _get_runtime_mode()
+    mode_icon = mode["icon"]
+    mode_text = mode["label"]
+    if mode["kind"] == "council":
+        model_display = mode["detail"]
     else:
-        mode_icon = "💻"
-        mode_text = "Local"
         model_display = model
 
     console.print()
@@ -249,13 +283,8 @@ def print_help():
     console.print()
 
     # Detect active mode for footer
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
-    if USE_COUNCIL and OPENROUTER_API_KEY:
-        mode_footer = "🏛️ Council Mode (14 models via OpenRouter + Alibaba)"
-    elif DEEPSEEK_API_KEY:
-        mode_footer = "☁️ Cloud Mode (DeepSeek API)"
-    else:
-        mode_footer = "💻 Local Mode (Ollama)"
+    mode = _get_runtime_mode()
+    mode_footer = f"{mode['icon']} {mode['label']} Mode ({mode['detail']})"
 
     def _section(title: str, icon: str, items: list[tuple[str, str]]):
         console.print(f"  [bold cyan]{icon} [bold]{title}[/bold][/bold cyan]")
@@ -337,13 +366,8 @@ def print_help():
         ("/quit", "Exit (also /exit, /q)"),
     ])
     
-    mode_note = ""
-    if USE_COUNCIL and OPENROUTER_API_KEY:
-        mode_note = "🏛️ Council Mode (14 models via OpenRouter + Alibaba)"
-    elif DEEPSEEK_API_KEY:
-        mode_note = "☁️ Cloud Mode (DeepSeek API)"
-    else:
-        mode_note = "💻 Local Mode (Ollama)"
+    mode = _get_runtime_mode()
+    mode_note = f"{mode['icon']} {mode['label']} Mode ({mode['detail']})"
     console.print(f"  [dim]Active: {mode_note}[/dim]")
     console.print()
 
@@ -659,19 +683,23 @@ def cmd_version():
 
 def cmd_doctor():
     """Diagnose connectivity, tools, and model availability."""
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
-    
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, get_runtime_provider_mode
+
     console.print()
     console.print("[bold]Running diagnostics...[/bold]\n")
     checks = []
+    mode = get_runtime_provider_mode()
 
     # 1. Python
     checks.append(("Python", True, sys.version.split()[0]))
 
-    # 2. OpenRouter Council
+    # 2. Cloud provider configuration
     if USE_COUNCIL and OPENROUTER_API_KEY:
         from .ll_council import DEFAULT_COUNCIL_MODELS
-        checks.append(("OpenRouter Council", True, f"✓ {len(DEFAULT_COUNCIL_MODELS)} models configured"))
+        provider_note = "OpenRouter + Alibaba" if os.environ.get("DASHSCOPE_API_KEY") else "OpenRouter"
+        checks.append(("Council Mode", True, f"✓ {len(DEFAULT_COUNCIL_MODELS)} models configured via {provider_note}"))
+    elif OPENROUTER_API_KEY:
+        checks.append(("OpenRouter Direct", True, "✓ API key configured"))
     elif DEEPSEEK_API_KEY:
         checks.append(("DeepSeek Cloud", True, "✓ API key configured"))
     else:
@@ -693,7 +721,11 @@ def cmd_doctor():
 
     # 4. Default model
     if USE_COUNCIL and OPENROUTER_API_KEY:
-        checks.append(("Council Models", True, "8 models via OpenRouter"))
+        from .ll_council import DEFAULT_COUNCIL_MODELS
+        checks.append(("Council Models", True, f"{len(DEFAULT_COUNCIL_MODELS)} combined models available"))
+    elif OPENROUTER_API_KEY:
+        from .agent import DEFAULT_MODEL
+        checks.append(("Default Model", True, f"{DEFAULT_MODEL} via OpenRouter"))
     elif models:
         preferred = "deepseek-v3.1:671b-cloud"
         has_preferred = any(preferred in m for m in models)
@@ -1593,21 +1625,28 @@ def main():
     )
     args = parser.parse_args()
 
-    # Auto-detect: Priority 1) OpenRouter Council 2) DeepSeek 3) Ollama
+    # Auto-detect: Priority 1) OpenRouter Council 2) OpenRouter Direct 3) DeepSeek 4) Ollama
     from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, DEFAULT_MODEL, DEFAULT_BASE_URL
     from .ll_council import DEFAULT_COUNCIL_MODELS
-    
+
     models = []
 
     if USE_COUNCIL and OPENROUTER_API_KEY:
         # Council mode - use OpenRouter with multiple models
         model = args.model or "council"  # Special "council" model triggers council mode
         models = DEFAULT_COUNCIL_MODELS
-        console.print(f"[bold green]✓ Council Mode[/bold green] [dim]({len(models)} models via OpenRouter)[/dim]")
+        provider_note = "OpenRouter + Alibaba" if os.environ.get("DASHSCOPE_API_KEY") else "OpenRouter"
+        console.print(f"[bold green]✓ Council Mode[/bold green] [dim]({len(models)} models via {provider_note})[/dim]")
         console.print(f"[dim]  Models: {', '.join(m.split('/')[-1] for m in models[:4])}...[/dim]")
+    elif OPENROUTER_API_KEY:
+        # Direct OpenRouter mode - no Ollama needed
+        model = args.model or DEFAULT_MODEL
+        models = list_models()
+        console.print("[bold green]✓ Cloud Mode[/bold green] [dim](using OpenRouter API)[/dim]")
     elif DEEPSEEK_API_KEY:
         # Cloud mode - no Ollama needed
         model = args.model or DEFAULT_MODEL
+        models = list_models()
         console.print("[bold green]✓ Cloud Mode[/bold green] [dim](using DeepSeek API)[/dim]")
     else:
         # Local mode - check Ollama

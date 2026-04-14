@@ -21,6 +21,29 @@ from .cost_tracker import CostTracker
 from .hooks import HookRunner
 from .mcp import MCPManager
 
+
+def _build_tools_section() -> str:
+    """Dynamically build the TOOLS section from the live TOOL_REGISTRY."""
+    # Group tools by their source module (e.g. file_tools → File)
+    groups: dict[str, list[str]] = {}
+    for name, fn in TOOL_REGISTRY.items():
+        mod = getattr(fn, "__module__", "") or ""
+        # Extract category from module name: claw_agent.tools.git_tools → Git
+        if "." in mod:
+            mod_short = mod.rsplit(".", 1)[-1]  # "git_tools"
+        else:
+            mod_short = mod
+        label = mod_short.replace("_tools", "").replace("_", " ").title()
+        if not label or label == "Mcp":
+            label = "MCP"
+        groups.setdefault(label, []).append(name)
+    lines = [f"TOOLS ({len(TOOL_REGISTRY)}):"]
+    for label in sorted(groups):
+        tools_str = ", ".join(sorted(groups[label]))
+        lines.append(f"  {label}: {tools_str}")
+    return "\n".join(lines)
+
+
 SYSTEM_PROMPT_TEMPLATE = """\
 You are Claw, an expert autonomous AI coding agent running on model "{model}".
 You have deep expertise in all programming languages, frameworks, databases, DevOps, cloud, \
@@ -30,19 +53,7 @@ When asked what model you are, say you are Claw running on "{model}" {mode_label
 WORKSPACE: {cwd}
 PLATFORM: {platform}
 
-TOOLS (34):
-  File: read_file, write_file, list_directory, find_files
-  Shell: run_command, powershell
-  Search: grep_search
-  Edit: replace_in_file, multi_edit_file, insert_at_line, diff_files
-  Web: web_fetch, web_search
-  Agent: run_subagent, plan_and_execute, enter_plan_mode, exit_plan_mode
-  Tasks: task_create, task_update, task_list, task_get
-  Code: notebook_run
-  Context: get_workspace_context, git_diff, git_log
-  Utility: sleep, config_get, config_set
-  Interaction: ask_user, tool_search
-  MCP: list_mcp_resources, read_mcp_resource
+{tools_section}
 
 SUPERPOWERS — your approach to any task:
 1. EXPLORE first: list_directory, find_files, grep_search, get_workspace_context to map the codebase.
@@ -85,16 +96,53 @@ RESPONSE FORMATTING — always structure your output clearly:
 """
 
 MAX_ITERATIONS = 200
-# Support local Ollama, DeepSeek Cloud API, and OpenRouter Council
+# Support local Ollama, DeepSeek Cloud API, and OpenRouter (direct + Council)
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
 OLLAMA_BASE = "http://localhost:11434"
 
-# Auto-detect: Priority 1) Council 2) DeepSeek 3) Ollama
-USE_COUNCIL = OPENROUTER_API_KEY and not os.environ.get("DISABLE_COUNCIL", "")
-DEFAULT_BASE_URL = DEEPSEEK_API_BASE if DEEPSEEK_API_KEY else OLLAMA_BASE
-DEFAULT_MODEL = "deepseek-reasoner" if DEEPSEEK_API_KEY else "deepseek-v3.1:671b-cloud"
+
+def get_runtime_provider_mode() -> str:
+    """Return the active runtime provider mode.
+
+    Priority:
+    1. OpenRouter council when available and not disabled
+    2. OpenRouter direct when explicitly preferred or council is disabled
+    3. DeepSeek direct
+    4. OpenRouter direct fallback
+    5. Local Ollama
+    """
+    council_disabled = bool(os.environ.get("DISABLE_COUNCIL", ""))
+    prefer_openrouter = bool(os.environ.get("PREFER_OPENROUTER", "") or os.environ.get("OPENROUTER_DIRECT", ""))
+
+    if OPENROUTER_API_KEY and not council_disabled:
+        return "council"
+    if OPENROUTER_API_KEY and (prefer_openrouter or council_disabled):
+        return "openrouter"
+    if DEEPSEEK_API_KEY:
+        return "deepseek"
+    if OPENROUTER_API_KEY:
+        return "openrouter"
+    return "ollama"
+
+
+RUNTIME_PROVIDER_MODE = get_runtime_provider_mode()
+USE_COUNCIL = RUNTIME_PROVIDER_MODE == "council"
+
+if RUNTIME_PROVIDER_MODE == "deepseek":
+    DEFAULT_BASE_URL = DEEPSEEK_API_BASE
+    DEFAULT_MODEL = "deepseek-reasoner"
+    _CLOUD_API_KEY = DEEPSEEK_API_KEY
+elif RUNTIME_PROVIDER_MODE in {"openrouter", "council"}:
+    DEFAULT_BASE_URL = OPENROUTER_API_BASE
+    DEFAULT_MODEL = "deepseek/deepseek-chat-v3-0324:free"
+    _CLOUD_API_KEY = OPENROUTER_API_KEY
+else:
+    DEFAULT_BASE_URL = OLLAMA_BASE
+    DEFAULT_MODEL = "deepseek-v3.1:671b-cloud"
+    _CLOUD_API_KEY = ""
 
 # When total token count exceeds this, auto-compact the conversation
 MAX_CONTEXT_TOKENS = 200_000
@@ -237,10 +285,10 @@ class Agent:
         # Auto-detect: Use DeepSeek API if key is set, otherwise Ollama
         self.model = model or DEFAULT_MODEL
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip("/")
-        # Cloud mode if API key is set AND we're not explicitly pointed at Ollama,
+        # Cloud mode if any API key is set AND we're not explicitly pointed at Ollama,
         # OR if the base_url is a known cloud endpoint
         _is_ollama_url = self.base_url.startswith("http://localhost") or self.base_url.startswith("http://127.0.0.1")
-        self.is_cloud = bool(DEEPSEEK_API_KEY) and not _is_ollama_url
+        self.is_cloud = bool(_CLOUD_API_KEY) and not _is_ollama_url
         self.client = httpx.Client(timeout=300)
         self.permissions = permissions or PermissionContext.default()
         self.session = session or Session(model=self.model)
@@ -260,7 +308,11 @@ class Agent:
         _at._PLAN_MODE_CALLBACK = self
 
         # Determine mode label for system prompt
-        self._mode_label = "via Cloud API" if self.is_cloud else "via local Ollama"
+        if self.is_cloud:
+            _provider = "OpenRouter" if "openrouter" in self.base_url else "DeepSeek"
+            self._mode_label = f"via {_provider} Cloud API"
+        else:
+            self._mode_label = "via local Ollama"
 
         # H4: Load and apply .claw project config
         claw_config = _load_claw_config()
@@ -292,7 +344,8 @@ class Agent:
             cwd=os.getcwd(),
             model=self.model,
             platform=sys.platform,
-            mode_label=self._mode_label
+            mode_label=self._mode_label,
+            tools_section=_build_tools_section(),
         )
         if project_ctx:
             system_content += "\n\nPROJECT CONTEXT (loaded from workspace files):" + project_ctx
@@ -476,7 +529,7 @@ class Agent:
 
             # --- Streaming request to API ---
             if self.is_cloud:
-                # DeepSeek Cloud API (OpenAI-compatible)
+                # Cloud API (DeepSeek or OpenRouter — both OpenAI-compatible)
                 payload = {
                     "model": self.model,
                     "messages": self.messages,
@@ -485,7 +538,7 @@ class Agent:
                 }
                 api_url = f"{self.base_url}/chat/completions"
                 extra_headers = {
-                    "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                    "Authorization": f"Bearer {_CLOUD_API_KEY}",
                     "Content-Type": "application/json",
                 }
             else:

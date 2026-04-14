@@ -43,10 +43,20 @@ const ALIBABA_MODELS = [
   'qwen-plus'                         // ⚡ Fast Balanced
 ];
 
-const COUNCIL_MODELS = [...OPENROUTER_MODELS, ...ALIBABA_MODELS];
+const ACTIVE_OPENROUTER_MODELS = OPENROUTER_API_KEY ? OPENROUTER_MODELS : [];
+const ACTIVE_ALIBABA_MODELS = DASHSCOPE_API_KEY ? ALIBABA_MODELS : [];
+const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS];
 
-// Council mode is enabled when we have an OpenRouter key AND at least one model
-const COUNCIL_ENABLED = !!process.env.OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
+function getProviderMode() {
+  if (OPENROUTER_API_KEY && DASHSCOPE_API_KEY) return 'multi';
+  if (OPENROUTER_API_KEY) return 'openrouter';
+  if (process.env.DEEPSEEK_API_KEY) return 'deepseek';
+  if (DASHSCOPE_API_KEY) return 'dashscope';
+  return 'ollama';
+}
+
+// Council mode is enabled when OpenRouter is available; Alibaba is optional and joins when configured
+const COUNCIL_ENABLED = !!OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
 
 // Model chains — ALL OpenRouter (proven SSE streaming support)
 // 3 models per chain, 18s timeout each = 54s worst case (within 60s Vercel limit)
@@ -212,7 +222,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       models: COUNCIL_MODELS,
       enabled: COUNCIL_ENABLED,
-      mode: COUNCIL_ENABLED ? 'multi' : (process.env.DEEPSEEK_API_KEY ? 'deepseek' : 'ollama'),
+      mode: COUNCIL_ENABLED ? 'multi' : (OPENROUTER_API_KEY ? 'openrouter' : (process.env.DEEPSEEK_API_KEY ? 'deepseek' : 'ollama')),
       api_key_set: !!OPENROUTER_API_KEY,
       alibaba_key_set: !!DASHSCOPE_API_KEY,
       providers: ['OpenRouter', 'Alibaba Cloud (DashScope)'],
@@ -230,7 +240,7 @@ module.exports = async (req, res) => {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       models: COUNCIL_MODELS.length,
-      providers: 2,
+      providers: Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY),
       skills: 18,
       keys_configured: {
         openrouter: !!OPENROUTER_API_KEY,
