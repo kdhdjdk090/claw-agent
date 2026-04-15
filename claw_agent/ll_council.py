@@ -37,7 +37,7 @@ OPENROUTER_MODELS = [
 from .alibaba_cloud import ALIBABA_CLOUD_MODELS
 ALIBABA_MODELS = ALIBABA_CLOUD_MODELS  # 6 top Alibaba models
 
-# ChatGPT models via g4f MCP bridge (no API key needed)
+# ChatGPT models via g4f MCP bridge (requires Puter.js API key)
 from .chatgpt_mcp import MCP_CHATGPT_MODELS
 CHATGPT_MODELS = MCP_CHATGPT_MODELS  # 3 ChatGPT models
 
@@ -45,8 +45,46 @@ CHATGPT_MODELS = MCP_CHATGPT_MODELS  # 3 ChatGPT models
 from .cometapi import COMETAPI_MODELS
 COMET_MODELS = COMETAPI_MODELS  # 4 CometAPI models
 
-# COMBINED COUNCIL - OpenRouter + Alibaba Cloud + ChatGPT + CometAPI
-DEFAULT_COUNCIL_MODELS = OPENROUTER_MODELS + ALIBABA_MODELS + CHATGPT_MODELS + COMET_MODELS  # 21 models total!
+
+def _build_default_council() -> list[str]:
+    """Auto-detect configured providers and build council roster.
+
+    Only includes providers whose API keys are actually set,
+    so the council doesn't waste time on guaranteed-to-fail requests.
+    """
+    models: list[str] = []
+
+    # OpenRouter free-tier — always include (works with or without key)
+    models.extend(OPENROUTER_MODELS)
+
+    # Alibaba Cloud — include if DashScope key present
+    from .alibaba_cloud import _get_dashscope_key
+    if _get_dashscope_key():
+        models.extend(ALIBABA_MODELS)
+
+    # CometAPI — include only if COMETAPI_KEY is set
+    from .cometapi import COMETAPI_KEY as _ck
+    if _ck:
+        models.extend(COMET_MODELS)
+
+    # ChatGPT/g4f — currently requires Puter.js API key.
+    # Disabled by default; re-enable when key is configured.
+    # models.extend(CHATGPT_MODELS)
+
+    return models or list(OPENROUTER_MODELS)
+
+
+# Lazy singleton — computed on first access (after env is loaded)
+_DEFAULT_COUNCIL: list[str] | None = None
+
+
+def _get_default_council() -> list[str]:
+    """Return cached default council, building on first call."""
+    global _DEFAULT_COUNCIL, DEFAULT_COUNCIL_MODELS
+    if _DEFAULT_COUNCIL is None:
+        _DEFAULT_COUNCIL = _build_default_council()
+        DEFAULT_COUNCIL_MODELS = _DEFAULT_COUNCIL
+    return _DEFAULT_COUNCIL
 
 # Model priority tiers for intelligent routing
 MODEL_TIERS = {
@@ -88,7 +126,9 @@ def _get_openrouter_key() -> str:
 COUNCIL_THRESHOLD = float(os.environ.get("COUNCIL_THRESHOLD", "0.6"))  # 60% consensus
 COUNCIL_MODELS_ENV = os.environ.get("COUNCIL_MODELS", "")
 if COUNCIL_MODELS_ENV:
-    DEFAULT_COUNCIL_MODELS = [m.strip() for m in COUNCIL_MODELS_ENV.split(",")]
+    DEFAULT_COUNCIL_MODELS: list[str] = [m.strip() for m in COUNCIL_MODELS_ENV.split(",")]
+else:
+    DEFAULT_COUNCIL_MODELS: list[str] = []  # Populated lazily via _get_default_council()
 
 
 @dataclass
@@ -123,7 +163,7 @@ class LLCouncil:
         max_tokens: int = 2048,
         on_response: Callable[[CouncilResponse], None] | None = None,
     ):
-        self.models = models or DEFAULT_COUNCIL_MODELS
+        self.models = models or _get_default_council()
         self.system_prompt = system_prompt
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -140,7 +180,12 @@ class LLCouncil:
         """
         # Query all models (missing keys are handled per-provider in _query_model)
         responses = []
-        for model in self.models:
+        for i, model in enumerate(self.models):
+            # Small delay between OpenRouter requests to avoid 429 rate limits
+            if i > 0 and model not in ALIBABA_MODELS and model not in CHATGPT_MODELS and model not in COMET_MODELS:
+                prev = self.models[i - 1]
+                if prev not in ALIBABA_MODELS and prev not in CHATGPT_MODELS and prev not in COMET_MODELS:
+                    time.sleep(0.5)
             response = self._query_model(model, user_message)
             responses.append(response)
             if self.on_response:

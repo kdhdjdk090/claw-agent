@@ -78,6 +78,10 @@ def _load_project_env() -> None:
 
 _load_project_env()
 
+# Populate DEFAULT_COUNCIL_MODELS now that env vars are loaded.
+from .ll_council import _get_default_council as _init_council  # noqa: E402
+_init_council()
+
 
 def _get_live_datetime() -> str:
     """Return the real current date/time from the host system clock."""

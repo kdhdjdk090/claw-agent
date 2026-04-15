@@ -96,6 +96,7 @@ class AlibabaCloudClient:
                 "messages": messages,
                 "temperature": 0.7,
                 "max_tokens": 2048,
+                "enable_thinking": False,
             }
 
             response = self.client.post(
