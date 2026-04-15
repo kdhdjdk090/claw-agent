@@ -257,8 +257,8 @@ async function webSearch(query, numResults = 5) {
         }
       });
     });
-    req.on('error', () => resolve([]));
-    req.setTimeout(5000, () => { req.destroy(); resolve([]); });
+    req.on('error', (e) => { console.error('[search] Request error:', e.message); resolve([]); });
+    req.setTimeout(8000, () => { console.error('[search] Timeout'); req.destroy(); resolve([]); });
     req.write(postData);
     req.end();
   });
@@ -545,11 +545,15 @@ async function handleChat(req, res) {
       const timeStr = now.toLocaleString('en-US', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'long' });
       const timeBlock = `\n\nCurrent date and time (UTC): ${timeStr}`;
 
-      // Simple: use lightweight prompt for casual questions
-      if (isSimple) {
+      // Simple: use lightweight prompt for casual questions (but NOT if we have search results)
+      if (isSimple && searchResults.length === 0) {
         messages[0].content = SIMPLE_PROMPT + timeBlock;
       } else {
         messages[0].content += timeBlock;
+      }
+      // If search results found, add instruction to system prompt
+      if (searchResults.length > 0) {
+        messages[0].content += '\n\nIMPORTANT: The user\'s message includes [WEB SEARCH RESULTS]. You MUST base your answer on those results. Do NOT make up information. Cite the sources.';
       }
       // Ultrathink: boost system prompt for maximum rigor
       if (isUltraThink) {
