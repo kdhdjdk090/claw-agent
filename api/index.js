@@ -119,31 +119,48 @@ const COUNCIL_ENABLED = !!OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
 // Each chain mixes providers so if one provider is down, fallback crosses to another
 // 4 models per chain, 14s timeout each = 56s worst case (within 60s Vercel limit)
 const FAST_MODELS = [
-  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen-plus', provider: 'alibaba' }] : []),
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-max', provider: 'alibaba' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'gemini-2.5-flash', provider: 'cometapi' }] : []),
+  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   { model: 'google/gemma-3-12b-it:free', provider: 'openrouter' },
   ...(COMETAPI_KEY ? [{ model: 'gpt-4.1', provider: 'cometapi' }] : []),
   { model: 'google/gemma-4-26b-a4b-it:free', provider: 'openrouter' },
 ];
 
 const REASONING_MODELS = [
-  { model: 'qwen/qwen3-next-80b-a3b-instruct:free', provider: 'openrouter' },
-  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-235b-a22b', provider: 'alibaba' }] : []),
-  ...(COMETAPI_KEY ? [{ model: 'o4-mini', provider: 'cometapi' }] : []),
-  { model: 'nousresearch/hermes-3-llama-3.1-405b:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3.5-397b-a17b', provider: 'alibaba' }] : []),
+  ...(COMETAPI_KEY ? [{ model: 'o4-mini', provider: 'cometapi' }] : []),
+  { model: 'qwen/qwen3-next-80b-a3b-instruct:free', provider: 'openrouter' },
+  { model: 'nousresearch/hermes-3-llama-3.1-405b:free', provider: 'openrouter' },
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-max', provider: 'alibaba' }] : []),
   { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
-  { model: 'qwen/qwen3-coder:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' }] : []),
-  ...(COMETAPI_KEY ? [{ model: 'claude-sonnet-4-20250514', provider: 'cometapi' }] : []),
-  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-plus', provider: 'alibaba' }] : []),
+  ...(COMETAPI_KEY ? [{ model: 'claude-sonnet-4-20250514', provider: 'cometapi' }] : []),
+  { model: 'qwen/qwen3-coder:free', provider: 'openrouter' },
+  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   { model: 'google/gemma-4-31b-it:free', provider: 'openrouter' },
 ];
+
+function dedupeModelChain(chain) {
+  const seen = new Set();
+  return chain.filter(({ model, provider }) => {
+    const key = `${provider}:${model}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getDefaultModelChain({ needsReasoning, needsCoding, isHeavy, isUltraThink }) {
+  if (needsReasoning || isHeavy || isUltraThink) return REASONING_MODELS;
+  if (needsCoding) return CODING_MODELS;
+  return FAST_MODELS;
+}
 
 // Simple prompt — for casual, greeting, or simple factual questions
 const SIMPLE_PROMPT = `You are Claw AI, a helpful and friendly assistant.
@@ -623,16 +640,13 @@ async function handleChat(req, res) {
         }
       }
 
-      let modelChain;
+      const defaultModelChain = getDefaultModelChain({ needsReasoning, needsCoding, isHeavy, isUltraThink });
+      let modelChain = defaultModelChain;
       if (model) {
-        const provider = getProviderForModel(model) || 'openrouter';
-        modelChain = [{ model, provider }];
-      } else if (needsReasoning || isHeavy || isUltraThink) {
-        modelChain = REASONING_MODELS;
-      } else if (needsCoding) {
-        modelChain = CODING_MODELS;
-      } else {
-        modelChain = FAST_MODELS;
+        const provider = getProviderForModel(model);
+        if (provider !== 'unknown') {
+          modelChain = dedupeModelChain([{ model, provider }, ...defaultModelChain]);
+        }
       }
 
       const temp = (needsReasoning || isUltraThink) ? 0.2 : (needsCoding ? 0.3 : (isSimple ? 0.7 : 0.7));
