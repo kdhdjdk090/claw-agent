@@ -16,7 +16,10 @@ import httpx
 # Alibaba Cloud API Key - lazy read so _load_project_env() has time to run
 def _get_dashscope_key() -> str:
     return os.environ.get("DASHSCOPE_API_KEY", "")
-DASHSCOPE_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+DASHSCOPE_API_BASE = os.environ.get(
+    "DASHSCOPE_API_BASE",
+    "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+)
 
 # Best Alibaba Cloud models from free quota (1M tokens each)
 ALIBABA_CLOUD_MODELS = [

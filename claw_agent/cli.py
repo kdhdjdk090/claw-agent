@@ -726,7 +726,7 @@ def cmd_doctor():
     if dashscope_key:
         try:
             r = httpx.post(
-                "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+                os.environ.get("DASHSCOPE_API_BASE", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1") + "/chat/completions",
                 json={"model": "qwen-plus", "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
                 headers={"Authorization": f"Bearer {dashscope_key}", "Content-Type": "application/json"},
                 timeout=15,
