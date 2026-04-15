@@ -45,6 +45,44 @@ CHATGPT_MODELS = MCP_CHATGPT_MODELS  # 3 ChatGPT models
 from .cometapi import COMETAPI_MODELS
 COMET_MODELS = COMETAPI_MODELS  # 4 CometAPI models
 
+_PROVIDER_LABELS = {
+    "openrouter": "OpenRouter",
+    "alibaba": "Alibaba Cloud",
+    "chatgpt": "ChatGPT/g4f",
+    "cometapi": "CometAPI",
+}
+
+
+def _provider_key_for_model(model: str) -> str:
+    if model in ALIBABA_MODELS:
+        return "alibaba"
+    if model in CHATGPT_MODELS:
+        return "chatgpt"
+    if model in COMET_MODELS:
+        return "cometapi"
+    return "openrouter"
+
+
+def _provider_label(provider_key: str) -> str:
+    return _PROVIDER_LABELS[provider_key]
+
+
+def _group_provider_errors(responses: list["CouncilResponse"]) -> dict[str, list["CouncilResponse"]]:
+    grouped: dict[str, list["CouncilResponse"]] = {key: [] for key in _PROVIDER_LABELS}
+    for response in responses:
+        grouped[_provider_key_for_model(response.model)].append(response)
+    return grouped
+
+
+def _is_openrouter_session_blocker(error: str) -> bool:
+    normalized = error.lower()
+    return (
+        "http 429" in normalized
+        or "temporarily rate-limited upstream" in normalized
+        or "http 401" in normalized
+        or "openrouter api key not configured" in normalized
+    )
+
 
 def _build_default_council() -> list[str]:
     """Auto-detect configured providers and build council roster.
@@ -54,13 +92,14 @@ def _build_default_council() -> list[str]:
     """
     models: list[str] = []
 
-    # OpenRouter free-tier — always include (works with or without key)
-    models.extend(OPENROUTER_MODELS)
-
     # Alibaba Cloud — include if DashScope key present
     from .alibaba_cloud import _get_dashscope_key
     if _get_dashscope_key():
         models.extend(ALIBABA_MODELS)
+
+    # OpenRouter free-tier — include only when a key is configured.
+    if os.environ.get("OPENROUTER_API_KEY", ""):
+        models.extend(OPENROUTER_MODELS)
 
     # CometAPI — include only if COMETAPI_KEY is set
     from .cometapi import COMETAPI_KEY as _ck
@@ -171,6 +210,17 @@ class LLCouncil:
         self.client = httpx.Client(timeout=120)
         self.total_calls = 0
         self.total_tokens = 0
+        self._disabled_providers: dict[str, str] = {}
+
+    def _has_alternative_provider(self, provider_key: str) -> bool:
+        return any(_provider_key_for_model(model) != provider_key for model in self.models)
+
+    def _disable_provider_for_session(self, provider_key: str, reason: str) -> None:
+        self._disabled_providers[provider_key] = reason
+        self.models = [
+            model for model in self.models
+            if _provider_key_for_model(model) != provider_key
+        ]
 
     def query_council(self, user_message: str) -> CouncilResult:
         """Query all council models and aggregate responses.
@@ -180,13 +230,29 @@ class LLCouncil:
         """
         # Query all models (missing keys are handled per-provider in _query_model)
         responses = []
-        for i, model in enumerate(self.models):
-            # Small delay between OpenRouter requests to avoid 429 rate limits
-            if i > 0 and model not in ALIBABA_MODELS and model not in CHATGPT_MODELS and model not in COMET_MODELS:
-                prev = self.models[i - 1]
-                if prev not in ALIBABA_MODELS and prev not in CHATGPT_MODELS and prev not in COMET_MODELS:
-                    time.sleep(0.5)
+        models_to_query = list(self.models)
+        for i, model in enumerate(models_to_query):
+            provider_key = _provider_key_for_model(model)
+            if provider_key in self._disabled_providers:
+                continue
+
+            # Delay between consecutive OpenRouter free-tier requests (429 rate limits)
+            if i > 0 and provider_key == "openrouter":
+                prev = models_to_query[i - 1]
+                if _provider_key_for_model(prev) == "openrouter":
+                    time.sleep(3)
+
             response = self._query_model(model, user_message)
+
+            if (
+                provider_key == "openrouter"
+                and response.error
+                and self._has_alternative_provider(provider_key)
+                and _is_openrouter_session_blocker(response.error)
+            ):
+                self._disable_provider_for_session(provider_key, response.error)
+                continue
+
             responses.append(response)
             if self.on_response:
                 self.on_response(response)
@@ -197,20 +263,14 @@ class LLCouncil:
 
         if errors and valid:
             # Group errors by provider for cleaner reporting
-            alibaba_errors = [r for r in errors if r.model in ALIBABA_MODELS]
-            chatgpt_errors = [r for r in errors if r.model in CHATGPT_MODELS]
-            cometapi_errors = [r for r in errors if r.model in COMET_MODELS]
-            openrouter_errors = [r for r in errors if r.model not in ALIBABA_MODELS and r.model not in CHATGPT_MODELS and r.model not in COMET_MODELS]
+            grouped_errors = _group_provider_errors(errors)
 
             warnings = []
-            if alibaba_errors:
-                warnings.append(f"Alibaba Cloud: {len(alibaba_errors)} model(s) failed ({alibaba_errors[0].error})")
-            if chatgpt_errors:
-                warnings.append(f"ChatGPT/g4f: {len(chatgpt_errors)} model(s) failed ({chatgpt_errors[0].error})")
-            if cometapi_errors:
-                warnings.append(f"CometAPI: {len(cometapi_errors)} model(s) failed ({cometapi_errors[0].error})")
-            if openrouter_errors:
-                warnings.append(f"OpenRouter: {len(openrouter_errors)} model(s) failed ({openrouter_errors[0].error})")
+            for provider_key, provider_errors in grouped_errors.items():
+                if provider_errors:
+                    warnings.append(
+                        f"{_provider_label(provider_key)}: {len(provider_errors)} model(s) failed ({provider_errors[0].error})"
+                    )
 
             # Still aggregate the working responses
             result = self._aggregate_responses(responses)
@@ -359,14 +419,14 @@ class LLCouncil:
 
         if not valid_responses:
             # All models failed — show grouped errors by provider
-            alibaba_errs = [r for r in error_responses if r.model in ALIBABA_MODELS]
-            openrouter_errs = [r for r in error_responses if r.model not in ALIBABA_MODELS]
-            
+            grouped_errors = _group_provider_errors(error_responses)
+
             parts = []
-            if alibaba_errs:
-                parts.append(f"Alibaba Cloud ({len(alibaba_errs)} models): {alibaba_errs[0].error}")
-            if openrouter_errs:
-                parts.append(f"OpenRouter ({len(openrouter_errs)} models): {openrouter_errs[0].error}")
+            for provider_key, provider_errors in grouped_errors.items():
+                if provider_errors:
+                    parts.append(
+                        f"{_provider_label(provider_key)} ({len(provider_errors)} models): {provider_errors[0].error}"
+                    )
             
             error_summary = " | ".join(parts) if parts else error_responses[0].error
             
@@ -477,13 +537,22 @@ class LLCouncil:
 
     def get_council_info(self) -> dict[str, Any]:
         """Get information about the council configuration."""
-        openrouter_count = len(OPENROUTER_MODELS)
-        alibaba_count = len(ALIBABA_MODELS)
+        provider_counts = Counter(_provider_key_for_model(model) for model in self.models)
         return {
-            "providers": ["OpenRouter", "Alibaba Cloud (DashScope)"],
+            "providers": [
+                _provider_label(provider_key)
+                for provider_key in _PROVIDER_LABELS
+                if provider_counts.get(provider_key, 0)
+            ],
             "total_models": len(self.models),
-            "openrouter_models": openrouter_count,
-            "alibaba_models": alibaba_count,
+            "openrouter_models": provider_counts.get("openrouter", 0),
+            "alibaba_models": provider_counts.get("alibaba", 0),
+            "chatgpt_models": provider_counts.get("chatgpt", 0),
+            "cometapi_models": provider_counts.get("cometapi", 0),
+            "disabled_providers": {
+                _provider_label(provider_key): reason
+                for provider_key, reason in self._disabled_providers.items()
+            },
             "total_calls": self.total_calls,
             "total_tokens": self.total_tokens,
             "threshold": COUNCIL_THRESHOLD,

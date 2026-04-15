@@ -76,17 +76,26 @@ def check_ollama() -> bool:
 def _get_runtime_mode() -> dict[str, str]:
     """Return the active runtime/provider mode for UI and diagnostics."""
     from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
-    from .ll_council import DEFAULT_COUNCIL_MODELS
+    from .ll_council import ALIBABA_MODELS, CHATGPT_MODELS, COMET_MODELS, DEFAULT_COUNCIL_MODELS
 
-    has_dashscope = bool(os.environ.get("DASHSCOPE_API_KEY", ""))
+    configured_models = list(DEFAULT_COUNCIL_MODELS)
 
     if USE_COUNCIL and OPENROUTER_API_KEY:
-        provider = "OpenRouter + Alibaba" if has_dashscope else "OpenRouter"
+        provider_parts = []
+        if any(model in ALIBABA_MODELS for model in configured_models):
+            provider_parts.append("Alibaba")
+        if any(model in CHATGPT_MODELS for model in configured_models):
+            provider_parts.append("ChatGPT/g4f")
+        if any(model in COMET_MODELS for model in configured_models):
+            provider_parts.append("CometAPI")
+        if any(model not in ALIBABA_MODELS and model not in CHATGPT_MODELS and model not in COMET_MODELS for model in configured_models):
+            provider_parts.append("OpenRouter")
+        provider = " + ".join(provider_parts) or "configured providers"
         return {
             "kind": "council",
             "icon": "🏛️",
             "label": "Council",
-            "detail": f"{len(DEFAULT_COUNCIL_MODELS)} models via {provider}",
+            "detail": f"{len(configured_models)} models via {provider}",
         }
     if OPENROUTER_API_KEY:
         return {
@@ -267,6 +276,7 @@ def print_banner(model: str, models: list[str]):
 
 def print_help():
     from .agent import DEEPSEEK_API_KEY
+    from .ll_council import DEFAULT_COUNCIL_MODELS
     is_cloud = bool(DEEPSEEK_API_KEY)
     
     console.print()
@@ -291,7 +301,7 @@ def print_help():
     _section("Core", "⚡", [
         ("/help", "Show this help message"),
         ("/model <name>", "Switch AI model (e.g., gpt-4o-mini)"),
-        ("/models", "List all 14 council models"),
+        ("/models", f"List all {len(DEFAULT_COUNCIL_MODELS)} council models"),
         ("/tools", f"List all {len(TOOL_REGISTRY)} available tools"),
         ("/cost", "Token usage & timing statistics"),
         ("/compact", "Compress conversation history"),
