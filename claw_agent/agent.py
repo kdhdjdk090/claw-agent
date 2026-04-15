@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable, Generator
 
@@ -66,6 +67,16 @@ def _load_project_env() -> None:
 _load_project_env()
 
 
+def _get_live_datetime() -> str:
+    """Return the real current date/time from the host system clock."""
+    now = datetime.now(timezone.utc)
+    local = datetime.now()
+    return (
+        f"{local.strftime('%A, %d %B %Y  %H:%M:%S')} (local)  |  "
+        f"{now.strftime('%Y-%m-%dT%H:%M:%SZ')} (UTC)"
+    )
+
+
 def _build_tools_section() -> str:
     """Dynamically build the TOOLS section from the live TOOL_REGISTRY."""
     # Group tools by their source module (e.g. file_tools → File)
@@ -93,6 +104,12 @@ You are Claw, an expert autonomous AI coding agent running on model "{model}".
 You have deep expertise in all programming languages, frameworks, databases, DevOps, cloud, \
 system administration, and software engineering. You act decisively.
 When asked what model you are, say you are Claw running on "{model}" {mode_label}.
+
+CURRENT DATE & TIME (LIVE — from host system clock):
+{current_datetime}
+IMPORTANT: This is the REAL current date/time. NEVER guess, fabricate, or hallucinate dates.
+If asked for the current date/time, use the value above or call the `now_tz` tool for other timezones.
+NEVER cite external time services (NIST, time.gov, GPS) — you cannot access them. Use your tools.
 
 WORKSPACE: {cwd}
 PLATFORM: {platform}
@@ -390,6 +407,7 @@ class Agent:
             platform=sys.platform,
             mode_label=self._mode_label,
             tools_section=_build_tools_section(),
+            current_datetime=_get_live_datetime(),
         )
         if project_ctx:
             system_content += "\n\nPROJECT CONTEXT (loaded from workspace files):" + project_ctx

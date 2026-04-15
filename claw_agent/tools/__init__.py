@@ -2246,7 +2246,7 @@ OLLAMA_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "now_tz",
-            "description": "Get current date and time in any timezone.",
+            "description": "Get the REAL current date and time from the host system clock. ALWAYS call this instead of guessing dates. Supports 40+ timezones.",
             "parameters": {
                 "type": "object",
                 "properties": {
