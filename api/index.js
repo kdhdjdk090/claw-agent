@@ -217,51 +217,91 @@ This is a complex reasoning task. Apply maximum rigor:
 - State final confidence as a calibrated percentage with justification`;
 
 // Web search via DuckDuckGo HTML (no API key needed)
-async function webSearch(query, numResults = 5) {
+function ddgFetch(url, timeout = 10000) {
   return new Promise((resolve) => {
-    const postData = `q=${encodeURIComponent(query)}`;
-    const options = {
-      hostname: 'html.duckduckgo.com',
-      path: '/html/',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postData),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    const req = https.get(url, { headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/json',
+      'Accept-Language': 'en-US,en;q=0.9'
+    }}, (resp) => {
+      if (resp.statusCode >= 300 && resp.statusCode < 400 && resp.headers.location) {
+        return ddgFetch(resp.headers.location, timeout).then(resolve);
       }
-    };
-    const req = https.request(options, (resp) => {
       let data = '';
       resp.on('data', chunk => data += chunk);
-      resp.on('end', () => {
-        try {
-          const results = [];
-          // Split by each result block
-          const blocks = data.split(/class="result[\s"]/g);
-          for (let i = 1; i < blocks.length && results.length < numResults; i++) {
-            const block = blocks[i];
-            const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
-            const hrefMatch = block.match(/class="result__a"[^>]*href="([^"]+)"/);
-            const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
-            if (titleMatch) {
-              const title = titleMatch[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
-              const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim() : '';
-              const url = hrefMatch ? decodeURIComponent(hrefMatch[1].replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, '').replace(/&rut=.*$/, '')) : '';
-              if (title && title.length > 2) results.push({ title, snippet, url });
-            }
-          }
-          resolve(results);
-        } catch (e) {
-          console.error('[search] Parse error:', e.message);
-          resolve([]);
-        }
-      });
+      resp.on('end', () => resolve(data));
     });
-    req.on('error', (e) => { console.error('[search] Request error:', e.message); resolve([]); });
-    req.setTimeout(8000, () => { console.error('[search] Timeout'); req.destroy(); resolve([]); });
-    req.write(postData);
-    req.end();
+    req.on('error', (e) => { console.error('[search] Fetch error:', e.message); resolve(''); });
+    req.setTimeout(timeout, () => { console.error('[search] Timeout after', timeout, 'ms'); req.destroy(); resolve(''); });
   });
+}
+
+async function webSearch(query, numResults = 5) {
+  // Method 1: DDG HTML search (GET)
+  const htmlUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  console.log('[search] Trying DDG HTML:', htmlUrl.slice(0, 80));
+  const html = await ddgFetch(htmlUrl);
+  console.log('[search] HTML response length:', html.length);
+  if (html.length > 500) {
+    const results = [];
+    const blocks = html.split(/class="result[\s"]/g);
+    for (let i = 1; i < blocks.length && results.length < numResults; i++) {
+      const block = blocks[i];
+      const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
+      const hrefMatch = block.match(/class="result__a"[^>]*href="([^"]+)"/);
+      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
+      if (titleMatch) {
+        const clean = s => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+        const title = clean(titleMatch[1]);
+        const snippet = snippetMatch ? clean(snippetMatch[1]) : '';
+        const url = hrefMatch ? decodeURIComponent(hrefMatch[1].replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, '').replace(/&rut=.*$/, '')) : '';
+        if (title && title.length > 2) results.push({ title, snippet, url });
+      }
+    }
+    if (results.length > 0) { console.log('[search] HTML got', results.length, 'results'); return results; }
+  }
+
+  // Method 2: DDG Lite (lighter page, less likely blocked)
+  const liteUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+  console.log('[search] Trying DDG Lite');
+  const lite = await ddgFetch(liteUrl);
+  console.log('[search] Lite response length:', lite.length);
+  if (lite.length > 200) {
+    const results = [];
+    const rows = lite.split(/<tr>/g);
+    for (const row of rows) {
+      if (results.length >= numResults) break;
+      const linkMatch = row.match(/<a[^>]+href="([^"]+)"[^>]*class="result-link"[^>]*>([\s\S]*?)<\/a>/);
+      if (!linkMatch) continue;
+      const snippetMatch = row.match(/<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/);
+      const clean = s => s.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+      const title = clean(linkMatch[2]);
+      const url = linkMatch[1];
+      const snippet = snippetMatch ? clean(snippetMatch[1]) : '';
+      if (title.length > 2) results.push({ title, snippet, url });
+    }
+    if (results.length > 0) { console.log('[search] Lite got', results.length, 'results'); return results; }
+  }
+
+  // Method 3: DDG Instant Answer API (structured JSON, always works)
+  const apiUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+  console.log('[search] Trying DDG API');
+  const json = await ddgFetch(apiUrl);
+  try {
+    const d = JSON.parse(json);
+    const results = [];
+    if (d.Abstract) results.push({ title: d.Heading || query, snippet: d.Abstract, url: d.AbstractURL || '' });
+    if (d.RelatedTopics) {
+      for (const t of d.RelatedTopics) {
+        if (results.length >= numResults) break;
+        if (t.Text) results.push({ title: t.Text.slice(0, 80), snippet: t.Text, url: t.FirstURL || '' });
+      }
+    }
+    if (results.length > 0) { console.log('[search] API got', results.length, 'results'); return results; }
+  } catch (e) { console.error('[search] API parse error:', e.message); }
+
+  console.error('[search] All methods failed for:', query.slice(0, 60));
+  return [];
 }
 
 module.exports = async (req, res) => {
@@ -554,6 +594,9 @@ async function handleChat(req, res) {
       // If search results found, add instruction to system prompt
       if (searchResults.length > 0) {
         messages[0].content += '\n\nIMPORTANT: The user\'s message includes [WEB SEARCH RESULTS]. You MUST base your answer on those results. Do NOT make up information. Cite the sources.';
+      } else if (needsSearch) {
+        // Search was triggered but returned nothing — tell the AI
+        messages[0].content += '\n\nNOTE: A web search was attempted for this query but returned no results (network issue). Answer using your existing knowledge, but tell the user that live search was unavailable and recommend they check current sources for the latest info.';
       }
       // Ultrathink: boost system prompt for maximum rigor
       if (isUltraThink) {
