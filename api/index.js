@@ -22,6 +22,10 @@ const DASHSCOPE_API_BASE = 'https://dashscope-intl.aliyuncs.com/compatible-mode/
 const COMETAPI_KEY = process.env.COMETAPI_KEY || '';
 const COMETAPI_BASE = 'https://api.cometapi.com/v1';
 
+// OpenAI configuration
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
+const OPENAI_API_BASE = 'https://api.openai.com/v1';
+
 // Supabase configuration (for lead storage)
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
@@ -54,16 +58,26 @@ const COMETAPI_MODELS = [
   'o4-mini'                           // 🔬 O4 Mini
 ];
 
+const OPENAI_MODELS = [
+  'gpt-4.1',                           // 🧠 Latest Flagship
+  'gpt-4.1-mini',                      // ⚡ Fast Latest
+  'gpt-4o',                            // 🌟 Reliable General
+  'gpt-4o-mini',                       // 🚀 Fast & Cheap
+  'o4-mini'                            // 🔬 Reasoning
+];
+
 const ACTIVE_OPENROUTER_MODELS = OPENROUTER_API_KEY ? OPENROUTER_MODELS : [];
 const ACTIVE_ALIBABA_MODELS = DASHSCOPE_API_KEY ? ALIBABA_MODELS : [];
 const ACTIVE_COMETAPI_MODELS = COMETAPI_KEY ? COMETAPI_MODELS : [];
-const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS, ...ACTIVE_COMETAPI_MODELS];
+const ACTIVE_OPENAI_MODELS = OPENAI_API_KEY ? OPENAI_MODELS : [];
+const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS, ...ACTIVE_COMETAPI_MODELS, ...ACTIVE_OPENAI_MODELS];
 
 function getCouncilProviderGroups() {
   return [
     { label: 'Alibaba Cloud', models: ACTIVE_ALIBABA_MODELS },
     { label: 'OpenRouter', models: ACTIVE_OPENROUTER_MODELS },
     { label: 'CometAPI', models: ACTIVE_COMETAPI_MODELS },
+    { label: 'OpenAI', models: ACTIVE_OPENAI_MODELS },
   ].filter(group => group.models.length > 0);
 }
 
@@ -77,8 +91,9 @@ function getConfiguredProviders() {
 }
 
 function getProviderMode() {
-  const count = Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY);
+  const count = Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY) + Number(!!OPENAI_API_KEY);
   if (count >= 2) return 'multi';
+  if (OPENAI_API_KEY) return 'openai';
   if (OPENROUTER_API_KEY) return 'openrouter';
   if (process.env.DEEPSEEK_API_KEY) return 'deepseek';
   if (DASHSCOPE_API_KEY) return 'dashscope';
@@ -89,6 +104,7 @@ function getProviderMode() {
 // Provider detection helpers
 function getProviderForModel(model) {
   if (ALIBABA_MODELS.includes(model)) return 'alibaba';
+  if (OPENAI_MODELS.includes(model)) return 'openai';
   if (COMETAPI_MODELS.includes(model)) return 'cometapi';
   if (OPENROUTER_MODELS.includes(model)) return 'openrouter';
   return 'unknown';
@@ -99,6 +115,7 @@ function getProviderConfig(provider) {
     case 'openrouter': return { base: OPENROUTER_API_BASE, key: OPENROUTER_API_KEY, models: OPENROUTER_MODELS };
     case 'alibaba': return { base: DASHSCOPE_API_BASE, key: DASHSCOPE_API_KEY, models: ALIBABA_MODELS };
     case 'cometapi': return { base: COMETAPI_BASE, key: COMETAPI_KEY, models: COMETAPI_MODELS };
+    case 'openai': return { base: OPENAI_API_BASE, key: OPENAI_API_KEY, models: OPENAI_MODELS };
     default: return null;
   }
 }
@@ -112,8 +129,8 @@ function getHeadersForProvider(provider, key) {
   return base;
 }
 
-// Council mode is enabled when OpenRouter is available; optional providers join dynamically.
-const COUNCIL_ENABLED = !!OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
+// Council mode is enabled when any provider is available with models.
+const COUNCIL_ENABLED = COUNCIL_MODELS.length > 0;
 
 // Model chains — Cross-provider fallback for maximum resilience
 // Each chain mixes providers so if one provider is down, fallback crosses to another
@@ -121,6 +138,8 @@ const COUNCIL_ENABLED = !!OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
 const FAST_MODELS = [
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen-plus', provider: 'alibaba' }] : []),
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-max', provider: 'alibaba' }] : []),
+  ...(OPENAI_API_KEY ? [{ model: 'gpt-4o-mini', provider: 'openai' }] : []),
+  ...(OPENAI_API_KEY ? [{ model: 'gpt-4.1-mini', provider: 'openai' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'gemini-2.5-flash', provider: 'cometapi' }] : []),
   { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   { model: 'google/gemma-3-12b-it:free', provider: 'openrouter' },
@@ -130,6 +149,8 @@ const FAST_MODELS = [
 
 const REASONING_MODELS = [
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3.5-397b-a17b', provider: 'alibaba' }] : []),
+  ...(OPENAI_API_KEY ? [{ model: 'o4-mini', provider: 'openai' }] : []),
+  ...(OPENAI_API_KEY ? [{ model: 'gpt-4.1', provider: 'openai' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'o4-mini', provider: 'cometapi' }] : []),
   { model: 'qwen/qwen3-next-80b-a3b-instruct:free', provider: 'openrouter' },
   { model: 'nousresearch/hermes-3-llama-3.1-405b:free', provider: 'openrouter' },
@@ -140,6 +161,8 @@ const REASONING_MODELS = [
 const CODING_MODELS = [
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' }] : []),
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-plus', provider: 'alibaba' }] : []),
+  ...(OPENAI_API_KEY ? [{ model: 'gpt-4.1', provider: 'openai' }] : []),
+  ...(OPENAI_API_KEY ? [{ model: 'gpt-4o', provider: 'openai' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'claude-sonnet-4-20250514', provider: 'cometapi' }] : []),
   { model: 'qwen/qwen3-coder:free', provider: 'openrouter' },
   { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
@@ -344,6 +367,7 @@ module.exports = async (req, res) => {
         openrouter: !!OPENROUTER_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
         cometapi: !!COMETAPI_KEY,
+        openai: !!OPENAI_API_KEY,
       }
     });
   }
@@ -421,10 +445,12 @@ module.exports = async (req, res) => {
       api_key_set: !!OPENROUTER_API_KEY,
       alibaba_key_set: !!DASHSCOPE_API_KEY,
       cometapi_key_set: !!COMETAPI_KEY,
+      openai_key_set: !!OPENAI_API_KEY,
       providers: getConfiguredProviders(),
       openrouter_models: ACTIVE_OPENROUTER_MODELS.length,
       alibaba_models: ACTIVE_ALIBABA_MODELS.length,
       cometapi_models: ACTIVE_COMETAPI_MODELS.length,
+      openai_models: ACTIVE_OPENAI_MODELS.length,
       model_count: COUNCIL_MODELS.length
     });
   }
@@ -444,6 +470,7 @@ module.exports = async (req, res) => {
         openrouter: !!OPENROUTER_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
         cometapi: !!COMETAPI_KEY,
+        openai: !!OPENAI_API_KEY,
       },
       endpoints: {
         chat: '/api/chat',

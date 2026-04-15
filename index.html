@@ -339,7 +339,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <pre><code>https://clean-claw-ai.vercel.app</code></pre>
 <p><strong>Features:</strong></p>
 <ul>
-<li>18 AI models across 3 providers (OpenRouter + Alibaba Cloud + CometAPI)</li>
+<li>23 AI models across 4 providers (OpenRouter + Alibaba Cloud + CometAPI + OpenAI)</li>
 <li>18 built-in skills (code, write, analyze, translate, debug...)</li>
 <li>Conversation history with auto-save</li>
 <li>File upload & analysis</li>
@@ -554,7 +554,10 @@ const MD=[
 {n:'Qwen3 Max',u:'Flagship',p:'ALI',b:72,ctx:128},{n:'Qwen3 235B',u:'Reasoning',p:'ALI',b:235,ctx:128},
 {n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI',b:32,ctx:128},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI',b:72,ctx:128},
 {n:'GPT-4.1',u:'Premium',p:'CM',b:200,ctx:1024},{n:'Claude Sonnet 4',u:'Advanced',p:'CM',b:175,ctx:200},
-{n:'Gemini 2.5 Flash',u:'Ultra Fast',p:'CM',b:24,ctx:1024},{n:'O4 Mini',u:'Compact Smart',p:'CM',b:100,ctx:200}
+{n:'Gemini 2.5 Flash',u:'Ultra Fast',p:'CM',b:24,ctx:1024},{n:'O4 Mini',u:'Compact Smart',p:'CM',b:100,ctx:200},
+{n:'GPT-4.1',u:'Latest Flagship',p:'OA',b:200,ctx:1024},{n:'GPT-4.1 Mini',u:'Fast Latest',p:'OA',b:70,ctx:1024},
+{n:'GPT-4o',u:'Reliable',p:'OA',b:200,ctx:128},{n:'GPT-4o Mini',u:'Fast & Cheap',p:'OA',b:8,ctx:128},
+{n:'O4 Mini',u:'Reasoning',p:'OA',b:100,ctx:200}
 ];
 const TOTAL_B=MD.reduce((s,m)=>s+m.b,0),MAX_CTX=Math.max(...MD.map(m=>m.ctx));
 const SK=[
@@ -984,9 +987,13 @@ case'/help':
 am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n**/install** — Installation guides\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/continue** — Resume last AI response\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Tips:**\n- Click ▶ on any AI message to resume from that point\n- Say "continue" to pick up incomplete responses\n- Complex prompts auto-activate UltraThink mode\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
 case'/models':
 try{const r=await fetch('/api/models');const d=await r.json();
-const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI');
+const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI'),cmn=MD.filter(x=>x.p==='CM'),oan=MD.filter(x=>x.p==='OA');
 const tb=(TOTAL_B/1000).toFixed(1);
-am('a','**Available Models ('+d.model_count+') · '+tb+'T Combined Parameters · '+MAX_CTX+'K Max Context**\n\n**OpenRouter ('+d.openrouter_models+'):**\n'+orn.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n')+'\n\n**Alibaba Cloud ('+d.alibaba_models+'):**\n'+aln.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n')+'\n\n**Status:** '+(d.api_key_set?'✓ OpenRouter connected':'✗ OpenRouter not configured')+' · '+(d.alibaba_key_set?'✓ DashScope connected':'✗ DashScope not configured'))
+let msg='**Available Models ('+d.model_count+') · '+tb+'T Combined Parameters · '+MAX_CTX+'K Max Context**\n\n**OpenRouter ('+d.openrouter_models+'):**\n'+orn.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n')+'\n\n**Alibaba Cloud ('+d.alibaba_models+'):**\n'+aln.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n');
+if(cmn.length)msg+='\n\n**CometAPI ('+d.cometapi_models+'):**\n'+cmn.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n');
+if(oan.length)msg+='\n\n**OpenAI ('+(d.openai_models||oan.length)+'):**\n'+oan.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n');
+msg+='\n\n**Status:** '+(d.api_key_set?'✓ OpenRouter':'✗ OpenRouter')+' · '+(d.alibaba_key_set?'✓ DashScope':'✗ DashScope')+(d.openai_key_set?' · ✓ OpenAI':'');
+am('a',msg)
 }catch(e){ae('Failed to load models')}break;
 case'/skills':
 try{const r=await fetch('/api/skills');const d=await r.json();
@@ -995,7 +1002,7 @@ am('a','**Available Skills ('+d.total+')**\n\n'+d.skills.map(x=>'- **/'+x.id+'**
 case'/clear':doClear();break;
 case'/status':
 try{const r=await fetch('/api/status');const d=await r.json();
-ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptime: '+Math.round(d.uptime)+'s\n- Models: '+d.models+'\n- Providers: '+d.providers+'\n- Skills: '+d.skills+'\n- OpenRouter: '+(d.keys_configured.openrouter?'✓ Connected':'✗ Not configured')+'\n- DashScope: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured')+'\n- Messages: '+H.length)
+ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptime: '+Math.round(d.uptime)+'s\n- Models: '+d.models+'\n- Providers: '+d.providers+'\n- Skills: '+d.skills+'\n- OpenRouter: '+(d.keys_configured.openrouter?'✓ Connected':'✗ Not configured')+'\n- DashScope: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured')+'\n- OpenAI: '+(d.keys_configured.openai?'✓ Connected':'✗ Not configured')+'\n- Messages: '+H.length)
 }catch(e){ae('**Status**\n- Connection: Offline\n- Messages: '+H.length)}break;
 case'/version':
 try{const r=await fetch('/api/health');const d=await r.json();
