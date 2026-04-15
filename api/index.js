@@ -145,6 +145,13 @@ const CODING_MODELS = [
   { model: 'google/gemma-4-31b-it:free', provider: 'openrouter' },
 ];
 
+// Simple prompt — for casual, greeting, or simple factual questions
+const SIMPLE_PROMPT = `You are Claw AI, a helpful and friendly assistant.
+Be concise and direct. For simple questions, give short clear answers.
+If you don't know something or can't do something (like telling the time), say so briefly in 1-2 sentences.
+Do NOT over-explain, lecture, or add unnecessary bullet points for simple questions.
+Use a warm, natural tone. You are Claw AI when asked.`;
+
 // System prompt — comprehensive "Wisdom Protocol" that forces rigorous thinking,
 // real execution over simulated compliance, and adversarial self-verification.
 const SYSTEM_PROMPT = `You are Claw AI, an elite reasoning assistant. Follow these rules absolutely.
@@ -184,8 +191,8 @@ If the user states something incorrect, conflicting, or tries to pressure you:
 - Show work inline, not just results
 
 ## COMPLETENESS
-- Never truncate, abbreviate with "etc.", or leave work unfinished
-- Match depth to complexity — simple questions get concise answers, hard problems get thorough treatment
+- Match depth to complexity — simple questions get short concise answers, hard problems get thorough treatment
+- For casual or simple questions: answer in 1-3 sentences. Do NOT add unnecessary bullet points or elaboration.
 - For multi-part problems: solve ALL parts, verify ALL parts
 - If you run out of space, summarize what remains and offer to continue
 
@@ -475,7 +482,12 @@ async function handleChat(req, res) {
       const isHeavy = message.length > 500 || /\b(part \d|step \d|section|phase|first.*then|complex|comprehensive|detailed|thorough|exhaustive|complete guide|full|in-depth|everything about)\b/i.test(lc);
       const isUltraThink = /\b(ultrathink|ultra.think|deep.reason|boss.test|final.boss|maximum.rigor|prove.it|self.audit|adversarial|multi.?part|chain.of.thought)\b/i.test(message) || (needsReasoning && needsCoding) || (needsReasoning && isHeavy);
       const isResume = /\b(continue|resume|pick up|where.you.left|carry on|keep going|go on)\b/i.test(lc) && Array.isArray(history) && history.length > 0;
+      const isSimple = !needsReasoning && !needsCoding && !isHeavy && !isUltraThink && !isResume && message.length < 120 && !/\b(explain|how does|why does|what causes|compare|analyze|write a|build a|create|implement|design)\b/i.test(lc);
 
+      // Simple: use lightweight prompt for casual questions
+      if (isSimple) {
+        messages[0].content = SIMPLE_PROMPT;
+      }
       // Ultrathink: boost system prompt for maximum rigor
       if (isUltraThink) {
         messages[0].content = SYSTEM_PROMPT + ULTRATHINK_ADDENDUM;
@@ -503,8 +515,8 @@ async function handleChat(req, res) {
         modelChain = FAST_MODELS;
       }
 
-      const temp = (needsReasoning || isUltraThink) ? 0.2 : (needsCoding ? 0.3 : 0.7);
-      const maxTok = isUltraThink ? 16384 : (needsReasoning || needsCoding || isHeavy) ? 8192 : 4096;
+      const temp = (needsReasoning || isUltraThink) ? 0.2 : (needsCoding ? 0.3 : (isSimple ? 0.7 : 0.7));
+      const maxTok = isUltraThink ? 16384 : (needsReasoning || needsCoding || isHeavy) ? 8192 : (isSimple ? 1024 : 4096);
 
       // ---- SSE STREAMING MODE ----
       if (wantStream) {
