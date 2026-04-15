@@ -73,29 +73,37 @@ def check_ollama() -> bool:
         return False
 
 
+def _get_council_provider_groups(configured_models: list[str]) -> list[tuple[str, list[str]]]:
+    from .ll_council import ALIBABA_MODELS, CHATGPT_MODELS, COMET_MODELS
+
+    groups = [
+        ("Alibaba", [model for model in configured_models if model in ALIBABA_MODELS]),
+        ("ChatGPT/g4f", [model for model in configured_models if model in CHATGPT_MODELS]),
+        ("CometAPI", [model for model in configured_models if model in COMET_MODELS]),
+    ]
+    routed = set(ALIBABA_MODELS) | set(CHATGPT_MODELS) | set(COMET_MODELS)
+    groups.append(("OpenRouter", [model for model in configured_models if model not in routed]))
+    return [(label, models) for label, models in groups if models]
+
+
+def _format_council_detail(configured_models: list[str]) -> str:
+    provider = " + ".join(label for label, _ in _get_council_provider_groups(configured_models)) or "configured providers"
+    return f"{len(configured_models)} models via {provider}"
+
+
 def _get_runtime_mode() -> dict[str, str]:
     """Return the active runtime/provider mode for UI and diagnostics."""
     from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
-    from .ll_council import ALIBABA_MODELS, CHATGPT_MODELS, COMET_MODELS, DEFAULT_COUNCIL_MODELS
+    from .ll_council import DEFAULT_COUNCIL_MODELS
 
     configured_models = list(DEFAULT_COUNCIL_MODELS)
 
     if USE_COUNCIL and OPENROUTER_API_KEY:
-        provider_parts = []
-        if any(model in ALIBABA_MODELS for model in configured_models):
-            provider_parts.append("Alibaba")
-        if any(model in CHATGPT_MODELS for model in configured_models):
-            provider_parts.append("ChatGPT/g4f")
-        if any(model in COMET_MODELS for model in configured_models):
-            provider_parts.append("CometAPI")
-        if any(model not in ALIBABA_MODELS and model not in CHATGPT_MODELS and model not in COMET_MODELS for model in configured_models):
-            provider_parts.append("OpenRouter")
-        provider = " + ".join(provider_parts) or "configured providers"
         return {
             "kind": "council",
             "icon": "🏛️",
             "label": "Council",
-            "detail": f"{len(configured_models)} models via {provider}",
+            "detail": _format_council_detail(configured_models),
         }
     if OPENROUTER_API_KEY:
         return {
@@ -705,8 +713,7 @@ def cmd_doctor():
     # 2. Cloud provider configuration
     if USE_COUNCIL and OPENROUTER_API_KEY:
         from .ll_council import DEFAULT_COUNCIL_MODELS
-        provider_note = "OpenRouter + Alibaba" if os.environ.get("DASHSCOPE_API_KEY") else "OpenRouter"
-        checks.append(("Council Mode", True, f"✓ {len(DEFAULT_COUNCIL_MODELS)} models configured via {provider_note}"))
+        checks.append(("Council Mode", True, f"✓ {_format_council_detail(list(DEFAULT_COUNCIL_MODELS))}"))
     elif OPENROUTER_API_KEY:
         checks.append(("OpenRouter Direct", True, "✓ API key configured"))
     elif DEEPSEEK_API_KEY:
@@ -767,7 +774,7 @@ def cmd_doctor():
     # 4. Default model
     if USE_COUNCIL and OPENROUTER_API_KEY:
         from .ll_council import DEFAULT_COUNCIL_MODELS
-        checks.append(("Council Models", True, f"{len(DEFAULT_COUNCIL_MODELS)} combined models available"))
+        checks.append(("Council Models", True, _format_council_detail(list(DEFAULT_COUNCIL_MODELS))))
     elif OPENROUTER_API_KEY:
         from .agent import DEFAULT_MODEL
         checks.append(("Default Model", True, f"{DEFAULT_MODEL} via OpenRouter"))
@@ -1858,7 +1865,8 @@ def main():
                         console.print("  [yellow]No local models available[/yellow]")
                         from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
                         if USE_COUNCIL and OPENROUTER_API_KEY:
-                            console.print("  [green]✓ Council mode active (8 OpenRouter models)[/green]")
+                            from .ll_council import DEFAULT_COUNCIL_MODELS
+                            console.print(f"  [green]✓ Council mode active ({_format_council_detail(list(DEFAULT_COUNCIL_MODELS))})[/green]")
                         elif DEEPSEEK_API_KEY:
                             console.print("  [green]✓ Cloud mode using DeepSeek[/green]")
                     else:
@@ -1874,23 +1882,13 @@ def main():
                 from .ll_council import DEFAULT_COUNCIL_MODELS
                 
                 if USE_COUNCIL and OPENROUTER_API_KEY:
-                    console.print("  [green bold]🏛️ Council Models (8 via OpenRouter)[/green bold]")
+                    console.print(f"  [green bold]🏛️ Council Models ({_format_council_detail(list(DEFAULT_COUNCIL_MODELS))})[/green bold]")
                     console.print()
-                    tier1 = ["deepseek/deepseek-v3", "qwen/qwen3-80b", "meta-llama/llama-3.3-70b-instruct"]
-                    tier2 = ["qwen/qwen-2.5-coder-32b-instruct", "deepseek/deepseek-r1"]
-                    tier3 = ["google/gemma-3-12b-it", "openai/gpt-4o-mini", "anthropic/claude-3-haiku-20240307"]
-                    
-                    console.print("  [bold]🥇 Tier 1 - Most Powerful:[/bold]")
-                    for m in tier1:
-                        console.print(f"    [cyan]• {m}[/cyan]")
-                    console.print()
-                    console.print("  [bold]⭐ Tier 2 - Specialized:[/bold]")
-                    for m in tier2:
-                        console.print(f"    [cyan]• {m}[/cyan]")
-                    console.print()
-                    console.print("  [bold]⚡ Tier 3 - Fast:[/bold]")
-                    for m in tier3:
-                        console.print(f"    [cyan]• {m}[/cyan]")
+                    for label, group_models in _get_council_provider_groups(list(DEFAULT_COUNCIL_MODELS)):
+                        console.print(f"  [bold]{label} ({len(group_models)}):[/bold]")
+                        for group_model in group_models:
+                            console.print(f"    [cyan]• {group_model}[/cyan]")
+                        console.print()
                 elif current_models:
                     console.print(f"  [bold]Available Models ({len(current_models)}):[/bold]")
                     for m in current_models[:20]:

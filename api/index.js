@@ -26,16 +26,16 @@ const COMETAPI_BASE = 'https://api.cometapi.com/v1';
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Council models - OpenRouter (8) + Alibaba Cloud (6) + CometAPI (4) = 18 total
+// Council models - kept in sync with the Python council defaults where possible.
 const OPENROUTER_MODELS = [
-  'deepseek/deepseek-v3',
-  'qwen/qwen3-80b',
-  'meta-llama/llama-3.3-70b-instruct',
-  'qwen/qwen-2.5-coder-32b-instruct',
-  'deepseek/deepseek-r1',
-  'google/gemma-3-12b-it',
-  'openai/gpt-4o-mini',
-  'anthropic/claude-3-haiku-20240307'
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'qwen/qwen3-coder:free',
+  'google/gemma-4-26b-a4b-it:free',
+  'google/gemma-3-12b-it:free',
+  'google/gemma-3-27b-it:free',
+  'google/gemma-4-31b-it:free'
 ];
 
 const ALIBABA_MODELS = [
@@ -58,6 +58,23 @@ const ACTIVE_OPENROUTER_MODELS = OPENROUTER_API_KEY ? OPENROUTER_MODELS : [];
 const ACTIVE_ALIBABA_MODELS = DASHSCOPE_API_KEY ? ALIBABA_MODELS : [];
 const ACTIVE_COMETAPI_MODELS = COMETAPI_KEY ? COMETAPI_MODELS : [];
 const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS, ...ACTIVE_COMETAPI_MODELS];
+
+function getCouncilProviderGroups() {
+  return [
+    { label: 'Alibaba Cloud', models: ACTIVE_ALIBABA_MODELS },
+    { label: 'OpenRouter', models: ACTIVE_OPENROUTER_MODELS },
+    { label: 'CometAPI', models: ACTIVE_COMETAPI_MODELS },
+  ].filter(group => group.models.length > 0);
+}
+
+function getCouncilDetail() {
+  const providerLabel = getCouncilProviderGroups().map(group => group.label).join(' + ') || 'configured providers';
+  return `${COUNCIL_MODELS.length} models via ${providerLabel}`;
+}
+
+function getConfiguredProviders() {
+  return getCouncilProviderGroups().map(group => group.label);
+}
 
 function getProviderMode() {
   const count = Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY);
@@ -95,37 +112,37 @@ function getHeadersForProvider(provider, key) {
   return base;
 }
 
-// Council mode is enabled when OpenRouter is available; Alibaba is optional and joins when configured
+// Council mode is enabled when OpenRouter is available; optional providers join dynamically.
 const COUNCIL_ENABLED = !!OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
 
 // Model chains — Cross-provider fallback for maximum resilience
 // Each chain mixes providers so if one provider is down, fallback crosses to another
 // 4 models per chain, 14s timeout each = 56s worst case (within 60s Vercel limit)
 const FAST_MODELS = [
-  { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen-plus', provider: 'alibaba' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'gemini-2.5-flash', provider: 'cometapi' }] : []),
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  { model: 'google/gemma-3-12b-it:free', provider: 'openrouter' },
   ...(COMETAPI_KEY ? [{ model: 'gpt-4.1', provider: 'cometapi' }] : []),
-  { model: 'openai/gpt-4o-mini', provider: 'openrouter' },
+  { model: 'google/gemma-4-26b-a4b-it:free', provider: 'openrouter' },
 ];
 
 const REASONING_MODELS = [
-  { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen/qwen3-next-80b-a3b-instruct:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-235b-a22b', provider: 'alibaba' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'o4-mini', provider: 'cometapi' }] : []),
-  { model: 'qwen/qwen3-80b', provider: 'openrouter' },
+  { model: 'nousresearch/hermes-3-llama-3.1-405b:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3.5-397b-a17b', provider: 'alibaba' }] : []),
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
-  { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  { model: 'qwen/qwen3-coder:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'claude-sonnet-4-20250514', provider: 'cometapi' }] : []),
-  { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
+  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-plus', provider: 'alibaba' }] : []),
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  { model: 'google/gemma-4-31b-it:free', provider: 'openrouter' },
 ];
 
 // System prompt — comprehensive "Wisdom Protocol" that forces rigorous thinking,
@@ -289,14 +306,11 @@ module.exports = async (req, res) => {
       models: COUNCIL_MODELS,
       enabled: COUNCIL_ENABLED,
       mode: getProviderMode(),
+      detail: getCouncilDetail(),
       api_key_set: !!OPENROUTER_API_KEY,
       alibaba_key_set: !!DASHSCOPE_API_KEY,
       cometapi_key_set: !!COMETAPI_KEY,
-      providers: [
-        ...(OPENROUTER_API_KEY ? ['OpenRouter'] : []),
-        ...(DASHSCOPE_API_KEY ? ['Alibaba Cloud (DashScope)'] : []),
-        ...(COMETAPI_KEY ? ['CometAPI'] : []),
-      ],
+      providers: getConfiguredProviders(),
       openrouter_models: ACTIVE_OPENROUTER_MODELS.length,
       alibaba_models: ACTIVE_ALIBABA_MODELS.length,
       cometapi_models: ACTIVE_COMETAPI_MODELS.length,
@@ -312,7 +326,8 @@ module.exports = async (req, res) => {
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       models: COUNCIL_MODELS.length,
-      providers: Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY),
+      council_detail: getCouncilDetail(),
+      providers: getConfiguredProviders().length,
       skills: 18,
       keys_configured: {
         openrouter: !!OPENROUTER_API_KEY,
@@ -386,7 +401,8 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       version: '2.2.0',
       models: COUNCIL_MODELS.length,
-      providers: ['OpenRouter', 'Alibaba Cloud (DashScope)', 'CometAPI'],
+      council_detail: getCouncilDetail(),
+      providers: getConfiguredProviders(),
       skills: 18,
       tools: 26,
       keys: {

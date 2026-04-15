@@ -15,35 +15,19 @@ from typing import Any, Callable, Optional
 
 import httpx
 
-# Default free models available on OpenRouter - optimized for reasoning
-OPENROUTER_MODELS = [
-    # 🥇 TIER 1: MOST POWERFUL (Priority)
-    "deepseek/deepseek-v3",
-    "qwen/qwen3-80b",
-    "meta-llama/llama-3.3-70b-instruct",
-    # ⭐ TIER 2: SPECIALIZED
-    "qwen/qwen-2.5-coder-32b-instruct",
-    "deepseek/deepseek-r1",
-    # ⚡ TIER 3: FAST + EFFICIENT
-    "google/gemma-3-12b-it",
-    "openai/gpt-4o-mini",
-    "anthropic/claude-3-haiku-20240307",
-]
+from .ll_council import (
+    ALIBABA_MODELS,
+    CHATGPT_MODELS,
+    COMET_MODELS,
+    OPENROUTER_MODELS,
+    _build_default_council,
+    _group_provider_errors,
+    _is_openrouter_session_blocker,
+    _provider_key_for_model,
+    _provider_label,
+)
 
-# Alibaba Cloud models (1M free tokens each via DashScope)
-from .alibaba_cloud import ALIBABA_CLOUD_MODELS
-ALIBABA_MODELS = ALIBABA_CLOUD_MODELS
-
-# ChatGPT models via g4f MCP bridge (no API key needed)
-from .chatgpt_mcp import MCP_CHATGPT_MODELS
-CHATGPT_MODELS = MCP_CHATGPT_MODELS  # 3 ChatGPT models
-
-# CometAPI models (500+ models via single API key, OpenAI-compatible)
-from .cometapi import COMETAPI_MODELS
-COMET_MODELS = COMETAPI_MODELS  # 4 CometAPI models
-
-# COMBINED COUNCIL - OpenRouter + Alibaba Cloud + ChatGPT + CometAPI
-DEFAULT_COUNCIL_MODELS = OPENROUTER_MODELS + ALIBABA_MODELS + CHATGPT_MODELS + COMET_MODELS  # 21 models total!
+DEFAULT_COUNCIL_MODELS = _build_default_council()
 
 # Enhanced reasoning models (when we need deeper thinking)
 REASONING_FOCUSED_MODELS = [
@@ -104,7 +88,7 @@ class AdvancedLLCouncil:
         on_response: Callable[[CouncilResponse], None] | None = None,
         enable_deliberation: bool = True,
     ):
-        self.models = models or DEFAULT_COUNCIL_MODELS
+        self.models = list(models or DEFAULT_COUNCIL_MODELS)
         self.system_prompt = system_prompt
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -114,6 +98,17 @@ class AdvancedLLCouncil:
         self.total_calls = 0
         self.total_tokens = 0
         self.deliberation_history: list[CouncilResult] = []
+        self._disabled_providers: dict[str, str] = {}
+
+    def _has_alternative_provider(self, provider_key: str) -> bool:
+        return any(_provider_key_for_model(model) != provider_key for model in self.models)
+
+    def _disable_provider_for_session(self, provider_key: str, reason: str) -> None:
+        self._disabled_providers[provider_key] = reason
+        self.models = [
+            model for model in self.models
+            if _provider_key_for_model(model) != provider_key
+        ]
 
     def query_council(self, user_message: str) -> CouncilResult:
         """Query all council models and aggregate responses with deliberation."""
@@ -133,15 +128,55 @@ class AdvancedLLCouncil:
         return final_result
 
     def _query_all_models(self, user_message: str) -> CouncilResult:
-        """Query all models in parallel."""
+        """Query all models and prune providers that are clearly unhealthy."""
         responses = []
-        for model in self.models:
+        models_to_query = list(self.models)
+        for i, model in enumerate(models_to_query):
+            provider_key = _provider_key_for_model(model)
+            if provider_key in self._disabled_providers:
+                continue
+
+            if i > 0 and provider_key == "openrouter":
+                prev = models_to_query[i - 1]
+                if _provider_key_for_model(prev) == "openrouter":
+                    time.sleep(3)
+
             response = self._query_model(model, user_message)
+
+            if (
+                provider_key == "openrouter"
+                and response.error
+                and self._has_alternative_provider(provider_key)
+                and _is_openrouter_session_blocker(response.error)
+            ):
+                self._disable_provider_for_session(provider_key, response.error)
+                continue
+
             responses.append(response)
             if self.on_response:
                 self.on_response(response)
 
-        return self._aggregate_responses(responses)
+        valid = [r for r in responses if not r.error]
+        errors = [r for r in responses if r.error]
+
+        result = self._aggregate_responses(responses)
+
+        if errors and valid:
+            grouped_errors = _group_provider_errors(errors)
+            warnings = []
+            for provider_key, provider_errors in grouped_errors.items():
+                if provider_errors:
+                    warnings.append(
+                        f"{_provider_label(provider_key)}: {len(provider_errors)} model(s) failed ({provider_errors[0].error})"
+                    )
+
+            warning_str = " | ".join(warnings)
+            result.consensus_answer = (
+                f"⚠️ Partial council ({len(valid)}/{len(responses)} models responded) "
+                f"[{warning_str}]\n\n{result.consensus_answer}"
+            )
+
+        return result
 
     def _query_model(self, model: str, user_message: str) -> CouncilResponse:
         """Query a single model with enhanced prompting for reasoning.
