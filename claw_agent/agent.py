@@ -37,10 +37,13 @@ def _load_project_env() -> None:
     package install directory so `claw` works regardless of where the
     user invokes it from.
     """
-    # Collect unique starting directories: cwd + package dir (+ its parents)
+    # Collect unique starting directories: package dir first (most reliable),
+    # then its parent, then cwd.  Package dir takes priority so an unrelated
+    # .env.local in the users cwd (e.g. Vercel CLI token) cannot shadow the
+    # real API keys stored next to the package.
     pkg_dir = os.path.dirname(os.path.abspath(__file__))
     start_dirs: list[str] = []
-    for d in (os.getcwd(), pkg_dir, os.path.dirname(pkg_dir)):
+    for d in (pkg_dir, os.path.dirname(pkg_dir), os.getcwd()):
         d = os.path.normpath(d)
         if d not in start_dirs:
             start_dirs.append(d)
