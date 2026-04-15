@@ -148,7 +148,6 @@ const CODING_MODELS = [
 // Simple prompt — for casual, greeting, or simple factual questions
 const SIMPLE_PROMPT = `You are Claw AI, a helpful and friendly assistant.
 Be concise and direct. For simple questions, give short clear answers.
-If you don't know something or can't do something (like telling the time), say so briefly in 1-2 sentences.
 Do NOT over-explain, lecture, or add unnecessary bullet points for simple questions.
 Use a warm, natural tone. You are Claw AI when asked.`;
 
@@ -484,9 +483,16 @@ async function handleChat(req, res) {
       const isResume = /\b(continue|resume|pick up|where.you.left|carry on|keep going|go on)\b/i.test(lc) && Array.isArray(history) && history.length > 0;
       const isSimple = !needsReasoning && !needsCoding && !isHeavy && !isUltraThink && !isResume && message.length < 120 && !/\b(explain|how does|why does|what causes|compare|analyze|write a|build a|create|implement|design)\b/i.test(lc);
 
+      // Inject current server time so the AI can answer time/date questions
+      const now = new Date();
+      const timeStr = now.toLocaleString('en-US', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'long' });
+      const timeBlock = `\n\nCurrent date and time (UTC): ${timeStr}`;
+
       // Simple: use lightweight prompt for casual questions
       if (isSimple) {
-        messages[0].content = SIMPLE_PROMPT;
+        messages[0].content = SIMPLE_PROMPT + timeBlock;
+      } else {
+        messages[0].content += timeBlock;
       }
       // Ultrathink: boost system prompt for maximum rigor
       if (isUltraThink) {
