@@ -704,8 +704,44 @@ def cmd_doctor():
     else:
         checks.append(("Cloud Mode", False, "No cloud API key set"))
 
-    # 3. Ollama connectivity (optional if cloud mode is active)
+    # 2b. Live API key validation
     import httpx
+    if OPENROUTER_API_KEY:
+        try:
+            r = httpx.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                json={"model": "google/gemma-3-12b-it", "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                timeout=15,
+            )
+            if r.status_code == 200:
+                checks.append(("OpenRouter Key", True, "✓ Live test passed (HTTP 200)"))
+            else:
+                err = r.json().get("error", {}).get("message", r.text[:80]) if r.headers.get("content-type", "").startswith("application/json") else r.text[:80]
+                checks.append(("OpenRouter Key", False, f"HTTP {r.status_code}: {err}"))
+        except Exception as e:
+            checks.append(("OpenRouter Key", False, f"Connection error: {str(e)[:60]}"))
+
+    dashscope_key = os.environ.get("DASHSCOPE_API_KEY", "")
+    if dashscope_key:
+        try:
+            r = httpx.post(
+                "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+                json={"model": "qwen-plus", "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                headers={"Authorization": f"Bearer {dashscope_key}", "Content-Type": "application/json"},
+                timeout=15,
+            )
+            if r.status_code == 200:
+                checks.append(("DashScope Key", True, "✓ Live test passed (HTTP 200)"))
+            else:
+                err = r.json().get("error", {}).get("message", r.text[:80]) if r.headers.get("content-type", "").startswith("application/json") else r.text[:80]
+                checks.append(("DashScope Key", False, f"HTTP {r.status_code}: {err} — Regenerate at https://help.aliyun.com/zh/model-studio/"))
+        except Exception as e:
+            checks.append(("DashScope Key", False, f"Connection error: {str(e)[:60]}"))
+    elif USE_COUNCIL:
+        checks.append(("DashScope Key", False, "Not set — Alibaba Cloud models will be skipped"))
+
+    # 3. Ollama connectivity (optional if cloud mode is active)
     try:
         r = httpx.get("http://localhost:11434/api/tags", timeout=5)
         r.raise_for_status()

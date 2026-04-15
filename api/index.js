@@ -16,13 +16,17 @@ const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 
 // Alibaba Cloud (DashScope) configuration
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || '';
-const DASHSCOPE_API_BASE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+const DASHSCOPE_API_BASE = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+
+// CometAPI configuration
+const COMETAPI_KEY = process.env.COMETAPI_KEY || '';
+const COMETAPI_BASE = 'https://api.cometapi.com/v1';
 
 // Supabase configuration (for lead storage)
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Council models - OpenRouter (8) + Alibaba Cloud (6) = 14 total
+// Council models - OpenRouter (8) + Alibaba Cloud (6) + CometAPI (4) = 18 total
 const OPENROUTER_MODELS = [
   'deepseek/deepseek-v3',
   'qwen/qwen3-80b',
@@ -43,39 +47,85 @@ const ALIBABA_MODELS = [
   'qwen-plus'                         // ⚡ Fast Balanced
 ];
 
+const COMETAPI_MODELS = [
+  'gpt-4.1',                          // 🧠 GPT-4.1
+  'claude-sonnet-4-20250514',         // 🎭 Claude Sonnet 4
+  'gemini-2.5-flash',                 // ⚡ Gemini Flash
+  'o4-mini'                           // 🔬 O4 Mini
+];
+
 const ACTIVE_OPENROUTER_MODELS = OPENROUTER_API_KEY ? OPENROUTER_MODELS : [];
 const ACTIVE_ALIBABA_MODELS = DASHSCOPE_API_KEY ? ALIBABA_MODELS : [];
-const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS];
+const ACTIVE_COMETAPI_MODELS = COMETAPI_KEY ? COMETAPI_MODELS : [];
+const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS, ...ACTIVE_COMETAPI_MODELS];
 
 function getProviderMode() {
-  if (OPENROUTER_API_KEY && DASHSCOPE_API_KEY) return 'multi';
+  const count = Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY);
+  if (count >= 2) return 'multi';
   if (OPENROUTER_API_KEY) return 'openrouter';
   if (process.env.DEEPSEEK_API_KEY) return 'deepseek';
   if (DASHSCOPE_API_KEY) return 'dashscope';
+  if (COMETAPI_KEY) return 'cometapi';
   return 'ollama';
+}
+
+// Provider detection helpers
+function getProviderForModel(model) {
+  if (ALIBABA_MODELS.includes(model)) return 'alibaba';
+  if (COMETAPI_MODELS.includes(model)) return 'cometapi';
+  if (OPENROUTER_MODELS.includes(model)) return 'openrouter';
+  return 'unknown';
+}
+
+function getProviderConfig(provider) {
+  switch (provider) {
+    case 'openrouter': return { base: OPENROUTER_API_BASE, key: OPENROUTER_API_KEY, models: OPENROUTER_MODELS };
+    case 'alibaba': return { base: DASHSCOPE_API_BASE, key: DASHSCOPE_API_KEY, models: ALIBABA_MODELS };
+    case 'cometapi': return { base: COMETAPI_BASE, key: COMETAPI_KEY, models: COMETAPI_MODELS };
+    default: return null;
+  }
+}
+
+function getHeadersForProvider(provider, key) {
+  const base = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
+  if (provider === 'openrouter') {
+    base['HTTP-Referer'] = 'https://github.com/claw-agent';
+    base['X-Title'] = 'Claw AI';
+  }
+  return base;
 }
 
 // Council mode is enabled when OpenRouter is available; Alibaba is optional and joins when configured
 const COUNCIL_ENABLED = !!OPENROUTER_API_KEY && COUNCIL_MODELS.length > 0;
 
-// Model chains — ALL OpenRouter (proven SSE streaming support)
-// 3 models per chain, 18s timeout each = 54s worst case (within 60s Vercel limit)
+// Model chains — Cross-provider fallback for maximum resilience
+// Each chain mixes providers so if one provider is down, fallback crosses to another
+// 4 models per chain, 14s timeout each = 56s worst case (within 60s Vercel limit)
 const FAST_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen-plus', provider: 'alibaba' }] : []),
+  ...(COMETAPI_KEY ? [{ model: 'gemini-2.5-flash', provider: 'cometapi' }] : []),
   { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  ...(COMETAPI_KEY ? [{ model: 'gpt-4.1', provider: 'cometapi' }] : []),
   { model: 'openai/gpt-4o-mini', provider: 'openrouter' },
 ];
 
 const REASONING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-235b-a22b', provider: 'alibaba' }] : []),
+  ...(COMETAPI_KEY ? [{ model: 'o4-mini', provider: 'cometapi' }] : []),
   { model: 'qwen/qwen3-80b', provider: 'openrouter' },
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3.5-397b-a17b', provider: 'alibaba' }] : []),
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
 const CODING_MODELS = [
   { model: 'deepseek/deepseek-v3', provider: 'openrouter' },
-  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-480b-a35b-instruct', provider: 'alibaba' }] : []),
+  ...(COMETAPI_KEY ? [{ model: 'claude-sonnet-4-20250514', provider: 'cometapi' }] : []),
   { model: 'qwen/qwen-2.5-coder-32b-instruct', provider: 'openrouter' },
+  ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-coder-plus', provider: 'alibaba' }] : []),
+  { model: 'meta-llama/llama-3.3-70b-instruct', provider: 'openrouter' },
 ];
 
 // System prompt — comprehensive "Wisdom Protocol" that forces rigorous thinking,
@@ -160,11 +210,12 @@ module.exports = async (req, res) => {
   if (req.url.startsWith('/api/health') && req.method === 'GET') {
     return res.status(200).json({
       status: 'ok',
-      version: '2.1.0',
+      version: '2.2.0',
       timestamp: new Date().toISOString(),
       keys_configured: {
         openrouter: !!OPENROUTER_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
+        cometapi: !!COMETAPI_KEY,
       }
     });
   }
@@ -202,6 +253,21 @@ module.exports = async (req, res) => {
     return handleChat(req, res);
   }
 
+  // GET /api/test/model - Test a specific model by name
+  if (req.url.startsWith('/api/test/model') && req.method === 'GET') {
+    return handleTestModel(req, res);
+  }
+
+  // GET /api/test/provider - Test all models for a provider
+  if (req.url.startsWith('/api/test/provider') && req.method === 'GET') {
+    return handleTestProvider(req, res);
+  }
+
+  // GET /api/test/all - Test all models across all providers
+  if (req.url.startsWith('/api/test/all') && req.method === 'GET') {
+    return handleTestAll(req, res);
+  }
+
   // POST /api/council - Explicit council endpoint
   if (req.url.startsWith('/api/council') && req.method === 'POST') {
     return handleCouncil(req, res);
@@ -222,12 +288,18 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       models: COUNCIL_MODELS,
       enabled: COUNCIL_ENABLED,
-      mode: COUNCIL_ENABLED ? 'multi' : (OPENROUTER_API_KEY ? 'openrouter' : (process.env.DEEPSEEK_API_KEY ? 'deepseek' : 'ollama')),
+      mode: getProviderMode(),
       api_key_set: !!OPENROUTER_API_KEY,
       alibaba_key_set: !!DASHSCOPE_API_KEY,
-      providers: ['OpenRouter', 'Alibaba Cloud (DashScope)'],
-      openrouter_models: OPENROUTER_MODELS.length,
-      alibaba_models: ALIBABA_MODELS.length,
+      cometapi_key_set: !!COMETAPI_KEY,
+      providers: [
+        ...(OPENROUTER_API_KEY ? ['OpenRouter'] : []),
+        ...(DASHSCOPE_API_KEY ? ['Alibaba Cloud (DashScope)'] : []),
+        ...(COMETAPI_KEY ? ['CometAPI'] : []),
+      ],
+      openrouter_models: ACTIVE_OPENROUTER_MODELS.length,
+      alibaba_models: ACTIVE_ALIBABA_MODELS.length,
+      cometapi_models: ACTIVE_COMETAPI_MODELS.length,
       model_count: COUNCIL_MODELS.length
     });
   }
@@ -236,15 +308,16 @@ module.exports = async (req, res) => {
   if (req.url.startsWith('/api/status') && req.method === 'GET') {
     return res.status(200).json({
       status: 'operational',
-      version: '2.0.0',
+      version: '2.2.0',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
       models: COUNCIL_MODELS.length,
-      providers: Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY),
+      providers: Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY),
       skills: 18,
       keys_configured: {
         openrouter: !!OPENROUTER_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
+        cometapi: !!COMETAPI_KEY,
       },
       endpoints: {
         chat: '/api/chat',
@@ -254,7 +327,10 @@ module.exports = async (req, res) => {
         status: '/api/status',
         tools: '/api/tools',
         skills: '/api/skills',
-        config: '/api/config'
+        config: '/api/config',
+        test_model: '/api/test/model?model={model_id}',
+        test_provider: '/api/test/provider?provider={openrouter|alibaba|cometapi}',
+        test_all: '/api/test/all'
       }
     });
   }
@@ -308,14 +384,15 @@ module.exports = async (req, res) => {
   // GET /api/config - Real config
   if (req.url.startsWith('/api/config') && req.method === 'GET') {
     return res.status(200).json({
-      version: '2.0.0',
+      version: '2.2.0',
       models: COUNCIL_MODELS.length,
-      providers: ['OpenRouter', 'Alibaba Cloud (DashScope)'],
+      providers: ['OpenRouter', 'Alibaba Cloud (DashScope)', 'CometAPI'],
       skills: 18,
       tools: 26,
       keys: {
         openrouter: !!OPENROUTER_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
+        cometapi: !!COMETAPI_KEY,
       },
       limits: {
         max_message_length: 50000,
@@ -400,7 +477,7 @@ async function handleChat(req, res) {
 
       let modelChain;
       if (model) {
-        const provider = ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter';
+        const provider = getProviderForModel(model) || 'openrouter';
         modelChain = [{ model, provider }];
       } else if (needsReasoning || isHeavy || isUltraThink) {
         modelChain = REASONING_MODELS;
@@ -423,20 +500,11 @@ async function handleChat(req, res) {
 
         let lastError = null;
         for (const { model: m, provider: p } of modelChain) {
-          const isAlibaba = p === 'alibaba';
-          const apiKey = isAlibaba ? DASHSCOPE_API_KEY : OPENROUTER_API_KEY;
-          if (!apiKey) continue;
+          const config = getProviderConfig(p);
+          if (!config || !config.key) continue;
 
-          const apiBase = isAlibaba ? DASHSCOPE_API_BASE : OPENROUTER_API_BASE;
-          const hdrs = isAlibaba ? {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          } : {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://github.com/claw-agent',
-            'X-Title': 'Claw AI',
-          };
+          const apiBase = config.base;
+          const hdrs = getHeadersForProvider(p, config.key);
 
           const payload = JSON.stringify({
             model: m, messages, temperature: temp, max_tokens: maxTok, stream: true,
@@ -446,15 +514,17 @@ async function handleChat(req, res) {
             const ok = await callAPIStreaming(apiBase, payload, hdrs, res, m, p);
             if (ok) return; // Stream completed successfully
             lastError = 'No tokens from ' + m;
-            console.log('[stream] Model failed (0 tokens):', m);
+            console.log('[stream] Model failed (0 tokens):', m, 'provider:', p);
           } catch (e) {
             lastError = e.message;
-            console.log('[stream] Model error:', m, e.message);
+            console.log('[stream] Model error:', m, 'provider:', p, e.message);
             continue;
           }
         }
-        // All models failed in streaming mode
-        res.write(`data: ${JSON.stringify({ error: 'All models failed. ' + (lastError || '') })}\n\n`);
+        // All models failed in streaming mode - send graceful fallback
+        const fallbackMsg = "I'm experiencing high demand right now. Please try again in a moment \u2014 I'll be right back.";
+        res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: fallbackMsg } }] })}\n\n`);
+        res.write('data: [DONE]\n\n');
         res.end();
         return;
       }
@@ -463,19 +533,10 @@ async function handleChat(req, res) {
       let lastError = null;
       for (const { model: m, provider: p } of modelChain) {
         try {
-          const isAlibaba = p === 'alibaba';
-          const apiKey = isAlibaba ? DASHSCOPE_API_KEY : OPENROUTER_API_KEY;
-          if (!apiKey) continue;
-          const apiBase = isAlibaba ? DASHSCOPE_API_BASE : OPENROUTER_API_BASE;
-          const hdrs = isAlibaba ? {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          } : {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-            'HTTP-Referer': 'https://github.com/claw-agent',
-            'X-Title': 'Claw AI',
-          };
+          const config = getProviderConfig(p);
+          if (!config || !config.key) continue;
+          const apiBase = config.base;
+          const hdrs = getHeadersForProvider(p, config.key);
           const payload = JSON.stringify({
             model: m, messages, temperature: temp, max_tokens: maxTok,
           });
@@ -486,7 +547,9 @@ async function handleChat(req, res) {
           return res.status(200).json({ reply: reply.trim(), usage: result.usage || {}, model: m, provider: p, council: false });
         } catch (e) { lastError = e.message; continue; }
       }
-      return res.status(500).json({ error: 'All models failed. Last error: ' + (lastError || 'Unknown error'), tried: modelChain.map(m => m.model) });
+      // All models failed - return graceful fallback instead of 500
+      const fallbackReply = "I'm experiencing high demand across all providers. Please try again in a moment \u2014 I'll be right back.";
+      return res.status(200).json({ reply: fallbackReply, model: 'fallback', provider: 'system', council: false, fallback: true });
     } catch (e) {
       console.error('Chat error:', e.message);
       res.status(500).json({ error: e.message });
@@ -632,9 +695,9 @@ async function handleCouncil(req, res) {
         return res.status(400).json({ error: 'message required' });
       }
 
-      if (!OPENROUTER_API_KEY) {
+      if (!OPENROUTER_API_KEY && !DASHSCOPE_API_KEY && !COMETAPI_KEY) {
         return res.status(500).json({
-          error: 'OpenRouter API key not configured. Set OPENROUTER_API_KEY in Vercel environment variables.',
+          error: 'No API keys configured. Set at least one of OPENROUTER_API_KEY, DASHSCOPE_API_KEY, or COMETAPI_KEY.',
         });
       }
 
@@ -647,53 +710,31 @@ async function handleCouncil(req, res) {
 }
 
 async function handleCouncilRequest(res, message) {
-  // Query all council models in parallel (OpenRouter + Alibaba)
+  // Query all council models in parallel (OpenRouter + Alibaba + CometAPI)
   const promises = COUNCIL_MODELS.map(async (model) => {
     try {
-      // Check if this is an Alibaba model
-      const isAlibaba = ALIBABA_MODELS.includes(model);
-      
-      let payload, apiBase, headers;
-      
-      if (isAlibaba) {
-        payload = JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: message }
-          ],
-          temperature: 0.7,
-          max_tokens: 8192,
-        });
-        apiBase = DASHSCOPE_API_BASE;
-        headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-        };
-      } else {
-        payload = JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: message }
-          ],
-          temperature: 0.7,
-          max_tokens: 8192,
-        });
-        apiBase = OPENROUTER_API_BASE;
-        headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'HTTP-Referer': 'https://github.com/claw-agent',
-          'X-Title': 'Claw AI',
-        };
+      const provider = getProviderForModel(model) || 'openrouter';
+      const config = getProviderConfig(provider);
+      if (!config || !config.key) {
+        return { model, content: '', error: 'No API key for provider: ' + provider, usage: {}, provider };
       }
 
-      const result = await callAPI(apiBase, payload, headers);
+      const payload = JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 8192,
+      });
+      const headers = getHeadersForProvider(provider, config.key);
+      const result = await callAPI(config.base, payload, headers);
       const content = result.choices?.[0]?.message?.content || '';
-      return { model, content, error: null, usage: result.usage || {}, provider: isAlibaba ? 'alibaba' : 'openrouter' };
+      return { model, content, error: null, usage: result.usage || {}, provider };
     } catch (error) {
-      return { model, content: '', error: error.message, usage: {}, provider: ALIBABA_MODELS.includes(model) ? 'alibaba' : 'openrouter' };
+      const provider = getProviderForModel(model) || 'openrouter';
+      return { model, content: '', error: error.message, usage: {}, provider };
     }
   });
 
@@ -704,9 +745,18 @@ async function handleCouncilRequest(res, message) {
   const failed = responses.filter(r => r.error);
 
   if (successful.length === 0) {
-    return res.status(500).json({ 
-      error: 'All models failed',
-      details: failed.map(f => ({ model: f.model, error: f.error }))
+    // All council models failed - return graceful fallback instead of 500
+    const fallbackReply = "The council is experiencing high demand across all providers. Please try again in a moment.";
+    return res.status(200).json({
+      reply: fallbackReply,
+      council: true,
+      models_queried: COUNCIL_MODELS.length,
+      successful_responses: 0,
+      failed_responses: failed.length,
+      consensus_percentage: '0',
+      total_tokens: 0,
+      fallback: true,
+      all_responses: failed.map(f => ({ model: f.model, content: '', error: f.error }))
     });
   }
 
@@ -773,6 +823,180 @@ async function handleCouncilRequest(res, message) {
   });
 }
 
+// ─── Test Endpoint Handlers ───────────────────────────────────────────────────
+
+async function handleTestModel(req, res) {
+  const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const model = urlObj.searchParams.get('model');
+
+  if (!model) {
+    return res.status(400).json({ error: 'Missing required query parameter: model', usage: '/api/test/model?model=deepseek/deepseek-v3' });
+  }
+
+  const provider = getProviderForModel(model);
+  if (!provider) {
+    return res.status(404).json({ error: `Model "${model}" not found in any provider`, available_models: COUNCIL_MODELS });
+  }
+
+  const config = getProviderConfig(provider);
+  if (!config.key) {
+    return res.status(503).json({ error: `API key not configured for provider: ${provider}`, model, provider });
+  }
+
+  const testPayload = JSON.stringify({
+    model,
+    messages: [{ role: 'user', content: 'Hi' }],
+    max_tokens: 1,
+  });
+
+  const headers = getHeadersForProvider(provider, config.key);
+  const startTime = Date.now();
+
+  try {
+    const result = await callAPI(config.base, testPayload, headers);
+    const elapsed = Date.now() - startTime;
+
+    if (result.error) {
+      return res.status(200).json({
+        model, provider, status: 'down',
+        response_time_ms: elapsed,
+        error: result.error.message || result.error,
+        tokens: null,
+      });
+    }
+
+    return res.status(200).json({
+      model, provider, status: 'up',
+      response_time_ms: elapsed,
+      tokens: result.usage || null,
+      finish_reason: result.choices?.[0]?.finish_reason || null,
+    });
+  } catch (err) {
+    return res.status(200).json({
+      model, provider, status: 'down',
+      response_time_ms: Date.now() - startTime,
+      error: err.message,
+      tokens: null,
+    });
+  }
+}
+
+async function handleTestProvider(req, res) {
+  const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const provider = (urlObj.searchParams.get('provider') || '').toLowerCase();
+
+  const validProviders = ['openrouter', 'alibaba', 'cometapi'];
+  if (!provider || !validProviders.includes(provider)) {
+    return res.status(400).json({ error: 'Missing or invalid provider', valid_providers: validProviders, usage: '/api/test/provider?provider=openrouter' });
+  }
+
+  const config = getProviderConfig(provider);
+  if (!config.key) {
+    return res.status(503).json({ error: `API key not configured for provider: ${provider}`, provider });
+  }
+
+  const models = provider === 'openrouter' ? ACTIVE_OPENROUTER_MODELS
+    : provider === 'alibaba' ? ACTIVE_ALIBABA_MODELS
+    : ACTIVE_COMETAPI_MODELS;
+
+  const results = await Promise.allSettled(models.map(async (model) => {
+    const testPayload = JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: 'Hi' }],
+      max_tokens: 1,
+    });
+    const headers = getHeadersForProvider(provider, config.key);
+    const startTime = Date.now();
+    try {
+      const result = await callAPI(config.base, testPayload, headers);
+      const elapsed = Date.now() - startTime;
+      if (result.error) {
+        return { model, status: 'down', response_time_ms: elapsed, error: result.error.message || result.error };
+      }
+      return { model, status: 'up', response_time_ms: elapsed, tokens: result.usage || null };
+    } catch (err) {
+      return { model, status: 'down', response_time_ms: Date.now() - startTime, error: err.message };
+    }
+  }));
+
+  const modelResults = results.map(r => r.status === 'fulfilled' ? r.value : { model: 'unknown', status: 'error', error: r.reason?.message });
+  const upCount = modelResults.filter(r => r.status === 'up').length;
+
+  return res.status(200).json({
+    provider,
+    total_models: models.length,
+    models_up: upCount,
+    models_down: models.length - upCount,
+    results: modelResults,
+  });
+}
+
+async function handleTestAll(req, res) {
+  const providers = [];
+  if (OPENROUTER_API_KEY) providers.push('openrouter');
+  if (DASHSCOPE_API_KEY) providers.push('alibaba');
+  if (COMETAPI_KEY) providers.push('cometapi');
+
+  if (providers.length === 0) {
+    return res.status(503).json({ error: 'No API keys configured for any provider' });
+  }
+
+  const allResults = {};
+  let totalUp = 0;
+  let totalDown = 0;
+  let totalModels = 0;
+
+  await Promise.all(providers.map(async (provider) => {
+    const config = getProviderConfig(provider);
+    const models = provider === 'openrouter' ? ACTIVE_OPENROUTER_MODELS
+      : provider === 'alibaba' ? ACTIVE_ALIBABA_MODELS
+      : ACTIVE_COMETAPI_MODELS;
+
+    const results = await Promise.allSettled(models.map(async (model) => {
+      const testPayload = JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'Hi' }],
+        max_tokens: 1,
+      });
+      const headers = getHeadersForProvider(provider, config.key);
+      const startTime = Date.now();
+      try {
+        const result = await callAPI(config.base, testPayload, headers);
+        const elapsed = Date.now() - startTime;
+        if (result.error) {
+          return { model, status: 'down', response_time_ms: elapsed, error: result.error.message || result.error };
+        }
+        return { model, status: 'up', response_time_ms: elapsed, tokens: result.usage || null };
+      } catch (err) {
+        return { model, status: 'down', response_time_ms: Date.now() - startTime, error: err.message };
+      }
+    }));
+
+    const modelResults = results.map(r => r.status === 'fulfilled' ? r.value : { model: 'unknown', status: 'error', error: r.reason?.message });
+    const upCount = modelResults.filter(r => r.status === 'up').length;
+
+    allResults[provider] = {
+      total_models: models.length,
+      models_up: upCount,
+      models_down: models.length - upCount,
+      results: modelResults,
+    };
+
+    totalModels += models.length;
+    totalUp += upCount;
+    totalDown += models.length - upCount;
+  }));
+
+  return res.status(200).json({
+    timestamp: new Date().toISOString(),
+    total_providers: providers.length,
+    total_models: totalModels,
+    total_up: totalUp,
+    total_down: totalDown,
+    providers: allResults,
+  });
+}
+
 function callAPI(apiBase, payload, headers) {
   const url = new URL(`${apiBase}/chat/completions`);
   return new Promise((resolve, reject) => {
@@ -812,54 +1036,7 @@ function callAPI(apiBase, payload, headers) {
   });
 }
 
-function callOpenRouterAPI(apiKey, payload) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(`${OPENROUTER_API_BASE}/chat/completions`);
-    const options = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://github.com/claw-agent',
-        'X-Title': 'Claw AI',
-      },
-      timeout: 120000,
-    };
-
-    const request = https.request(options, (apiRes) => {
-      let data = '';
-      apiRes.on('data', chunk => data += chunk);
-      apiRes.on('end', () => {
-        try {
-          const result = JSON.parse(data);
-          if (apiRes.statusCode !== 200) {
-            resolve({ error: { message: result.error?.message || 'API error' } });
-          } else {
-            resolve(result);
-          }
-        } catch (e) {
-          reject(new Error('Failed to parse OpenRouter response'));
-        }
-      });
-    });
-
-    request.on('error', error => {
-      reject(new Error(`OpenRouter API error: ${error.message}`));
-    });
-
-    request.on('timeout', () => {
-      request.destroy();
-      reject(new Error('Request timeout'));
-    });
-
-    request.write(payload);
-    request.end();
-  });
-}
+// callOpenRouterAPI removed (dead code) - all providers now use generic callAPI()
 
 async function handleLeadEvents(req, res) {
   let body = '';

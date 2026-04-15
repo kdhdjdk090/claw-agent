@@ -37,8 +37,16 @@ OPENROUTER_MODELS = [
 from .alibaba_cloud import ALIBABA_CLOUD_MODELS
 ALIBABA_MODELS = ALIBABA_CLOUD_MODELS  # 6 top Alibaba models
 
-# COMBINED COUNCIL - Both OpenRouter + Alibaba Cloud
-DEFAULT_COUNCIL_MODELS = OPENROUTER_MODELS + ALIBABA_MODELS  # 14 models total!
+# ChatGPT models via g4f MCP bridge (no API key needed)
+from .chatgpt_mcp import MCP_CHATGPT_MODELS
+CHATGPT_MODELS = MCP_CHATGPT_MODELS  # 3 ChatGPT models
+
+# CometAPI models (500+ models via single API key)
+from .cometapi import COMETAPI_MODELS
+COMET_MODELS = COMETAPI_MODELS  # 4 CometAPI models
+
+# COMBINED COUNCIL - OpenRouter + Alibaba Cloud + ChatGPT + CometAPI
+DEFAULT_COUNCIL_MODELS = OPENROUTER_MODELS + ALIBABA_MODELS + CHATGPT_MODELS + COMET_MODELS  # 21 models total!
 
 # Model priority tiers for intelligent routing
 MODEL_TIERS = {
@@ -122,11 +130,15 @@ class LLCouncil:
         self.total_tokens = 0
 
     def query_council(self, user_message: str) -> CouncilResult:
-        """Query all council models and aggregate responses."""
+        """Query all council models and aggregate responses.
+        
+        Gracefully handles partial failures — if some providers fail
+        (e.g. invalid API key), still returns results from working ones.
+        """
         if not OPENROUTER_API_KEY:
             raise ValueError("OPENROUTER_API_KEY not set in environment")
 
-        # Query all models in parallel
+        # Query all models
         responses = []
         for model in self.models:
             response = self._query_model(model, user_message)
@@ -134,19 +146,84 @@ class LLCouncil:
             if self.on_response:
                 self.on_response(response)
 
+        # Check for partial failures and warn
+        valid = [r for r in responses if not r.error]
+        errors = [r for r in responses if r.error]
+
+        if errors and valid:
+            # Group errors by provider for cleaner reporting
+            alibaba_errors = [r for r in errors if r.model in ALIBABA_MODELS]
+            chatgpt_errors = [r for r in errors if r.model in CHATGPT_MODELS]
+            cometapi_errors = [r for r in errors if r.model in COMET_MODELS]
+            openrouter_errors = [r for r in errors if r.model not in ALIBABA_MODELS and r.model not in CHATGPT_MODELS and r.model not in COMET_MODELS]
+
+            warnings = []
+            if alibaba_errors:
+                warnings.append(f"Alibaba Cloud: {len(alibaba_errors)} model(s) failed ({alibaba_errors[0].error})")
+            if chatgpt_errors:
+                warnings.append(f"ChatGPT/g4f: {len(chatgpt_errors)} model(s) failed ({chatgpt_errors[0].error})")
+            if cometapi_errors:
+                warnings.append(f"CometAPI: {len(cometapi_errors)} model(s) failed ({cometapi_errors[0].error})")
+            if openrouter_errors:
+                warnings.append(f"OpenRouter: {len(openrouter_errors)} model(s) failed ({openrouter_errors[0].error})")
+
+            # Still aggregate the working responses
+            result = self._aggregate_responses(responses)
+            # Prepend warning to consensus answer
+            warning_str = " | ".join(warnings)
+            result.consensus_answer = f"⚠️ Partial council ({len(valid)}/{len(responses)} models responded) [{warning_str}]\n\n{result.consensus_answer}"
+            return result
+
         # Find consensus based on semantic similarity and content overlap
         result = self._aggregate_responses(responses)
         return result
 
     def _query_model(self, model: str, user_message: str) -> CouncilResponse:
-        """Query a single model in the council (OpenRouter or Alibaba Cloud)."""
+        """Query a single model in the council (OpenRouter, Alibaba, ChatGPT, or CometAPI)."""
         start_time = time.time()
 
         try:
             # Check if this is an Alibaba Cloud model
             is_alibaba = model in ALIBABA_MODELS
+            is_chatgpt = model in CHATGPT_MODELS
+            is_cometapi = model in COMET_MODELS
 
-            if is_alibaba:
+            if is_cometapi:
+                # Use CometAPI gateway
+                from .cometapi import CometAPIClient, COMETAPI_KEY
+                if not COMETAPI_KEY:
+                    return CouncilResponse(
+                        model=model,
+                        content="",
+                        latency_ms=0,
+                        error="CometAPI key not configured",
+                    )
+                client = CometAPIClient()
+                result = client.query(model, user_message, self.system_prompt)
+                client.close()
+
+                return CouncilResponse(
+                    model=model,
+                    content=result.content,
+                    token_count=result.token_count,
+                    latency_ms=result.latency_ms,
+                    error=result.error,
+                )
+            elif is_chatgpt:
+                # Use ChatGPT via g4f MCP bridge
+                from .chatgpt_mcp import ChatGPTMCPClient
+                client = ChatGPTMCPClient()
+                result = client.query(model, user_message, self.system_prompt)
+                client.close()
+
+                return CouncilResponse(
+                    model=model,
+                    content=result.content,
+                    token_count=result.token_count,
+                    latency_ms=result.latency_ms,
+                    error=result.error,
+                )
+            elif is_alibaba:
                 # Use Alibaba Cloud API
                 from .alibaba_cloud import AlibabaCloudClient, DASHSCOPE_API_KEY
                 if not DASHSCOPE_API_KEY:
@@ -229,9 +306,20 @@ class LLCouncil:
         error_responses = [r for r in responses if r.error]
 
         if not valid_responses:
-            # All models failed
+            # All models failed — show grouped errors by provider
+            alibaba_errs = [r for r in error_responses if r.model in ALIBABA_MODELS]
+            openrouter_errs = [r for r in error_responses if r.model not in ALIBABA_MODELS]
+            
+            parts = []
+            if alibaba_errs:
+                parts.append(f"Alibaba Cloud ({len(alibaba_errs)} models): {alibaba_errs[0].error}")
+            if openrouter_errs:
+                parts.append(f"OpenRouter ({len(openrouter_errs)} models): {openrouter_errs[0].error}")
+            
+            error_summary = " | ".join(parts) if parts else error_responses[0].error
+            
             return CouncilResult(
-                consensus_answer=f"All models failed: {error_responses[0].error}",
+                consensus_answer=f"❌ All {len(error_responses)} council models failed.\n{error_summary}\n\nTip: Run /doctor to validate your API keys.",
                 all_responses=responses,
                 votes={},
                 consensus_percentage=0.0,

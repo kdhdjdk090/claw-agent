@@ -294,7 +294,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <div class="sb-label">Skills &middot; 18</div>
 <div id="ss"></div>
 </div>
-<div class="sb-foot"><span>Claw AI</span><span>v2.0</span></div>
+<div class="sb-foot"><span>Claw AI</span><span>v2.2.0</span></div>
 </div>
 <div class="main">
 <div class="topbar">
@@ -304,7 +304,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 </div>
 <div class="tb-r">
 <span class="pill pill-m">Claw Pro</span>
-<span class="pill pill-f">14 models</span>
+<span class="pill pill-f">18 models</span>
 <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme"><span class="icon" id="themeIcon"><svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></span></button>
 </div>
 </div>
@@ -339,7 +339,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <pre><code>https://clean-claw-ai.vercel.app</code></pre>
 <p><strong>Features:</strong></p>
 <ul>
-<li>14 AI models across 2 providers (OpenRouter + Alibaba Cloud)</li>
+<li>18 AI models across 3 providers (OpenRouter + Alibaba Cloud + CometAPI)</li>
 <li>18 built-in skills (code, write, analyze, translate, debug...)</li>
 <li>Conversation history with auto-save</li>
 <li>File upload & analysis</li>
@@ -511,7 +511,7 @@ Claw: Fix Selection       — Right-click → Fix code</code></pre>
 
 <h3>Extension Structure</h3>
 <pre><code>vscode-extension/
-├── package.json       # Extension manifest (v2.0.0)
+├── package.json       # Extension manifest (v2.2.0)
 ├── src/
 │   ├── extension.js   # Main entry point
 │   └── bridge.py      # Python CLI bridge
@@ -533,7 +533,7 @@ Claw: Fix Selection       — Right-click → Fix code</code></pre>
 <button class="btn-send" id="sb2" onclick="sm()" title="Send"><svg viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></button>
 </div>
 </div>
-<div class="input-foot"><span id="modelInfo">Claw AI · 14 Models</span><span class="char-count" id="charCount"></span><span id="modeLabel"></span></div>
+<div class="input-foot"><span id="modelInfo">Claw AI · 18 Models</span><span class="char-count" id="charCount"></span><span id="modeLabel"></span></div>
 </div>
 </div>
 </div>
@@ -552,7 +552,9 @@ const MD=[
 {n:'GPT-4o-mini',u:'Reliable',p:'OR',b:8,ctx:128},{n:'Claude 3 Haiku',u:'Natural Chat',p:'OR',b:20,ctx:200},
 {n:'Qwen3 Coder 480B',u:'Best Coder',p:'ALI',b:480,ctx:256},{n:'Qwen3.5 397B',u:'Most Powerful',p:'ALI',b:397,ctx:128},
 {n:'Qwen3 Max',u:'Flagship',p:'ALI',b:72,ctx:128},{n:'Qwen3 235B',u:'Reasoning',p:'ALI',b:235,ctx:128},
-{n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI',b:32,ctx:128},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI',b:72,ctx:128}
+{n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI',b:32,ctx:128},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI',b:72,ctx:128},
+{n:'GPT-4.1',u:'Premium',p:'CM',b:200,ctx:1024},{n:'Claude Sonnet 4',u:'Advanced',p:'CM',b:175,ctx:200},
+{n:'Gemini 2.5 Flash',u:'Ultra Fast',p:'CM',b:24,ctx:1024},{n:'O4 Mini',u:'Compact Smart',p:'CM',b:100,ctx:200}
 ];
 const TOTAL_B=MD.reduce((s,m)=>s+m.b,0),MAX_CTX=Math.max(...MD.map(m=>m.ctx));
 const SK=[
@@ -607,8 +609,9 @@ el.innerHTML=h;
 /* Init */
 function init(){
 initTheme();rS();
-if(lss()&&H.length){document.getElementById('wl').style.display='none';H.forEach((m,i)=>renderMsg(m,i))}
-else{CID=genId()}
+loadConvos();
+H=[];CID=genId();
+const wl=document.getElementById('wl');if(wl){wl.style.display='';updGreet()}
 renderConvos();fetchSt();
 }
 function rS(){

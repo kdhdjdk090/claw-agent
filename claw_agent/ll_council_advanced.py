@@ -16,21 +16,41 @@ from typing import Any, Callable, Optional
 import httpx
 
 # Default free models available on OpenRouter - optimized for reasoning
-DEFAULT_COUNCIL_MODELS = [
+OPENROUTER_MODELS = [
+    # 🥇 TIER 1: MOST POWERFUL (Priority)
+    "deepseek/deepseek-v3",
+    "qwen/qwen3-80b",
+    "meta-llama/llama-3.3-70b-instruct",
+    # ⭐ TIER 2: SPECIALIZED
+    "qwen/qwen-2.5-coder-32b-instruct",
+    "deepseek/deepseek-r1",
+    # ⚡ TIER 3: FAST + EFFICIENT
+    "google/gemma-3-12b-it",
     "openai/gpt-4o-mini",
     "anthropic/claude-3-haiku-20240307",
-    "google/gemini-flash-1.5",
-    "qwen/qwen-2.5-coder-32b-instruct",
-    "meta-llama/llama-3.3-70b-instruct",
-    "mistralai/mistral-small-24b-instruct-2501",
 ]
+
+# Alibaba Cloud models (1M free tokens each via DashScope)
+from .alibaba_cloud import ALIBABA_CLOUD_MODELS
+ALIBABA_MODELS = ALIBABA_CLOUD_MODELS
+
+# ChatGPT models via g4f MCP bridge (no API key needed)
+from .chatgpt_mcp import MCP_CHATGPT_MODELS
+CHATGPT_MODELS = MCP_CHATGPT_MODELS  # 3 ChatGPT models
+
+# CometAPI models (500+ models via single API key, OpenAI-compatible)
+from .cometapi import COMETAPI_MODELS
+COMET_MODELS = COMETAPI_MODELS  # 4 CometAPI models
+
+# COMBINED COUNCIL - OpenRouter + Alibaba Cloud + ChatGPT + CometAPI
+DEFAULT_COUNCIL_MODELS = OPENROUTER_MODELS + ALIBABA_MODELS + CHATGPT_MODELS + COMET_MODELS  # 21 models total!
 
 # Enhanced reasoning models (when we need deeper thinking)
 REASONING_FOCUSED_MODELS = [
-    "openai/gpt-4o-mini",
-    "anthropic/claude-3-haiku-20240307",
-    "google/gemini-flash-1.5",
+    "deepseek/deepseek-r1",
+    "qwen/qwen3-80b",
     "qwen/qwen-2.5-coder-32b-instruct",
+    "deepseek/deepseek-v3",
 ]
 
 # OpenRouter API configuration
@@ -120,10 +140,89 @@ class AdvancedLLCouncil:
         return self._aggregate_responses(responses)
 
     def _query_model(self, model: str, user_message: str) -> CouncilResponse:
-        """Query a single model with enhanced prompting for reasoning."""
+        """Query a single model with enhanced prompting for reasoning.
+        
+        Routes to Alibaba Cloud DashScope for Alibaba models,
+        OpenRouter for everything else.
+        """
         start_time = time.time()
 
         try:
+            # Check if this is a CometAPI model
+            is_cometapi = model in COMET_MODELS
+            # Check if this is a ChatGPT model (via g4f MCP bridge)
+            is_chatgpt = model in CHATGPT_MODELS
+            # Check if this is an Alibaba Cloud model
+            is_alibaba = model in ALIBABA_MODELS
+
+            if is_cometapi:
+                from .cometapi import CometAPIClient, COMETAPI_KEY
+                if not COMETAPI_KEY:
+                    return CouncilResponse(
+                        model=model,
+                        content="",
+                        latency_ms=0,
+                        error="CometAPI key not configured",
+                    )
+
+                client = CometAPIClient()
+                result = client.query(model, user_message, self.system_prompt)
+                client.close()
+
+                reasoning_steps = self._extract_reasoning_steps(result.content) if result.content else []
+
+                return CouncilResponse(
+                    model=model,
+                    content=result.content,
+                    token_count=result.token_count,
+                    latency_ms=result.latency_ms,
+                    error=result.error,
+                    reasoning_steps=reasoning_steps,
+                    confidence=1.0 if not result.error else 0.0,
+                )
+            elif is_chatgpt:
+                from .chatgpt_mcp import ChatGPTMCPClient
+                client = ChatGPTMCPClient()
+                result = client.query(model, user_message, self.system_prompt)
+                client.close()
+
+                reasoning_steps = self._extract_reasoning_steps(result.content) if result.content else []
+
+                return CouncilResponse(
+                    model=model,
+                    content=result.content,
+                    token_count=result.token_count,
+                    latency_ms=result.latency_ms,
+                    error=result.error,
+                    reasoning_steps=reasoning_steps,
+                    confidence=1.0 if not result.error else 0.0,
+                )
+            elif is_alibaba:
+                from .alibaba_cloud import AlibabaCloudClient, DASHSCOPE_API_KEY
+                if not DASHSCOPE_API_KEY:
+                    return CouncilResponse(
+                        model=model,
+                        content="",
+                        latency_ms=0,
+                        error="Alibaba API key not configured",
+                    )
+
+                client = AlibabaCloudClient()
+                result = client.query(model, user_message, self.system_prompt)
+                latency_ms = result.latency_ms
+
+                reasoning_steps = self._extract_reasoning_steps(result.content) if result.content else []
+
+                return CouncilResponse(
+                    model=model,
+                    content=result.content,
+                    token_count=result.token_count,
+                    latency_ms=latency_ms,
+                    error=result.error,
+                    reasoning_steps=reasoning_steps,
+                    confidence=1.0 if not result.error else 0.0,
+                )
+
             # Enhanced system prompt for logical reasoning
             reasoning_prompt = f"""{self.system_prompt}
 
@@ -181,7 +280,7 @@ REASONING INSTRUCTIONS:
                     model=model,
                     content="",
                     latency_ms=latency_ms,
-                    error=f"HTTP {response.status_code}: {response.text}",
+                    error=f"HTTP {response.status_code}: {response.text[:200]}",
                 )
 
         except Exception as e:
@@ -190,7 +289,7 @@ REASONING INSTRUCTIONS:
                 model=model,
                 content="",
                 latency_ms=latency_ms,
-                error=str(e),
+                error=str(e)[:200],
             )
 
     def _extract_reasoning_steps(self, content: str) -> list[str]:

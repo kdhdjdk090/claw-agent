@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Claw AI API",
-    "description": "REST API for Claw AI â€” a multi-model AI assistant that queries OpenRouter and Alibaba Cloud (DashScope) models and returns intelligent responses.\n\n## Architecture\n- **14 models**: 8 via OpenRouter + 6 via Alibaba Cloud DashScope\n- **Multi-model mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via OpenRouter\n- **Providers**: OpenRouter (openrouter.ai), Alibaba Cloud (dashscope.aliyuncs.com)\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `OPENROUTER_API_KEY` â€” OpenRouter API key\n- `DASHSCOPE_API_KEY` â€” Alibaba Cloud DashScope API key\n\nNo client-side authentication is required for the public endpoints.",
-    "version": "2.1.0",
+    "description": "REST API for Claw AI -- a multi-model AI assistant that queries OpenRouter, Alibaba Cloud (DashScope), and CometAPI models and returns intelligent responses.\n\n## Architecture\n- **18 models**: 8 via OpenRouter + 6 via Alibaba Cloud DashScope + 4 via CometAPI\n- **Multi-model mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via its provider\n- **Providers**: OpenRouter (openrouter.ai), Alibaba Cloud (dashscope.aliyuncs.com), CometAPI (api.cometapi.com)\n- **Testing**: Test individual models, entire providers, or all models at once for availability and response times\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `OPENROUTER_API_KEY` -- OpenRouter API key\n- `DASHSCOPE_API_KEY` -- Alibaba Cloud DashScope API key\n- `COMETAPI_KEY` -- CometAPI API key\n\nNo client-side authentication is required for the public endpoints.",
+    "version": "2.2.0",
     "contact": {
       "name": "Claw AI",
       "url": "https://github.com/claw-agent"
@@ -70,7 +70,7 @@
             }
           },
           "400": {
-            "description": "Bad request â€” missing or invalid message",
+            "description": "Bad request -- missing or invalid message",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -86,7 +86,7 @@
             }
           },
           "500": {
-            "description": "Server error â€” API key not configured or all models failed",
+            "description": "Server error -- API key not configured or all models failed",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ErrorResponse" }
@@ -198,6 +198,97 @@
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/ConfigResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/test/model": {
+      "get": {
+        "operationId": "testModel",
+        "summary": "Test a single model",
+        "description": "Sends a minimal completion request (max_tokens:1) to a specific model to check if it is up and responding. Returns status, response time, and token info.",
+        "tags": ["Testing"],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "query",
+            "required": true,
+            "description": "Full model ID to test (e.g. deepseek/deepseek-v3, qwen3-max, gpt-4.1)",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model test result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TestModelResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or unknown model parameter",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/test/provider": {
+      "get": {
+        "operationId": "testProvider",
+        "summary": "Test all models of a provider",
+        "description": "Tests every model belonging to the specified provider in parallel. Returns per-model up/down status and aggregate counts.",
+        "tags": ["Testing"],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "description": "Provider name to test",
+            "schema": {
+              "type": "string",
+              "enum": ["openrouter", "alibaba", "cometapi"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Provider test results",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TestProviderResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid provider parameter",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/test/all": {
+      "get": {
+        "operationId": "testAllModels",
+        "summary": "Test all models across all providers",
+        "description": "Tests every configured model across OpenRouter, Alibaba, and CometAPI in parallel. Returns per-provider breakdown with total up/down counts.",
+        "tags": ["Testing"],
+        "responses": {
+          "200": {
+            "description": "Full test results across all providers",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TestAllResponse" }
               }
             }
           }
@@ -322,31 +413,34 @@
           },
           "api_key_set": { "type": "boolean" },
           "alibaba_key_set": { "type": "boolean" },
+          "cometapi_key_set": { "type": "boolean" },
           "providers": {
             "type": "array",
             "items": { "type": "string" },
-            "example": ["OpenRouter", "Alibaba Cloud (DashScope)"]
+            "example": ["OpenRouter", "Alibaba Cloud (DashScope)", "CometAPI"]
           },
           "openrouter_models": { "type": "integer", "example": 8 },
           "alibaba_models": { "type": "integer", "example": 6 },
-          "model_count": { "type": "integer", "example": 14 }
+          "cometapi_models": { "type": "integer", "example": 4 },
+          "model_count": { "type": "integer", "example": 18 }
         }
       },
       "StatusResponse": {
         "type": "object",
         "properties": {
           "status": { "type": "string", "example": "operational" },
-          "version": { "type": "string", "example": "2.0.0" },
+          "version": { "type": "string", "example": "2.2.0" },
           "uptime": { "type": "number", "description": "Server uptime in seconds" },
           "timestamp": { "type": "string", "format": "date-time" },
-          "models": { "type": "integer", "example": 14 },
-          "providers": { "type": "integer", "example": 2 },
+          "models": { "type": "integer", "example": 18 },
+          "providers": { "type": "integer", "example": 3 },
           "skills": { "type": "integer", "example": 18 },
           "keys_configured": {
             "type": "object",
             "properties": {
               "openrouter": { "type": "boolean" },
-              "dashscope": { "type": "boolean" }
+              "dashscope": { "type": "boolean" },
+              "cometapi": { "type": "boolean" }
             }
           },
           "endpoints": {
@@ -359,13 +453,14 @@
         "type": "object",
         "properties": {
           "status": { "type": "string", "example": "ok" },
-          "version": { "type": "string", "example": "2.0.0" },
+          "version": { "type": "string", "example": "2.2.0" },
           "timestamp": { "type": "string", "format": "date-time" },
           "keys_configured": {
             "type": "object",
             "properties": {
               "openrouter": { "type": "boolean" },
-              "dashscope": { "type": "boolean" }
+              "dashscope": { "type": "boolean" },
+              "cometapi": { "type": "boolean" }
             }
           }
         }
@@ -404,8 +499,8 @@
       "ConfigResponse": {
         "type": "object",
         "properties": {
-          "version": { "type": "string", "example": "2.0.0" },
-          "models": { "type": "integer", "example": 14 },
+          "version": { "type": "string", "example": "2.2.0" },
+          "models": { "type": "integer", "example": 18 },
           "providers": { "type": "array", "items": { "type": "string" } },
           "skills": { "type": "integer", "example": 18 },
           "tools": { "type": "integer", "example": 26 },
@@ -413,7 +508,8 @@
             "type": "object",
             "properties": {
               "openrouter": { "type": "boolean" },
-              "dashscope": { "type": "boolean" }
+              "dashscope": { "type": "boolean" },
+              "cometapi": { "type": "boolean" }
             }
           },
           "limits": {
@@ -451,13 +547,60 @@
             }
           }
         }
+      },
+      "TestModelResponse": {
+        "type": "object",
+        "properties": {
+          "model": { "type": "string", "example": "deepseek/deepseek-v3" },
+          "provider": { "type": "string", "example": "openrouter" },
+          "status": { "type": "string", "enum": ["up", "down"], "example": "up" },
+          "response_time_ms": { "type": "integer", "example": 342 },
+          "tokens": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "prompt_tokens": { "type": "integer" },
+              "completion_tokens": { "type": "integer" },
+              "total_tokens": { "type": "integer" }
+            }
+          },
+          "finish_reason": { "type": "string", "nullable": true, "example": "length" },
+          "error": { "type": "string", "nullable": true }
+        }
+      },
+      "TestProviderResponse": {
+        "type": "object",
+        "properties": {
+          "provider": { "type": "string", "example": "openrouter" },
+          "total_models": { "type": "integer", "example": 8 },
+          "models_up": { "type": "integer", "example": 7 },
+          "models_down": { "type": "integer", "example": 1 },
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TestModelResponse" }
+          }
+        }
+      },
+      "TestAllResponse": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "total_providers": { "type": "integer", "example": 3 },
+          "total_models": { "type": "integer", "example": 18 },
+          "total_up": { "type": "integer", "example": 16 },
+          "total_down": { "type": "integer", "example": 2 },
+          "providers": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/components/schemas/TestProviderResponse" }
+          }
+        }
       }
     }
   },
   "tags": [
     {
       "name": "Chat",
-      "description": "Send messages â€” automatically routes to single or multi-model mode"
+      "description": "Send messages -- automatically routes to single or multi-model mode"
     },
     {
       "name": "Models",
@@ -466,6 +609,10 @@
     {
       "name": "System",
       "description": "Health checks, status, tools, skills, and configuration"
+    },
+    {
+      "name": "Testing",
+      "description": "Test model availability, response times, and token balance per model or provider"
     }
   ]
 }
