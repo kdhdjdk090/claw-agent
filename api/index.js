@@ -530,12 +530,14 @@ async function handleChat(req, res) {
       const isUltraThink = /\b(ultrathink|ultra.think|deep.reason|boss.test|final.boss|maximum.rigor|prove.it|self.audit|adversarial|multi.?part|chain.of.thought)\b/i.test(message) || (needsReasoning && needsCoding) || (needsReasoning && isHeavy);
       const isResume = /\b(continue|resume|pick up|where.you.left|carry on|keep going|go on)\b/i.test(lc) && Array.isArray(history) && history.length > 0;
       const isSimple = !needsReasoning && !needsCoding && !isHeavy && !isUltraThink && !isResume && message.length < 120 && !/\b(explain|how does|why does|what causes|compare|analyze|write a|build a|create|implement|design)\b/i.test(lc);
-      const needsSearch = /\b(search|look up|find out|google|news|latest|current events|today'?s?|recent|trending|what happened|update|weather|stock price|score|who won|release date|when did|when will|is it true|fact.?check|how much does|where (is|are|can)|what is the price|real.?time|right now|as of)\b/i.test(lc) || /\b(202[4-9])\b/.test(message);
+      const needsSearch = /\b(search|research|look up|find out|google|browse|news|latest|current events?|today'?s?|recent|trending|what happened|update|weather|stock price|score|who won|release date|when did|when will|is it true|fact.?check|how much does|where (is|are|can)|what is the price|real.?time|right now|as of|launched|announced|released|introduced|unveiled|reported|confirmed|rumor|did .+ (launch|release|announce|happen))\b/i.test(lc) || /\b(202[4-9])\b/.test(message);
 
       // Web search if needed (DuckDuckGo, no API key)
       let searchResults = [];
       if (needsSearch) {
+        console.log('[search] Triggered for:', message.slice(0, 80));
         searchResults = await webSearch(message);
+        console.log('[search] Got', searchResults.length, 'results');
       }
 
       // Inject current server time so the AI can answer time/date questions
