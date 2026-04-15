@@ -18,19 +18,19 @@ import httpx
 # Default free models available on OpenRouter - OPTIMIZED TOP TIER
 # Priority order based on performance: Reasoning > Coding > Chat > Speed
 OPENROUTER_MODELS = [
-    # 🥇 TIER 1: MOST POWERFUL (Priority)
-    "deepseek/deepseek-v3",                   # 🥇 Best overall - Massive MoE 600B+
-    "qwen/qwen3-80b",                         # 🥈 Best balance - Power + Speed
-    "meta-llama/llama-3.3-70b-instruct",      # 🥉 Most consistent & reliable
-    
-    # ⭐ TIER 2: SPECIALIZED
-    "qwen/qwen-2.5-coder-32b-instruct",       # 💻 Coding specialist
-    "deepseek/deepseek-r1",                   # 🧮 Reasoning / Math specialist
-    
-    # ⚡ TIER 3: FAST + EFFICIENT
-    "google/gemma-3-12b-it",                  # ⚡ Fast & capable
-    "openai/gpt-4o-mini",                     # 🎯 Reliable general purpose
-    "anthropic/claude-3-haiku-20240307",      # 🎭 Natural conversation
+    # 🥇 TIER 1: MOST POWERFUL (Free tier)
+    "qwen/qwen3-next-80b-a3b-instruct:free",  # 🥇 Best Qwen reasoning (free)
+    "meta-llama/llama-3.3-70b-instruct:free",  # 🥈 Most consistent & reliable (free)
+    "nousresearch/hermes-3-llama-3.1-405b:free",  # 🥉 Largest free model (405B)
+
+    # ⭐ TIER 2: SPECIALIZED (Free tier)
+    "qwen/qwen3-coder:free",                  # 💻 Coding specialist (free)
+    "google/gemma-4-26b-a4b-it:free",         # 🧮 Newest Gemma 4 (free)
+
+    # ⚡ TIER 3: FAST + EFFICIENT (Free tier)
+    "google/gemma-3-12b-it:free",             # ⚡ Fast & capable (free)
+    "google/gemma-3-27b-it:free",             # 🎯 Larger Gemma (free)
+    "google/gemma-4-31b-it:free",             # 🎭 Newest Gemma 4 31B (free)
 ]
 
 # Alibaba Cloud models (1M free tokens each via DashScope)
@@ -79,7 +79,10 @@ TASK_MODEL_MAP = {
 
 # OpenRouter API configuration
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+
+def _get_openrouter_key() -> str:
+    """Lazily read OpenRouter key so _load_project_env() has time to run."""
+    return os.environ.get("OPENROUTER_API_KEY", "")
 
 # Council configuration
 COUNCIL_THRESHOLD = float(os.environ.get("COUNCIL_THRESHOLD", "0.6"))  # 60% consensus
@@ -135,10 +138,7 @@ class LLCouncil:
         Gracefully handles partial failures — if some providers fail
         (e.g. invalid API key), still returns results from working ones.
         """
-        if not OPENROUTER_API_KEY:
-            raise ValueError("OPENROUTER_API_KEY not set in environment")
-
-        # Query all models
+        # Query all models (missing keys are handled per-provider in _query_model)
         responses = []
         for model in self.models:
             response = self._query_model(model, user_message)
@@ -225,8 +225,8 @@ class LLCouncil:
                 )
             elif is_alibaba:
                 # Use Alibaba Cloud API
-                from .alibaba_cloud import AlibabaCloudClient, DASHSCOPE_API_KEY
-                if not DASHSCOPE_API_KEY:
+                from .alibaba_cloud import AlibabaCloudClient, _get_dashscope_key
+                if not _get_dashscope_key():
                     return CouncilResponse(
                         model=model,
                         content="",
@@ -246,6 +246,13 @@ class LLCouncil:
                 )
             else:
                 # Use OpenRouter API
+                if not _get_openrouter_key():
+                    return CouncilResponse(
+                        model=model,
+                        content="",
+                        latency_ms=0,
+                        error="OpenRouter API key not configured",
+                    )
                 payload = {
                     "model": model,
                     "messages": [
@@ -260,7 +267,7 @@ class LLCouncil:
                     f"{OPENROUTER_API_BASE}/chat/completions",
                     json=payload,
                     headers={
-                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "Authorization": f"Bearer {_get_openrouter_key()}",
                         "Content-Type": "application/json",
                         "HTTP-Referer": "https://github.com/claw-agent",
                         "X-Title": "Claw AI Council",

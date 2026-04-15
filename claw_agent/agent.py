@@ -33,35 +33,44 @@ except Exception:
 def _load_project_env() -> None:
     """Load workspace .env.local / .env files for local CLI runs.
 
-    Values from project env files take precedence so the local CLI matches
-    the checked-in workspace configuration and Vercel-style local setup.
+    Searches upward from *both* the current working directory and the
+    package install directory so `claw` works regardless of where the
+    user invokes it from.
     """
-    cwd = os.getcwd()
+    # Collect unique starting directories: cwd + package dir (+ its parents)
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    start_dirs: list[str] = []
+    for d in (os.getcwd(), pkg_dir, os.path.dirname(pkg_dir)):
+        d = os.path.normpath(d)
+        if d not in start_dirs:
+            start_dirs.append(d)
+
     for filename in (".env.local", ".env"):
-        search = cwd
-        for _ in range(4):
-            path = os.path.join(search, filename)
-            if os.path.isfile(path):
-                try:
-                    with open(path, "r", encoding="utf-8", errors="replace") as f:
-                        for raw_line in f:
-                            line = raw_line.strip()
-                            if not line or line.startswith("#") or "=" not in line:
-                                continue
-                            key, value = line.split("=", 1)
-                            key = key.strip()
-                            value = value.strip()
-                            if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
-                                value = value[1:-1]
-                            if key:
-                                os.environ[key] = value
-                except OSError:
-                    pass
-                break
-            parent = os.path.dirname(search)
-            if parent == search:
-                break
-            search = parent
+        for start in start_dirs:
+            search = start
+            for _ in range(4):
+                path = os.path.join(search, filename)
+                if os.path.isfile(path):
+                    try:
+                        with open(path, "r", encoding="utf-8", errors="replace") as f:
+                            for raw_line in f:
+                                line = raw_line.strip()
+                                if not line or line.startswith("#") or "=" not in line:
+                                    continue
+                                key, value = line.split("=", 1)
+                                key = key.strip()
+                                value = value.strip()
+                                if value and len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+                                    value = value[1:-1]
+                                if key:
+                                    os.environ[key] = value
+                    except OSError:
+                        pass
+                    return  # found and loaded — stop searching
+                parent = os.path.dirname(search)
+                if parent == search:
+                    break
+                search = parent
 
 
 _load_project_env()
@@ -507,7 +516,6 @@ class Agent:
             from .ll_council import LLCouncil
             self.council = LLCouncil(
                 system_prompt=system_content,
-                on_response=lambda r: print(f"[Council] {r.model}: {r.latency_ms:.0f}ms"),
             )
 
     # ---- public: blocking --------------------------------------------------
@@ -532,7 +540,6 @@ class Agent:
             from .ll_council import LLCouncil, DEFAULT_COUNCIL_MODELS
             self.council = LLCouncil(
                 system_prompt=self.messages[0]["content"],
-                on_response=lambda r: print(f"[Council] {r.model}: {r.latency_ms:.0f}ms"),
             )
         
         result = self.council.query_council(user_message)

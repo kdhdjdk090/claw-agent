@@ -13,8 +13,9 @@ from typing import Any, Callable
 
 import httpx
 
-# Alibaba Cloud API Key - must be set via environment variable
-DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
+# Alibaba Cloud API Key - lazy read so _load_project_env() has time to run
+def _get_dashscope_key() -> str:
+    return os.environ.get("DASHSCOPE_API_KEY", "")
 DASHSCOPE_API_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # Best Alibaba Cloud models from free quota (1M tokens each)
@@ -59,7 +60,7 @@ class AlibabaCloudClient:
     """Client for Alibaba Cloud (DashScope) API."""
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or DASHSCOPE_API_KEY
+        self.api_key = api_key or _get_dashscope_key()
         if not self.api_key:
             raise ValueError("DASHSCOPE_API_KEY environment variable is required")
         self.client = httpx.Client(timeout=60)

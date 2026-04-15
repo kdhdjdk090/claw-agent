@@ -55,7 +55,10 @@ REASONING_FOCUSED_MODELS = [
 
 # OpenRouter API configuration
 OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+
+def _get_openrouter_key() -> str:
+    """Lazy lookup so the key is read after .env.local is loaded."""
+    return os.environ.get("OPENROUTER_API_KEY", "")
 
 # Council configuration
 COUNCIL_THRESHOLD = float(os.environ.get("COUNCIL_THRESHOLD", "0.6"))
@@ -114,8 +117,9 @@ class AdvancedLLCouncil:
 
     def query_council(self, user_message: str) -> CouncilResult:
         """Query all council models and aggregate responses with deliberation."""
-        if not OPENROUTER_API_KEY:
-            raise ValueError("OPENROUTER_API_KEY not set in environment")
+        if not _get_openrouter_key():
+            # Skip OpenRouter models gracefully; other providers may still work
+            pass
 
         # Stage 1: Initial responses from all models
         initial_result = self._query_all_models(user_message)
@@ -198,8 +202,8 @@ class AdvancedLLCouncil:
                     confidence=1.0 if not result.error else 0.0,
                 )
             elif is_alibaba:
-                from .alibaba_cloud import AlibabaCloudClient, DASHSCOPE_API_KEY
-                if not DASHSCOPE_API_KEY:
+                from .alibaba_cloud import AlibabaCloudClient, _get_dashscope_key
+                if not _get_dashscope_key():
                     return CouncilResponse(
                         model=model,
                         content="",
@@ -248,7 +252,7 @@ REASONING INSTRUCTIONS:
                 f"{OPENROUTER_API_BASE}/chat/completions",
                 json=payload,
                 headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Authorization": f"Bearer {_get_openrouter_key()}",
                     "Content-Type": "application/json",
                     "HTTP-Referer": "https://github.com/claw-agent",
                     "X-Title": "Claw AI Council - Advanced Reasoning",
