@@ -25,7 +25,8 @@ class OpenRouterModeTests(unittest.TestCase):
             models = cli.list_models()
 
         self.assertTrue(models)
-        self.assertIn("deepseek/deepseek-chat-v3-0324:free", models)
+        self.assertEqual(agent.DEFAULT_MODEL, agent._get_openrouter_direct_models()[0])
+        self.assertIn(agent.DEFAULT_MODEL, models)
 
 
 if __name__ == "__main__":

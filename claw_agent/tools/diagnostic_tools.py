@@ -7,6 +7,8 @@ import json
 import os
 from pathlib import Path
 
+from ..python_runtime import python_command
+
 
 def get_errors(file_paths: list[str] | None = None, workspace: str = ".") -> str:
     """Get compile or lint errors for files. Runs appropriate linter based on file type.
@@ -42,7 +44,7 @@ def get_errors(file_paths: list[str] | None = None, workspace: str = ".") -> str
         # Quick syntax check
         try:
             r = subprocess.run(
-                ["python", "-m", "py_compile", str(pf)],
+                python_command("-m", "py_compile", str(pf)),
                 capture_output=True, text=True, timeout=10,
                 cwd=str(root),
             )
@@ -55,8 +57,9 @@ def get_errors(file_paths: list[str] | None = None, workspace: str = ".") -> str
     if py_files:
         # Try flake8
         try:
-            fargs = ["python", "-m", "flake8", "--max-line-length=120",
-                      "--select=E,W,F"] + [str(f) for f in py_files[:50]]
+            fargs = python_command(
+                "-m", "flake8", "--max-line-length=120", "--select=E,W,F"
+            ) + [str(f) for f in py_files[:50]]
             r = subprocess.run(fargs, capture_output=True, text=True, timeout=30, cwd=str(root))
             if r.stdout.strip():
                 results.append("[FLAKE8]")

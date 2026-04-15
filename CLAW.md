@@ -23,9 +23,10 @@ User ──→ CLI (cli.py) / Web UI / VS Code Extension / Chrome Extension
          │    6. MCP context — external tool server descriptions
          │
          ├─ LLM Backend (priority order):
-         │    1. Council (14 models via OpenRouter + Alibaba Cloud)
-         │    2. DeepSeek Cloud API (deepseek-reasoner)
-         │    3. Local Ollama (deepseek-v3.1:671b-cloud)
+         │    1. Codex Runtime (role-based pipeline via AUTH_MODE/COUNCIL_PROVIDER)
+         │    2. Council (14 models via OpenRouter + Alibaba Cloud)
+         │    3. DeepSeek Cloud API (deepseek-reasoner)
+         │    4. Local Ollama (deepseek-v3.1:671b-cloud)
          │
          ├─ Tool Execution (34 tools across 11 categories)
          │
@@ -42,6 +43,7 @@ claw-agent/
 ├── claw_agent/
 │   ├── agent.py          — Core agent loop, streaming, system prompt
 │   ├── cli.py            — Interactive CLI (Rich markdown rendering)
+│   ├── codex_runtime.py  — Role-based council pipeline (planner→coder→reviewer→critic→synthesizer)
 │   ├── skills.py         — 18+ built-in skills + custom skill registry
 │   ├── sessions.py       — Conversation persistence & compaction
 │   ├── cost_tracker.py   — Token usage & cost tracking
@@ -113,6 +115,39 @@ When enabled (via `OPENROUTER_API_KEY`), queries are sent to 14 models across 3 
 - **Alibaba Cloud**: 6 additional models via DashScope (1M free tokens each)
 
 Responses are aggregated by consensus voting.
+
+## Codex Runtime (Role-Based Pipeline)
+
+When enabled, tasks flow through a **role-based deliberation pipeline** instead of single-model or voting-based inference:
+
+```
+Task ──→ Planner ──→ Coder ──→ Reviewer ──→ Critic ──→ Synthesizer ──→ Answer
+```
+
+Each role uses a different model optimised for that function. Two free providers are supported:
+
+| Role        | OpenRouter Model                              | Alibaba Model                        |
+|-------------|-----------------------------------------------|--------------------------------------|
+| Planner     | `qwen/qwen3-235b-a22b:free`                  | `qwen3.5-397b-a17b`                 |
+| Coder       | `qwen/qwen3-coder:free`                      | `qwen3-coder-480b-a35b-instruct`    |
+| Reviewer    | `meta-llama/llama-3.3-70b-instruct:free`     | `qwen3.5-397b-a17b`                 |
+| Critic      | `nousresearch/hermes-3-llama-3.1-405b:free`  | `qwen-plus`                          |
+| Synthesizer | `qwen/qwen3-235b-a22b:free`                  | `qwen3-max`                          |
+| Tool (opt.) | —                                             | `qwen3-coder-plus`                   |
+
+### Environment Variables
+
+| Variable            | Values                        | Default  | Description                              |
+|---------------------|-------------------------------|----------|------------------------------------------|
+| `AUTH_MODE`         | `free`, `chatgpt`             | `free`   | Free models or premium ChatGPT login     |
+| `COUNCIL_PROVIDER`  | `openrouter`, `alibaba`, `auto` | `auto` | Which free provider to use               |
+| `OPENROUTER_API_KEY`| string                        | —        | Required for OpenRouter provider         |
+| `DASHSCOPE_API_KEY` | string                        | —        | Required for Alibaba provider            |
+| `DISABLE_COUNCIL`   | `1`                           | —        | Force single-model mode (no pipeline)    |
+
+### Smart Routing
+
+The runtime auto-detects when a task benefits from the full pipeline vs. a quick single-model response. Simple queries (greetings, one-liners, factual lookups) bypass the council for speed.
 
 ## AI Lab
 

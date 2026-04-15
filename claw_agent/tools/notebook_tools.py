@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from ..python_runtime import python_command
+
 
 def notebook_run(code: str, timeout: int = 30) -> str:
     """Execute a Python code snippet and return its output.
@@ -20,7 +22,7 @@ def notebook_run(code: str, timeout: int = 30) -> str:
 
     try:
         result = subprocess.run(
-            ["python", tmp_path],
+            python_command(tmp_path),
             capture_output=True,
             text=True,
             timeout=timeout,

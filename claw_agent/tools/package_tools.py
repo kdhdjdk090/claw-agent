@@ -6,6 +6,8 @@ import json
 import subprocess
 from pathlib import Path
 
+from ..python_runtime import python_command
+
 
 def list_dependencies(directory: str = ".", ecosystem: str = "auto") -> str:
     """List project dependencies.
@@ -51,7 +53,7 @@ def check_outdated(directory: str = ".", ecosystem: str = "auto") -> str:
             return "Error: Could not detect package ecosystem."
 
     cmds = {
-        "pip": ["python", "-m", "pip", "list", "--outdated", "--format=columns"],
+        "pip": python_command("-m", "pip", "list", "--outdated", "--format=columns"),
         "npm": ["npm", "outdated"],
         "cargo": ["cargo", "outdated"],
         "go": ["go", "list", "-u", "-m", "all"],
@@ -87,7 +89,7 @@ def audit_dependencies(directory: str = ".", ecosystem: str = "auto") -> str:
             return "Error: Could not detect package ecosystem."
 
     cmds = {
-        "pip": ["python", "-m", "pip_audit"],
+        "pip": python_command("-m", "pip_audit"),
         "npm": ["npm", "audit"],
     }
     cmd = cmds.get(eco)
@@ -130,7 +132,7 @@ def _pip_list(root: Path) -> str:
         return f"pip dependencies ({len(lines)} from requirements.txt):\n" + "\n".join(f"  {l}" for l in lines)
     # Fallback to pip freeze
     try:
-        result = subprocess.run(["python", "-m", "pip", "freeze"], cwd=str(root), capture_output=True, text=True, timeout=30)
+        result = subprocess.run(python_command("-m", "pip", "freeze"), cwd=str(root), capture_output=True, text=True, timeout=30)
         pkgs = [l for l in result.stdout.strip().splitlines() if l.strip()]
         return f"pip dependencies ({len(pkgs)} installed):\n" + "\n".join(f"  {p}" for p in pkgs[:50])
     except Exception as e:

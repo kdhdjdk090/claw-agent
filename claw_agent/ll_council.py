@@ -113,6 +113,25 @@ def _build_default_council() -> list[str]:
     return models or list(OPENROUTER_MODELS)
 
 
+def run_role_council(task: str, workspace_root: str | None = None) -> str:
+    """Run the Codex-style role-based council (planner→coder→reviewer→critic→synthesizer).
+
+    This is a convenience wrapper around :class:`codex_runtime.CodexRuntime`
+    that can be called from the CLI or other modules without wiring up the
+    full Agent class.
+
+    Returns the synthesised final answer as a plain string.
+    """
+    from .codex_runtime import CodexRuntime
+
+    rt = CodexRuntime(workspace_root=workspace_root or os.getcwd())
+    try:
+        result = rt.run_task(task)
+        return result.final_answer
+    finally:
+        rt.close()
+
+
 # Lazy singleton — computed on first access (after env is loaded)
 _DEFAULT_COUNCIL: list[str] | None = None
 

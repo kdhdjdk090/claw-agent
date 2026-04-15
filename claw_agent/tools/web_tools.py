@@ -4,8 +4,109 @@ from __future__ import annotations
 
 import re
 from html.parser import HTMLParser
+from urllib.parse import unquote, urlparse
 
 import httpx
+
+
+_TRUSTED_SOURCE_WEIGHTS = {
+    "reuters.com": 120,
+    "apnews.com": 115,
+    "bloomberg.com": 105,
+    "ft.com": 100,
+    "wsj.com": 100,
+    "bbc.com": 95,
+    "bbc.co.uk": 95,
+    "nytimes.com": 92,
+    "theguardian.com": 88,
+    "npr.org": 85,
+    "gov": 125,
+    "mil": 125,
+    "state.gov": 130,
+    "defense.gov": 130,
+    "whitehouse.gov": 130,
+    "treasury.gov": 130,
+    "congress.gov": 128,
+    "un.org": 118,
+}
+
+_SEARCH_ENDPOINTS = (
+    "https://html.duckduckgo.com/html/",
+    "https://lite.duckduckgo.com/lite/",
+)
+
+
+def _display_host(url: str) -> str:
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return "unknown"
+    if host.startswith("www."):
+        host = host[4:]
+    return host or "unknown"
+
+
+def _trust_score(url: str, index: int) -> int:
+    host = _display_host(url)
+    score = max(0, 50 - index)
+    for domain, weight in _TRUSTED_SOURCE_WEIGHTS.items():
+        if host == domain or host.endswith(f".{domain}"):
+            return score + weight
+        if domain == "gov" and host.endswith(".gov"):
+            return score + weight
+        if domain == "mil" and host.endswith(".mil"):
+            return score + weight
+    return score
+
+
+def _clean_search_url(href: str) -> str:
+    url_match = re.search(r"uddg=([^&]+)", href)
+    actual_url = url_match.group(1) if url_match else href
+    return unquote(actual_url)
+
+
+def _clean_html_text(value: str) -> str:
+    return re.sub(r"<[^>]+>", "", value).strip()
+
+
+def _parse_search_results(html: str, num_results: int) -> list[dict[str, str | int]]:
+    """Extract search results from DuckDuckGo HTML and Lite pages."""
+    link_patterns = (
+        re.compile(r'<a rel="nofollow" class="result__a" href="([^"]+)"[^>]*>(.+?)</a>', re.DOTALL),
+        re.compile(r"<a[^>]+class=['\"]result-link['\"][^>]+href=['\"]([^'\"]+)['\"][^>]*>(.+?)</a>", re.DOTALL),
+    )
+    snippet_patterns = (
+        re.compile(r'<a class="result__snippet"[^>]*>(.+?)</a>', re.DOTALL),
+        re.compile(r"<td[^>]+class=['\"]result-snippet['\"][^>]*>(.+?)</td>", re.DOTALL),
+    )
+
+    links: list[tuple[str, str]] = []
+    snippets: list[str] = []
+
+    for pattern in link_patterns:
+        links = pattern.findall(html)
+        if links:
+            break
+
+    for pattern in snippet_patterns:
+        snippets = pattern.findall(html)
+        if snippets:
+            break
+
+    results = []
+    for i, (href, title) in enumerate(links[:num_results]):
+        title_clean = _clean_html_text(title)
+        snippet = _clean_html_text(snippets[i]) if i < len(snippets) else ""
+        actual_url = _clean_search_url(href)
+        results.append({
+            "title": title_clean,
+            "url": actual_url,
+            "snippet": snippet,
+            "host": _display_host(actual_url),
+            "score": _trust_score(actual_url, i),
+        })
+
+    return results
 
 
 class _TextExtractor(HTMLParser):
@@ -75,46 +176,56 @@ def web_fetch(url: str, max_chars: int = 20000) -> str:
 
 def web_search(query: str, num_results: int = 5) -> str:
     """Search the web using DuckDuckGo HTML (no API key required)."""
+    errors: list[str] = []
     try:
         with httpx.Client(timeout=15, follow_redirects=True) as client:
-            resp = client.get(
-                "https://html.duckduckgo.com/html/",
-                params={"q": query},
-                headers={
-                    "User-Agent": "ClawAgent/0.1 (autonomous coding agent)",
-                },
-            )
-            resp.raise_for_status()
-
-        # Parse results from DuckDuckGo HTML
-        results = []
-
-        # Extract result links and snippets
-        link_pattern = re.compile(r'<a rel="nofollow" class="result__a" href="([^"]+)"[^>]*>(.+?)</a>', re.DOTALL)
-        snippet_pattern = re.compile(r'<a class="result__snippet"[^>]*>(.+?)</a>', re.DOTALL)
-
-        links = link_pattern.findall(resp.text)
-        snippets = snippet_pattern.findall(resp.text)
-
-        for i, (href, title) in enumerate(links[:num_results]):
-            title_clean = re.sub(r"<[^>]+>", "", title).strip()
-            snippet = ""
-            if i < len(snippets):
-                snippet = re.sub(r"<[^>]+>", "", snippets[i]).strip()
-
-            # Extract actual URL from DuckDuckGo redirect
-            url_match = re.search(r'uddg=([^&]+)', href)
-            actual_url = url_match.group(1) if url_match else href
-            # URL decode
-            from urllib.parse import unquote
-            actual_url = unquote(actual_url)
-
-            results.append(f"{i+1}. {title_clean}\n   {actual_url}\n   {snippet}")
+            results = []
+            for endpoint in _SEARCH_ENDPOINTS:
+                try:
+                    resp = client.get(
+                        endpoint,
+                        params={"q": query},
+                        headers={
+                            "User-Agent": "ClawAgent/0.1 (autonomous coding agent)",
+                            "Accept-Language": "en-US,en;q=0.9",
+                        },
+                    )
+                    resp.raise_for_status()
+                    results = _parse_search_results(resp.text, num_results)
+                    if results:
+                        break
+                    errors.append(f"{endpoint}: parsed 0 results")
+                except Exception as endpoint_error:
+                    errors.append(f"{endpoint}: {endpoint_error}")
 
         if not results:
-            return f"No results found for: {query}"
+            details = "; ".join(errors[:3])
+            return f"No results found for: {query}" + (f"\nSearch backends tried: {details}" if details else "")
 
-        return f"Search results for: {query}\n\n" + "\n\n".join(results)
+        deduped = []
+        seen_urls = set()
+        for result in sorted(results, key=lambda item: item["score"], reverse=True):
+            if result["url"] in seen_urls:
+                continue
+            seen_urls.add(result["url"])
+            deduped.append(result)
+            if len(deduped) >= num_results:
+                break
+
+        rendered = []
+        for index, result in enumerate(deduped, 1):
+            rendered.append(
+                f"{index}. {result['title']}\n"
+                f"   Source: {result['host']}\n"
+                f"   URL: {result['url']}\n"
+                f"   Snippet: {result['snippet']}"
+            )
+
+        return (
+            f"Search results for: {query}\n"
+            "Use web_fetch on the most relevant and trustworthy sources before treating claims as verified.\n\n"
+            + "\n\n".join(rendered)
+        )
 
     except Exception as e:
         return f"Error searching: {e}"

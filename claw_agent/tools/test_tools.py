@@ -8,6 +8,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from ..python_runtime import python_command
+
 
 def run_tests(directory: str = ".", framework: str = "auto", pattern: str = "") -> str:
     """Detect and run the project's test suite.
@@ -28,8 +30,8 @@ def run_tests(directory: str = ".", framework: str = "auto", pattern: str = "") 
             return "Error: Could not detect test framework. Specify 'framework' explicitly."
 
     cmd_map = {
-        "pytest": ["python", "-m", "pytest", "-v"],
-        "unittest": ["python", "-m", "unittest", "discover", "-v"],
+        "pytest": python_command("-m", "pytest", "-v"),
+        "unittest": python_command("-m", "unittest", "discover", "-v"),
         "jest": ["npx", "jest", "--verbose"],
         "mocha": ["npx", "mocha", "--recursive"],
         "go": ["go", "test", "-v", "./..."],

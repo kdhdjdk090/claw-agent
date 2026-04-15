@@ -853,6 +853,7 @@ const raw=line.slice(6).trim();
 if(!raw)continue;
 try{
 const ev=JSON.parse(raw);
+if(ev.search){think.textContent='🔍 Searched the web ('+ev.count+' results)…';continue}
 if(ev.start&&ev.model){usedModel=ev.model;continue}
 if(ev.token){
 if(!msgCreated){

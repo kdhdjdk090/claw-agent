@@ -93,11 +93,22 @@ def _format_council_detail(configured_models: list[str]) -> str:
 
 def _get_runtime_mode() -> dict[str, str]:
     """Return the active runtime/provider mode for UI and diagnostics."""
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, USE_CODEX
     from .ll_council import DEFAULT_COUNCIL_MODELS
 
     configured_models = list(DEFAULT_COUNCIL_MODELS)
 
+    if USE_CODEX:
+        from .codex_runtime import _detect_provider, FREE_ROLE_MODELS
+        provider = _detect_provider()
+        role_models = FREE_ROLE_MODELS.get(provider, {})
+        n_roles = len(role_models)
+        return {
+            "kind": "codex",
+            "icon": "🧠",
+            "label": "Codex",
+            "detail": f"{n_roles} roles via {provider.title()}",
+        }
     if USE_COUNCIL and OPENROUTER_API_KEY:
         return {
             "kind": "council",
@@ -129,7 +140,7 @@ def _get_runtime_mode() -> dict[str, str]:
 
 def list_models() -> list[str]:
     import httpx
-    from .agent import DEFAULT_MODEL
+    from .agent import DEFAULT_MODEL, _get_openrouter_direct_models
     from .ll_council import DEFAULT_COUNCIL_MODELS
 
     # Get local Ollama models
@@ -143,14 +154,21 @@ def list_models() -> list[str]:
 
     mode = _get_runtime_mode()
     cloud_models = []
-    if mode["kind"] == "council":
+    if mode["kind"] == "codex":
+        from .codex_runtime import _detect_provider, FREE_ROLE_MODELS
+        provider = _detect_provider()
+        role_models = FREE_ROLE_MODELS.get(provider, {})
+        # Flatten all role models (unique, preserving order)
+        seen: set[str] = set()
+        for models_list in role_models.values():
+            for m in models_list:
+                if m not in seen:
+                    cloud_models.append(m)
+                    seen.add(m)
+    elif mode["kind"] == "council":
         cloud_models = DEFAULT_COUNCIL_MODELS
     elif mode["kind"] == "openrouter":
-        cloud_models = [
-            DEFAULT_MODEL,
-            "openai/gpt-4o-mini",
-            "anthropic/claude-3-haiku-20240307",
-        ]
+        cloud_models = _get_openrouter_direct_models()
     elif mode["kind"] == "deepseek":
         cloud_models = [DEFAULT_MODEL, "deepseek-reasoner", "deepseek-chat", "deepseek-coder"]
 
@@ -205,12 +223,35 @@ def _cli_ask_user(question: str, options: list[str]) -> str:
 
 
 def make_agent(model: str, session: Session | None = None, permissions: PermissionContext | None = None) -> Agent:
+    from .agent import DEFAULT_MODEL
+
+    resolved_model = DEFAULT_MODEL if not model or model == "council" else model
+    active_session = session or Session(model=resolved_model)
+    active_session.model = resolved_model
     return Agent(
-        model=model,
+        model=resolved_model,
         permissions=permissions or PermissionContext.default(),
-        session=session or Session(model=model),
+        session=active_session,
         confirm_fn=_cli_confirm,
         ask_fn=_cli_ask_user,
+    )
+
+
+def _make_agent_from_session(session: Session, permissions: PermissionContext | None = None) -> Agent:
+    """Rebuild an agent around a saved session without losing the live system prompt."""
+    agent = make_agent(session.model, session=session, permissions=permissions)
+    agent.messages = [agent.messages[0]] + list(session.messages)
+    agent.session = session
+    agent.session.model = agent.model
+    return agent
+
+
+def _build_prompt_session() -> PromptSession:
+    """Create the default single-line REPL prompt session."""
+    return PromptSession(
+        history=FileHistory(HISTORY_PATH),
+        multiline=False,
+        reserve_space_for_menu=0,
     )
 
 
@@ -408,6 +449,7 @@ def stream_response_enhanced(agent: Agent, user_input: str):
     """Claude Code-style streaming with tool call display and Markdown rendering."""
     text_buffer = []  # Accumulate text deltas for batch Markdown rendering
     active_tool = False
+    rendered_text = False
 
     console.print()
 
@@ -421,6 +463,7 @@ def stream_response_enhanced(agent: Agent, user_input: str):
             if text_buffer:
                 _render_markdown_response("".join(text_buffer))
                 text_buffer.clear()
+                rendered_text = True
 
             active_tool = True
             display = _tool_display_name(event.name, event.arguments)
@@ -446,14 +489,17 @@ def stream_response_enhanced(agent: Agent, user_input: str):
             if text_buffer:
                 _render_markdown_response("".join(text_buffer))
                 text_buffer.clear()
-            # Show system messages (iteration limit, circuit breakers)
-            if event.final_text and event.final_text.startswith("["):
+                rendered_text = True
+            # Show system messages (iteration limit, circuit breakers) only if
+            # no response text has already been rendered from TextDelta events.
+            if event.final_text and event.final_text.startswith("[") and not rendered_text:
                 console.print(f"  [dim]{event.final_text}[/dim]")
             break
 
     # Safety flush: render any leftover text (e.g. if stream ended without AgentDone)
     if text_buffer:
         _render_markdown_response("".join(text_buffer))
+        rendered_text = True
 
     console.print()
 
@@ -573,8 +619,7 @@ def cmd_resume(args: str, model: str) -> Agent | None:
         console.print(f"[claw.error]No session matching '{label}'[/claw.error]")
         return None
     sess = match[0]
-    agent = make_agent(sess.model, session=sess)
-    agent.messages = [agent.messages[0]] + sess.messages
+    agent = _make_agent_from_session(sess)
     console.print(f"  [claw.success]Resumed {sess.session_id[:12]} ({sess.total_turns} turns, model: {sess.model})[/claw.success]")
     # Show conversation context so the user knows what they're continuing
     if sess.messages:
@@ -636,8 +681,7 @@ def cmd_continue(model: str) -> Agent | None:
         console.print("[dim]No sessions to continue.[/dim]")
         return None
     sess = meaningful[0]  # most recent by mtime
-    agent = make_agent(sess.model, session=sess)
-    agent.messages = [agent.messages[0]] + sess.messages
+    agent = _make_agent_from_session(sess)
     console.print(f"  [claw.success]Continued {sess.session_id[:12]} ({sess.total_turns} turns)[/claw.success]")
     title = sess.title or sess.auto_title()
     if title:
@@ -700,7 +744,7 @@ def cmd_version():
 
 def cmd_doctor():
     """Diagnose connectivity, tools, and model availability."""
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, get_runtime_provider_mode
+    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, get_runtime_provider_mode, _get_openrouter_direct_models
 
     console.print()
     console.print("[bold]Running diagnostics...[/bold]\n")
@@ -724,18 +768,19 @@ def cmd_doctor():
     # 2b. Live API key validation
     import httpx
     if OPENROUTER_API_KEY:
+        live_model = _get_openrouter_direct_models()[0]
         try:
             r = httpx.post(
                 "https://openrouter.ai/api/v1/chat/completions",
-                json={"model": "google/gemma-3-12b-it", "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
+                json={"model": live_model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
                 headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
                 timeout=15,
             )
             if r.status_code == 200:
-                checks.append(("OpenRouter Key", True, "✓ Live test passed (HTTP 200)"))
+                checks.append(("OpenRouter Key", True, f"✓ Live test passed with {live_model} (HTTP 200)"))
             else:
                 err = r.json().get("error", {}).get("message", r.text[:80]) if r.headers.get("content-type", "").startswith("application/json") else r.text[:80]
-                checks.append(("OpenRouter Key", False, f"HTTP {r.status_code}: {err}"))
+                checks.append(("OpenRouter Key", False, f"{live_model}: HTTP {r.status_code}: {err}"))
         except Exception as e:
             checks.append(("OpenRouter Key", False, f"Connection error: {str(e)[:60]}"))
 
@@ -1799,8 +1844,9 @@ def main():
         try:
             from .sessions import load_session
             sess = load_session(args.resume_session)
-            agent.messages = sess.messages
-            console.print(f"  [dim]Resumed session {args.resume_session} ({len(agent.messages)} messages)[/dim]")
+            agent = _make_agent_from_session(sess, permissions=permissions)
+            model = agent.model
+            console.print(f"  [dim]Resumed session {args.resume_session} ({len(sess.messages)} messages)[/dim]")
             resumed = True
         except FileNotFoundError:
             console.print(f"  [claw.error]Session not found: {args.resume_session}[/claw.error]")
@@ -1812,16 +1858,15 @@ def main():
             sessions = list_sessions()
             if sessions:
                 latest = sessions[0]
-                agent.messages = latest.messages
-                console.print(f"  [dim]Continuing most recent session ({len(agent.messages)} messages)[/dim]")
+                agent = _make_agent_from_session(latest, permissions=permissions)
+                model = agent.model
+                console.print(f"  [dim]Continuing most recent session ({len(latest.messages)} messages)[/dim]")
                 resumed = True
             else:
                 console.print("  [dim]No previous session found, starting fresh.[/dim]")
         except Exception as e:
             console.print(f"  [dim]Could not continue session: {e}[/dim]")
-    prompt_session: PromptSession = PromptSession(
-        history=FileHistory(HISTORY_PATH),
-    )
+    prompt_session = _build_prompt_session()
 
     # Token counter state
     total_tokens = 0
@@ -1907,10 +1952,12 @@ def main():
                 new_agent = cmd_resume(cmd_arg, model)
                 if new_agent:
                     agent = new_agent
+                    model = agent.model
             elif cmd == "/continue":
                 new_agent = cmd_continue(model)
                 if new_agent:
                     agent = new_agent
+                    model = agent.model
             elif cmd == "/export":
                 cmd_export(agent)
             elif cmd == "/compact":

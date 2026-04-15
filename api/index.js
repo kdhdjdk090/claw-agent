@@ -216,6 +216,54 @@ This is a complex reasoning task. Apply maximum rigor:
 - At the end: adversarial self-review — try to break your own answer
 - State final confidence as a calibrated percentage with justification`;
 
+// Web search via DuckDuckGo HTML (no API key needed)
+async function webSearch(query, numResults = 5) {
+  return new Promise((resolve) => {
+    const postData = `q=${encodeURIComponent(query)}`;
+    const options = {
+      hostname: 'html.duckduckgo.com',
+      path: '/html/',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(postData),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    };
+    const req = https.request(options, (resp) => {
+      let data = '';
+      resp.on('data', chunk => data += chunk);
+      resp.on('end', () => {
+        try {
+          const results = [];
+          // Split by each result block
+          const blocks = data.split(/class="result[\s"]/g);
+          for (let i = 1; i < blocks.length && results.length < numResults; i++) {
+            const block = blocks[i];
+            const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
+            const hrefMatch = block.match(/class="result__a"[^>]*href="([^"]+)"/);
+            const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
+            if (titleMatch) {
+              const title = titleMatch[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim();
+              const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#x27;/g, "'").replace(/&quot;/g, '"').trim() : '';
+              const url = hrefMatch ? decodeURIComponent(hrefMatch[1].replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, '').replace(/&rut=.*$/, '')) : '';
+              if (title && title.length > 2) results.push({ title, snippet, url });
+            }
+          }
+          resolve(results);
+        } catch (e) {
+          console.error('[search] Parse error:', e.message);
+          resolve([]);
+        }
+      });
+    });
+    req.on('error', () => resolve([]));
+    req.setTimeout(5000, () => { req.destroy(); resolve([]); });
+    req.write(postData);
+    req.end();
+  });
+}
+
 module.exports = async (req, res) => {
   // Set CORS headers
   const origin = req.headers.origin || '*';
@@ -482,6 +530,13 @@ async function handleChat(req, res) {
       const isUltraThink = /\b(ultrathink|ultra.think|deep.reason|boss.test|final.boss|maximum.rigor|prove.it|self.audit|adversarial|multi.?part|chain.of.thought)\b/i.test(message) || (needsReasoning && needsCoding) || (needsReasoning && isHeavy);
       const isResume = /\b(continue|resume|pick up|where.you.left|carry on|keep going|go on)\b/i.test(lc) && Array.isArray(history) && history.length > 0;
       const isSimple = !needsReasoning && !needsCoding && !isHeavy && !isUltraThink && !isResume && message.length < 120 && !/\b(explain|how does|why does|what causes|compare|analyze|write a|build a|create|implement|design)\b/i.test(lc);
+      const needsSearch = /\b(search|look up|find out|google|news|latest|current events|today'?s?|recent|trending|what happened|update|weather|stock price|score|who won|release date|when did|when will|is it true|fact.?check|how much does|where (is|are|can)|what is the price|real.?time|right now|as of)\b/i.test(lc) || /\b(202[4-9])\b/.test(message);
+
+      // Web search if needed (DuckDuckGo, no API key)
+      let searchResults = [];
+      if (needsSearch) {
+        searchResults = await webSearch(message);
+      }
 
       // Inject current server time so the AI can answer time/date questions
       const now = new Date();
@@ -497,6 +552,16 @@ async function handleChat(req, res) {
       // Ultrathink: boost system prompt for maximum rigor
       if (isUltraThink) {
         messages[0].content = SYSTEM_PROMPT + ULTRATHINK_ADDENDUM;
+      }
+
+      // Inject search results into user message
+      if (searchResults.length > 0) {
+        let searchContext = '\n\n[WEB SEARCH RESULTS]\n';
+        searchResults.forEach((r, i) => {
+          searchContext += `${i + 1}. ${r.title}\n   ${r.snippet}\n   Source: ${r.url}\n\n`;
+        });
+        searchContext += '[Use these search results to answer the user\'s question accurately. Cite sources when relevant. If the results don\'t fully answer the question, say what you found and what\'s unclear.]\n';
+        messages[messages.length - 1].content = message + searchContext;
       }
 
       // Resume: inject last AI response context so model can continue seamlessly
@@ -531,6 +596,11 @@ async function handleChat(req, res) {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.status(200);
+
+        // Notify client if web search was performed
+        if (searchResults.length > 0) {
+          res.write(`data: ${JSON.stringify({ search: true, count: searchResults.length })}\n\n`);
+        }
 
         let lastError = null;
         for (const { model: m, provider: p } of modelChain) {

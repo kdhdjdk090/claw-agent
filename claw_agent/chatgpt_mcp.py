@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional
 
 from .mcp import MCPClientConnection, MCPServer
+from .python_runtime import get_python_executable
 
 
 # ChatGPT models available via g4f MCP server (council-facing names)
@@ -62,7 +63,7 @@ class ChatGPTMCPClient:
 
         server = MCPServer(
             name="chatgpt-g4f",
-            command="python",
+            command=get_python_executable(),
             args=[str(_SERVER_SCRIPT)],
             env={},
             transport="stdio",

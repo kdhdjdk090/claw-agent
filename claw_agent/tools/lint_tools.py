@@ -5,9 +5,11 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from ..python_runtime import python_command
+
 
 _FORMATTERS = {
-    ".py": {"cmd": ["python", "-m", "black", "--quiet"], "name": "black"},
+    ".py": {"cmd": python_command("-m", "black", "--quiet"), "name": "black"},
     ".js": {"cmd": ["npx", "prettier", "--write"], "name": "prettier"},
     ".ts": {"cmd": ["npx", "prettier", "--write"], "name": "prettier"},
     ".jsx": {"cmd": ["npx", "prettier", "--write"], "name": "prettier"},
@@ -20,7 +22,7 @@ _FORMATTERS = {
 }
 
 _LINTERS = {
-    ".py": {"cmd": ["python", "-m", "ruff", "check"], "name": "ruff"},
+    ".py": {"cmd": python_command("-m", "ruff", "check"), "name": "ruff"},
     ".js": {"cmd": ["npx", "eslint"], "name": "eslint"},
     ".ts": {"cmd": ["npx", "eslint"], "name": "eslint"},
     ".jsx": {"cmd": ["npx", "eslint"], "name": "eslint"},
@@ -117,7 +119,7 @@ def auto_fix_lint(file_path: str, linter: str = "auto") -> str:
     ext = path.suffix.lower()
 
     fix_cmds = {
-        ".py": {"cmd": ["python", "-m", "ruff", "check", "--fix"], "name": "ruff --fix"},
+        ".py": {"cmd": python_command("-m", "ruff", "check", "--fix"), "name": "ruff --fix"},
         ".js": {"cmd": ["npx", "eslint", "--fix"], "name": "eslint --fix"},
         ".ts": {"cmd": ["npx", "eslint", "--fix"], "name": "eslint --fix"},
         ".jsx": {"cmd": ["npx", "eslint", "--fix"], "name": "eslint --fix"},
