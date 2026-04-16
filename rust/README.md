@@ -115,6 +115,27 @@ The Rust workspace is the active product implementation. It currently includes t
 
 ## Release notes
 
+from __future__ import annotations
+
+import re
+from html.parser import HTMLParser
+from urllib.parse import unquote, urlparse
+
+import httpx
+from __future__ import annotations
+
+import html
+import re
+from html.parser import HTMLParser
+from urllib.parse import unquote, urlparse
+import xml.etree.ElementTree as ET
+
+import httpx
+
+)
+_BING_RSS_ENDPOINT = "https://www.bing.com/search"
+_GOOGLE_NEWS_RSS_ENDPOINT = "https://news.google.com/rss/search"
+
 - Draft 0.1.0 release notes: [`docs/releases/0.1.0.md`](docs/releases/0.1.0.md)
 
 ## License

@@ -162,6 +162,26 @@ function getProviderConfig(provider) {
   }
 }
 
+function getTestPayload(provider, model) {
+  const base = {
+    model,
+    messages: [{ role: 'user', content: 'Hi' }],
+    max_tokens: 1,
+  };
+
+  switch (provider) {
+    case 'openrouter':
+      return { ...base, temperature: 0.7, top_p: 0.9 };
+    case 'alibaba':
+      return { ...base, enable_thinking: false };
+    case 'cometapi':
+    case 'openai':
+      return { ...base, temperature: 0.3 };
+    default:
+      return base;
+  }
+}
+
 function getHeadersForProvider(provider, key) {
   const base = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
   if (provider === 'openrouter') {
@@ -1121,49 +1141,35 @@ async function handleTestModel(req, res) {
     return res.status(503).json({ error: `API key not configured for provider: ${provider}`, model, provider });
   }
 
-  const testPayload = JSON.stringify({
-    model,
-    messages: [{ role: 'user', content: 'Hi' }],
-    max_tokens: 1,
-  });
-
+  const payload = JSON.stringify(getTestPayload(provider, model));
   const headers = getHeadersForProvider(provider, config.key);
   const startTime = Date.now();
 
-  try {
-    const result = await callAPI(config.base, testPayload, headers);
-    const elapsed = Date.now() - startTime;
+  const result = await callAPI(config.base, payload, headers, 10000);
+  const elapsed = Date.now() - startTime;
 
-    if (result.error) {
-      return res.status(200).json({
-        model, provider, status: 'down',
-        response_time_ms: elapsed,
-        error: result.error.message || result.error,
-        tokens: null,
-      });
-    }
-
-    return res.status(200).json({
-      model, provider, status: 'up',
-      response_time_ms: elapsed,
-      tokens: result.usage || null,
-      finish_reason: result.choices?.[0]?.finish_reason || null,
-    });
-  } catch (err) {
+  if (result.error) {
     return res.status(200).json({
       model, provider, status: 'down',
-      response_time_ms: Date.now() - startTime,
-      error: err.message,
+      response_time_ms: elapsed,
+      error: result.error,
       tokens: null,
     });
   }
+
+  return res.status(200).json({
+    model, provider, status: 'up',
+    response_time_ms: elapsed,
+    tokens: result.usage || null,
+    finish_reason: result.choices?.[0]?.finish_reason || null,
+  });
 }
 
 async function handleTestProvider(req, res) {
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const provider = (urlObj.searchParams.get('provider') || '').toLowerCase();
 
-  const validProviders = ['openrouter', 'alibaba', 'cometapi'];
+  const validProviders = ['openrouter', 'alibaba', 'cometapi', 'openai'];
   if (!provider || !validProviders.includes(provider)) {
     return res.status(400).json({ error: 'Missing or invalid provider', valid_providers: validProviders, usage: '/api/test/provider?provider=openrouter' });
   }
@@ -1175,29 +1181,26 @@ async function handleTestProvider(req, res) {
 
   const models = provider === 'openrouter' ? ACTIVE_OPENROUTER_MODELS
     : provider === 'alibaba' ? ACTIVE_ALIBABA_MODELS
-    : ACTIVE_COMETAPI_MODELS;
+    : provider === 'cometapi' ? ACTIVE_COMETAPI_MODELS
+    : ACTIVE_OPENAI_MODELS;
 
   const results = await Promise.allSettled(models.map(async (model) => {
-    const testPayload = JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: 'Hi' }],
-      max_tokens: 1,
-    });
+    const payload = JSON.stringify(getTestPayload(provider, model));
     const headers = getHeadersForProvider(provider, config.key);
     const startTime = Date.now();
     try {
-      const result = await callAPI(config.base, testPayload, headers);
+      const result = await callAPI(config.base, payload, headers, 10000);
       const elapsed = Date.now() - startTime;
       if (result.error) {
-        return { model, status: 'down', response_time_ms: elapsed, error: result.error.message || result.error };
+        return { model, status: 'down', response_time_ms: elapsed, error: result.error };
       }
       return { model, status: 'up', response_time_ms: elapsed, tokens: result.usage || null };
     } catch (err) {
-      return { model, status: 'down', response_time_ms: Date.now() - startTime, error: err.message };
+      return { model, status: 'down', response_time_ms: Date.now() - startTime, error: { message: err.message } };
     }
   }));
 
-  const modelResults = results.map(r => r.status === 'fulfilled' ? r.value : { model: 'unknown', status: 'error', error: r.reason?.message });
+  const modelResults = results.map(r => r.status === 'fulfilled' ? r.value : { model: 'unknown', status: 'error', error: { message: r.reason?.message } });
   const upCount = modelResults.filter(r => r.status === 'up').length;
 
   return res.status(200).json({
@@ -1214,6 +1217,7 @@ async function handleTestAll(req, res) {
   if (OPENROUTER_API_KEY) providers.push('openrouter');
   if (DASHSCOPE_API_KEY) providers.push('alibaba');
   if (COMETAPI_KEY) providers.push('cometapi');
+  if (OPENAI_API_KEY) providers.push('openai');
 
   if (providers.length === 0) {
     return res.status(503).json({ error: 'No API keys configured for any provider' });
@@ -1228,29 +1232,26 @@ async function handleTestAll(req, res) {
     const config = getProviderConfig(provider);
     const models = provider === 'openrouter' ? ACTIVE_OPENROUTER_MODELS
       : provider === 'alibaba' ? ACTIVE_ALIBABA_MODELS
-      : ACTIVE_COMETAPI_MODELS;
+      : provider === 'cometapi' ? ACTIVE_COMETAPI_MODELS
+      : ACTIVE_OPENAI_MODELS;
 
     const results = await Promise.allSettled(models.map(async (model) => {
-      const testPayload = JSON.stringify({
-        model,
-        messages: [{ role: 'user', content: 'Hi' }],
-        max_tokens: 1,
-      });
+      const payload = JSON.stringify(getTestPayload(provider, model));
       const headers = getHeadersForProvider(provider, config.key);
       const startTime = Date.now();
       try {
-        const result = await callAPI(config.base, testPayload, headers);
+        const result = await callAPI(config.base, payload, headers, 10000);
         const elapsed = Date.now() - startTime;
         if (result.error) {
-          return { model, status: 'down', response_time_ms: elapsed, error: result.error.message || result.error };
+          return { model, status: 'down', response_time_ms: elapsed, error: result.error };
         }
         return { model, status: 'up', response_time_ms: elapsed, tokens: result.usage || null };
       } catch (err) {
-        return { model, status: 'down', response_time_ms: Date.now() - startTime, error: err.message };
+        return { model, status: 'down', response_time_ms: Date.now() - startTime, error: { message: err.message } };
       }
     }));
 
-    const modelResults = results.map(r => r.status === 'fulfilled' ? r.value : { model: 'unknown', status: 'error', error: r.reason?.message });
+    const modelResults = results.map(r => r.status === 'fulfilled' ? r.value : { model: 'unknown', status: 'error', error: { message: r.reason?.message } });
     const upCount = modelResults.filter(r => r.status === 'up').length;
 
     allResults[provider] = {
@@ -1275,7 +1276,7 @@ async function handleTestAll(req, res) {
   });
 }
 
-function callAPI(apiBase, payload, headers) {
+function callAPI(apiBase, payload, headers, timeout = 10000) {
   const url = new URL(`${apiBase}/chat/completions`);
   return new Promise((resolve, reject) => {
     const options = {
@@ -1287,7 +1288,7 @@ function callAPI(apiBase, payload, headers) {
         ...headers,
         'Content-Length': Buffer.byteLength(payload),
       },
-      timeout: 30000,
+      timeout,
     };
 
     const request = https.request(options, (apiRes) => {
@@ -1297,18 +1298,30 @@ function callAPI(apiBase, payload, headers) {
         try {
           const result = JSON.parse(data);
           if (apiRes.statusCode !== 200) {
-            resolve({ error: { message: result.error?.message || 'API error' } });
+            const error = result.error || {};
+            resolve({ 
+              error: { 
+                message: error.message || `HTTP ${apiRes.statusCode}`,
+                code: error.code,
+                param: error.param,
+                type: error.type,
+                status: apiRes.statusCode
+              } 
+            });
           } else {
             resolve(result);
           }
         } catch (e) {
-          reject(new Error('Failed to parse API response'));
+          resolve({ error: { message: 'JSON parse error: ' + e.message } });
         }
       });
     });
 
-    request.on('error', error => reject(new Error(`API error: ${error.message}`)));
-    request.on('timeout', () => { request.destroy(); reject(new Error('Request timeout')); });
+    request.on('error', error => resolve({ error: { message: `Network error: ${error.message}` } }));
+    request.on('timeout', () => { 
+      request.destroy(); 
+      resolve({ error: { message: 'Timeout after ' + (timeout/1000) + 's' } });
+    });
     request.write(payload);
     request.end();
   });

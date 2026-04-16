@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import html
 import re
 from html.parser import HTMLParser
 from urllib.parse import unquote, urlparse
+import xml.etree.ElementTree as ET
 
 import httpx
 
@@ -34,6 +36,12 @@ _SEARCH_ENDPOINTS = (
     "https://html.duckduckgo.com/html/",
     "https://lite.duckduckgo.com/lite/",
 )
+_BING_RSS_ENDPOINT = "https://www.bing.com/search"
+_GOOGLE_NEWS_RSS_ENDPOINT = "https://news.google.com/rss/search"
+_SEARCH_HEADERS = {
+    "User-Agent": "ClawAgent/0.1 (autonomous coding agent)",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 
 def _display_host(url: str) -> str:
@@ -67,6 +75,84 @@ def _clean_search_url(href: str) -> str:
 
 def _clean_html_text(value: str) -> str:
     return re.sub(r"<[^>]+>", "", value).strip()
+
+
+def _looks_like_news_query(query: str) -> bool:
+    return bool(re.search(r"\b(news|headline|headlines|breaking)\b", query, re.IGNORECASE))
+
+
+def _parse_rss_results(xml_text: str, num_results: int) -> list[dict[str, str | int]]:
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return []
+
+    results: list[dict[str, str | int]] = []
+    for index, item in enumerate(root.findall(".//item")):
+        if len(results) >= num_results:
+            break
+
+        title = (item.findtext("title") or "").strip()
+        url = (item.findtext("link") or "").strip()
+        description = html.unescape(item.findtext("description") or "")
+        snippet = _clean_html_text(description)
+        pub_date = (item.findtext("pubDate") or "").strip()
+
+        source_node = item.find("source")
+        source_name = ""
+        source_url = ""
+        if source_node is not None:
+            source_name = (source_node.text or "").strip()
+            source_url = source_node.attrib.get("url", "").strip()
+
+        if pub_date and snippet:
+            snippet = f"{pub_date} | {snippet}"
+        elif pub_date:
+            snippet = pub_date
+
+        score_url = source_url or url
+        display_source = source_name or _display_host(score_url)
+        results.append({
+            "title": title,
+            "url": url,
+            "snippet": snippet,
+            "host": display_source,
+            "score": _trust_score(score_url, index),
+        })
+
+    return results
+
+
+def _fetch_bing_rss_results(client: httpx.Client, query: str, num_results: int) -> list[dict[str, str | int]]:
+    resp = client.get(
+        _BING_RSS_ENDPOINT,
+        params={"q": query, "format": "rss"},
+        headers=_SEARCH_HEADERS,
+    )
+    resp.raise_for_status()
+    return _parse_rss_results(resp.text, num_results)
+
+
+def _fetch_google_news_results(client: httpx.Client, query: str, num_results: int) -> list[dict[str, str | int]]:
+    resp = client.get(
+        _GOOGLE_NEWS_RSS_ENDPOINT,
+        params={"q": query, "hl": "en-US", "gl": "US", "ceid": "US:en"},
+        headers=_SEARCH_HEADERS,
+    )
+    resp.raise_for_status()
+    return _parse_rss_results(resp.text, num_results)
+
+
+def _fetch_duckduckgo_results(client: httpx.Client, endpoint: str, query: str, num_results: int) -> list[dict[str, str | int]]:
+    resp = client.get(
+        endpoint,
+        params={"q": query},
+        headers=_SEARCH_HEADERS,
+    )
+    resp.raise_for_status()
+    if resp.status_code == 202 and "anomaly-modal" in resp.text:
+        raise ValueError("search backend returned a bot challenge page")
+    return _parse_search_results(resp.text, num_results)
 
 
 def _parse_search_results(html: str, num_results: int) -> list[dict[str, str | int]]:
@@ -175,28 +261,28 @@ def web_fetch(url: str, max_chars: int = 20000) -> str:
 
 
 def web_search(query: str, num_results: int = 5) -> str:
-    """Search the web using DuckDuckGo HTML (no API key required)."""
+    """Search the web using RSS-first fallbacks, then DuckDuckGo HTML."""
     errors: list[str] = []
     try:
         with httpx.Client(timeout=15, follow_redirects=True) as client:
             results = []
+            backends: list[tuple[str, callable]] = []
+            if _looks_like_news_query(query):
+                backends.append(("google-news-rss", lambda: _fetch_google_news_results(client, query, num_results)))
+            backends.append(("bing-rss", lambda: _fetch_bing_rss_results(client, query, num_results)))
             for endpoint in _SEARCH_ENDPOINTS:
+                backends.append(
+                    (endpoint, lambda endpoint=endpoint: _fetch_duckduckgo_results(client, endpoint, query, num_results))
+                )
+
+            for backend_name, fetch_results in backends:
                 try:
-                    resp = client.get(
-                        endpoint,
-                        params={"q": query},
-                        headers={
-                            "User-Agent": "ClawAgent/0.1 (autonomous coding agent)",
-                            "Accept-Language": "en-US,en;q=0.9",
-                        },
-                    )
-                    resp.raise_for_status()
-                    results = _parse_search_results(resp.text, num_results)
+                    results = fetch_results()
                     if results:
                         break
-                    errors.append(f"{endpoint}: parsed 0 results")
+                    errors.append(f"{backend_name}: parsed 0 results")
                 except Exception as endpoint_error:
-                    errors.append(f"{endpoint}: {endpoint_error}")
+                    errors.append(f"{backend_name}: {endpoint_error}")
 
         if not results:
             details = "; ".join(errors[:3])
