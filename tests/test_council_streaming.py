@@ -72,16 +72,26 @@ class CouncilStreamingTests(unittest.TestCase):
         agent = agent_mod.Agent(model="test", base_url="http://localhost:11434")
         agent.council = Mock()
 
+        local_now = datetime(2026, 4, 15, 21, 34, 56)
+        utc_now = datetime(2026, 4, 15, 16, 4, 56, tzinfo=timezone.utc)
+
+        def fake_now(tz=None):
+            return utc_now if tz is not None else local_now
+
         with patch.object(
             agent_mod.Agent,
             "stream_chat",
             return_value=iter([agent_mod.AgentDone("Tool answer")]),
-        ) as stream_chat:
+        ) as stream_chat, patch.object(agent_mod, "datetime") as mock_datetime:
+            mock_datetime.now.side_effect = fake_now
             result = agent.chat("what is date and time now")
 
         agent.council.query_council.assert_not_called()
-        stream_chat.assert_called_once_with("what is date and time now")
-        self.assertEqual(result, "Tool answer")
+        stream_chat.assert_not_called()
+        self.assertEqual(
+            result,
+            "Local date and time: Wednesday, 15 April 2026 21:34:56\nUTC: 2026-04-15 16:04:56 UTC",
+        )
 
     def test_cli_does_not_render_council_answer_twice(self) -> None:
         council_text = "[Council Vote - No consensus (33%)]\n\nMajority: test"
@@ -200,6 +210,33 @@ class CouncilStreamingTests(unittest.TestCase):
             "Today's date: Wednesday, 15 April 2026\nLocal time: 21:34:56\nUTC: 2026-04-15 16:04:56 UTC",
         )
         self.assertEqual(agent.session.messages[-1]["content"], events[-1].final_text)
+
+    def test_stream_chat_returns_builtin_web_capability_reply(self) -> None:
+        agent = agent_mod.Agent(model="test", base_url="http://localhost:11434")
+        agent.council = Mock()
+
+        with patch.object(agent, "_stream_loop", side_effect=AssertionError("stream loop should not run")):
+            events = list(agent.stream_chat("can you browse the internet and answer realtime questions?"))
+
+        agent.council.query_council.assert_not_called()
+        self.assertIsInstance(events[-1], agent_mod.AgentDone)
+        self.assertIn("Yes — in this Claw runtime I can use live web tools.", events[-1].final_text)
+        self.assertIn("web_search", events[-1].final_text)
+
+    def test_chat_returns_builtin_web_capability_reply_before_council(self) -> None:
+        agent = agent_mod.Agent(model="test", base_url="http://localhost:11434")
+        agent.council = Mock()
+
+        result = agent.chat("do you have live internet access for current questions?")
+
+        agent.council.query_council.assert_not_called()
+        self.assertIn("live web tools", result)
+        self.assertEqual(agent.session.total_turns, 1)
+        self.assertEqual(agent.session.messages[-1]["content"], result)
+
+    def test_grounded_web_research_detects_real_time_requests(self) -> None:
+        self.assertFalse(agent_mod._looks_like_code_query("latest stock price right now"))
+        self.assertTrue(agent_mod._needs_grounded_web_research("latest stock price right now"))
 
     def test_stream_chat_preserves_cloud_tool_contract_after_missing_tool_args(self) -> None:
         agent = agent_mod.Agent(model="test", base_url="https://openrouter.ai/api/v1")

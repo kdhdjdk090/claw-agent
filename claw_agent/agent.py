@@ -149,6 +149,9 @@ This is your logic method. Follow it for EVERY response, not just code tasks.
 2. KNOW YOUR LIMITS: Your training data has a cutoff date. For ANY claim about current events,
    recent news, live prices, real-time data, or time-sensitive facts → you MUST call `web_search`
    FIRST. NEVER generate current events, news, or geopolitical information from memory alone.
+   You DO have live web access via `web_search` and `web_fetch` when network access is available.
+   If asked whether you can browse/search the live web, answer yes and explain that you verify
+   current facts through tools rather than passive memory.
 3. LABEL YOUR CONFIDENCE on factual claims:
    - VERIFIED: Confirmed by tool output (file read, web search result, command output)
    - INFERRED: Logical deduction from verified facts (label as "Based on X, I conclude Y")
@@ -420,6 +423,17 @@ _GROUNDED_WEB_RESEARCH_PATTERNS = [
         r"\b(find|search|research|summari[sz]e|explain|tell\s+me\s+about|what(?:'s| is)\s+happening)\b.*\b(news|war|conflict|attack|sanction|election|strike|missile|ceasefire|president|prime\s+minister|ceo|market|price|stock|economy|shipping|oil|weather)\b",
         r"\b(us|u\.s\.|america|iran|israel|russia|ukraine|china|taiwan|gaza|hamas|hezbollah|trump|biden)\b.*\b(war|conflict|attack|strike|sanction|talks|ceasefire|missile|drone|blockade)\b",
         r"\b(latest|breaking|recent|today'?s?)\b.*\b(news|war|conflict|events?|developments?)\b",
+        r"(?=.*\b(real[\s-]?time|right now|as of|current|latest|today'?s?)\b)(?=.*\b(news|events?|developments?|price|prices|stock|weather|score|release|launch|announcement|ceo|president|prime\s+minister)\b)",
+    )
+]
+
+_WEB_CAPABILITY_PATTERNS = [
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\b(can|do)\s+you\s+(browse|search|access|use)\b.*\b(web|internet|online)\b",
+        r"\b(do\s+you\s+have|have\s+you\s+got)\b.*\b(web|internet|online|live|real[\s-]?time)\b.*\b(access|search|browsing)\b",
+        r"\b(can|do)\s+you\s+answer\b.*\b(real[\s-]?time|current|latest|live)\b.*\b(question|questions|info(?:rmation)?)\b",
+        r"\b(can|do)\s+you\s+get\b.*\b(latest|current|real[\s-]?time|live)\b.*\b(info(?:rmation)?|answers?|data)\b",
     )
 ]
 
@@ -473,7 +487,7 @@ def _normalize_user_message(user_message: str) -> str:
 
 def _looks_like_code_query(user_message: str) -> bool:
     lowered = user_message.lower()
-    return any(hint in lowered for hint in _CODE_QUERY_HINTS)
+    return any(re.search(rf"\b{re.escape(hint)}\b", lowered) for hint in _CODE_QUERY_HINTS)
 
 
 def _needs_grounded_web_research(user_message: str) -> bool:
@@ -539,6 +553,27 @@ def _get_builtin_datetime_reply(user_message: str) -> str | None:
         f"Local time: {local_now.strftime('%H:%M:%S')}\n"
         f"UTC: {utc_now.strftime('%Y-%m-%d %H:%M:%S')} UTC"
     )
+
+
+def _get_builtin_web_capability_reply(user_message: str) -> str | None:
+    """Answer direct questions about whether Claw can browse/search the live web."""
+    cleaned = _normalize_user_message(user_message).strip()
+    if not cleaned or not any(pattern.search(cleaned) for pattern in _WEB_CAPABILITY_PATTERNS):
+        return None
+
+    return (
+        "Yes — in this Claw runtime I can use live web tools.\n\n"
+        "- `web_search` can search the live web.\n"
+        "- `web_fetch` can open specific pages so I can verify details.\n"
+        "- For current or time-sensitive questions, I should search first and answer from those sources.\n"
+        "- If a live lookup fails because of a network issue, I should say the lookup failed rather than claim I am permanently offline.\n\n"
+        "I do not passively know real-time facts from memory alone; I answer current questions by using those tools."
+    )
+
+
+def _get_builtin_reply(user_message: str) -> str | None:
+    """Handle deterministic local replies without calling any provider."""
+    return _get_builtin_datetime_reply(user_message) or _get_builtin_web_capability_reply(user_message)
 
 
 def _should_bypass_council(user_message: str) -> bool:
@@ -760,6 +795,15 @@ class Agent:
 
     def chat(self, user_message: str) -> str:
         """Blocking chat - collects all streaming events, returns final text."""
+        builtin_reply = _get_builtin_reply(user_message)
+        if builtin_reply is not None:
+            prepared_user_message = _prepare_user_message(user_message)
+            self.messages.append({"role": "user", "content": prepared_user_message})
+            self.session.total_turns += 1
+            self.messages.append({"role": "assistant", "content": builtin_reply})
+            self._sync_session_state()
+            return builtin_reply
+
         # Use codex runtime for role-based deliberation
         if self._codex_runtime and self._codex_runtime.should_use_council(user_message):
             result = self._codex_runtime.run_task(user_message)
@@ -798,7 +842,7 @@ class Agent:
         self.session.total_turns += 1
 
         try:
-            builtin_reply = _get_builtin_datetime_reply(user_message)
+            builtin_reply = _get_builtin_reply(user_message)
             if builtin_reply is not None:
                 self.messages.append({"role": "assistant", "content": builtin_reply})
                 yield TextDelta(builtin_reply)

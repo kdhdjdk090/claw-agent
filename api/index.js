@@ -231,7 +231,8 @@ function getDefaultModelChain({ needsReasoning, needsCoding, isHeavy, isUltraThi
 const SIMPLE_PROMPT = `You are Claw AI, a helpful and friendly assistant.
 Be concise and direct. For simple questions, give short clear answers.
 Do NOT over-explain, lecture, or add unnecessary bullet points for simple questions.
-Use a warm, natural tone. You are Claw AI when asked.`;
+Use a warm, natural tone. You are Claw AI when asked.
+In this runtime, you can use live web search results when available. If asked whether you can browse/search the web, answer yes and explain that you verify current facts through live search rather than passive memory.`;
 
 // System prompt — comprehensive "Wisdom Protocol" that forces rigorous thinking,
 // real execution over simulated compliance, and adversarial self-verification.
@@ -284,6 +285,11 @@ If the user says "continue" or provides context from a previous response:
 - Do not repeat already-completed work
 - Signal: "Continuing from [last point]..."
 
+WEB CAPABILITY:
+- In this runtime, you can use live web search results and fetched pages when available.
+- If asked whether you can browse/search the live web, answer YES.
+- Explain that you verify current facts through live search rather than passive memory.
+
 You are Claw AI when asked. You have wisdom, precision, and intellectual honesty.`;
 
 // Ultra-think prompt addition for deep reasoning tasks
@@ -297,6 +303,39 @@ This is a complex reasoning task. Apply maximum rigor:
 - Insert deliberate checkpoints: "✓ Verified: [what you checked]"
 - At the end: adversarial self-review — try to break your own answer
 - State final confidence as a calibrated percentage with justification`;
+
+const BROWSING_CAPABILITY_RE = /\b(?:can|do)\s+you\s+(?:browse|search|access|use)\b.*\b(?:web|internet|online)\b|\b(?:do\s+you\s+have|have\s+you\s+got)\b.*\b(?:web|internet|online|live|real[\s-]?time)\b.*\b(?:access|search|browsing)\b|\b(?:can|do)\s+you\s+answer\b.*\b(?:real[\s-]?time|current|latest|live)\b.*\b(?:question|questions|info(?:rmation)?)\b|\b(?:can|do)\s+you\s+get\b.*\b(?:latest|current|real[\s-]?time|live)\b.*\b(?:info(?:rmation)?|answers?|data)\b/i;
+
+function getBrowsingCapabilityReply() {
+  return `Yes — in this Claw runtime I can use live web tools.
+
+- I can run live web search and use those results to answer current questions.
+- For time-sensitive facts, I should search first and answer from the retrieved sources.
+- If a live lookup fails because of a network issue, I should say the lookup failed rather than claim I am permanently offline.
+
+I do not passively know real-time facts from memory alone; I answer current questions by using live search.`;
+}
+
+function sendBuiltinReply(res, reply, wantStream) {
+  if (wantStream) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.status(200);
+    res.write(`data: ${JSON.stringify({ token: reply })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true, model: 'builtin', provider: 'builtin' })}\n\n`);
+    res.end();
+    return;
+  }
+
+  return res.status(200).json({
+    reply,
+    usage: null,
+    model: 'builtin',
+    provider: 'builtin',
+    council: false,
+  });
+}
 
 // Web search via DuckDuckGo HTML (no API key needed)
 function ddgFetch(url, timeout = 10000) {
@@ -633,6 +672,9 @@ async function handleChat(req, res) {
       }
       if (message.length > 50000) {
         return res.status(400).json({ error: 'message too long (max 50000 chars)' });
+      }
+      if (BROWSING_CAPABILITY_RE.test(message)) {
+        return sendBuiltinReply(res, getBrowsingCapabilityReply(), wantStream);
       }
       if (use_council && OPENROUTER_API_KEY) {
         return handleCouncilRequest(res, message);
