@@ -23,6 +23,9 @@ pub enum ProviderClient {
     ClawApi(ClawApiClient),
     Xai(OpenAiCompatClient),
     OpenAi(OpenAiCompatClient),
+    OpenAiCodex(OpenAiCompatClient),
+    Alibaba(OpenAiCompatClient),
+    DeepSeek(OpenAiCompatClient),
 }
 
 impl ProviderClient {
@@ -46,6 +49,15 @@ impl ProviderClient {
             ProviderKind::OpenAi => Ok(Self::OpenAi(OpenAiCompatClient::from_env(
                 OpenAiCompatConfig::openai(),
             )?)),
+            ProviderKind::OpenAiCodex => Ok(Self::OpenAiCodex(
+                OpenAiCompatClient::from_codex_auth(OpenAiCompatConfig::openai_codex())?,
+            )),
+            ProviderKind::Alibaba => Ok(Self::Alibaba(OpenAiCompatClient::from_env(
+                OpenAiCompatConfig::alibaba(),
+            )?)),
+            ProviderKind::DeepSeek => Ok(Self::DeepSeek(OpenAiCompatClient::from_env(
+                OpenAiCompatConfig::deepseek(),
+            )?)),
         }
     }
 
@@ -55,6 +67,9 @@ impl ProviderClient {
             Self::ClawApi(_) => ProviderKind::ClawApi,
             Self::Xai(_) => ProviderKind::Xai,
             Self::OpenAi(_) => ProviderKind::OpenAi,
+            Self::OpenAiCodex(_) => ProviderKind::OpenAiCodex,
+            Self::Alibaba(_) => ProviderKind::Alibaba,
+            Self::DeepSeek(_) => ProviderKind::DeepSeek,
         }
     }
 
@@ -64,7 +79,13 @@ impl ProviderClient {
     ) -> Result<MessageResponse, ApiError> {
         match self {
             Self::ClawApi(client) => send_via_provider(client, request).await,
-            Self::Xai(client) | Self::OpenAi(client) => send_via_provider(client, request).await,
+            Self::Xai(client)
+            | Self::OpenAi(client)
+            | Self::OpenAiCodex(client)
+            | Self::Alibaba(client)
+            | Self::DeepSeek(client) => {
+                send_via_provider(client, request).await
+            }
         }
     }
 
@@ -76,9 +97,15 @@ impl ProviderClient {
             Self::ClawApi(client) => stream_via_provider(client, request)
                 .await
                 .map(MessageStream::ClawApi),
-            Self::Xai(client) | Self::OpenAi(client) => stream_via_provider(client, request)
-                .await
-                .map(MessageStream::OpenAiCompat),
+            Self::Xai(client)
+            | Self::OpenAi(client)
+            | Self::OpenAiCodex(client)
+            | Self::Alibaba(client)
+            | Self::DeepSeek(client) => {
+                stream_via_provider(client, request)
+                    .await
+                    .map(MessageStream::OpenAiCompat)
+            }
         }
     }
 }

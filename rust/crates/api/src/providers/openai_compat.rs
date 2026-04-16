@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, VecDeque};
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -16,11 +17,15 @@ use super::{Provider, ProviderFuture};
 
 pub const DEFAULT_XAI_BASE_URL: &str = "https://api.x.ai/v1";
 pub const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
+pub const DEFAULT_ALIBABA_BASE_URL: &str =
+    "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+pub const DEFAULT_DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/v1";
 const REQUEST_ID_HEADER: &str = "request-id";
 const ALT_REQUEST_ID_HEADER: &str = "x-request-id";
 const DEFAULT_INITIAL_BACKOFF: Duration = Duration::from_millis(200);
 const DEFAULT_MAX_BACKOFF: Duration = Duration::from_secs(2);
 const DEFAULT_MAX_RETRIES: u32 = 2;
+const CHATGPT_ACCOUNT_ID_HEADER: &str = "chatgpt-account-id";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OpenAiCompatConfig {
@@ -32,6 +37,8 @@ pub struct OpenAiCompatConfig {
 
 const XAI_ENV_VARS: &[&str] = &["XAI_API_KEY"];
 const OPENAI_ENV_VARS: &[&str] = &["OPENAI_API_KEY"];
+const ALIBABA_ENV_VARS: &[&str] = &["DASHSCOPE_API_KEY"];
+const DEEPSEEK_ENV_VARS: &[&str] = &["DEEPSEEK_API_KEY"];
 
 impl OpenAiCompatConfig {
     #[must_use]
@@ -53,20 +60,58 @@ impl OpenAiCompatConfig {
             default_base_url: DEFAULT_OPENAI_BASE_URL,
         }
     }
+
+    #[must_use]
+    pub const fn openai_codex() -> Self {
+        Self {
+            provider_name: "OpenAI Codex",
+            api_key_env: "OPENAI_API_KEY",
+            base_url_env: "OPENAI_BASE_URL",
+            default_base_url: DEFAULT_OPENAI_BASE_URL,
+        }
+    }
+
+    #[must_use]
+    pub const fn alibaba() -> Self {
+        Self {
+            provider_name: "Alibaba Cloud",
+            api_key_env: "DASHSCOPE_API_KEY",
+            base_url_env: "DASHSCOPE_BASE_URL",
+            default_base_url: DEFAULT_ALIBABA_BASE_URL,
+        }
+    }
+
+    #[must_use]
+    pub const fn deepseek() -> Self {
+        Self {
+            provider_name: "DeepSeek",
+            api_key_env: "DEEPSEEK_API_KEY",
+            base_url_env: "DEEPSEEK_BASE_URL",
+            default_base_url: DEFAULT_DEEPSEEK_BASE_URL,
+        }
+    }
     #[must_use]
     pub fn credential_env_vars(self) -> &'static [&'static str] {
         match self.provider_name {
             "xAI" => XAI_ENV_VARS,
             "OpenAI" => OPENAI_ENV_VARS,
+            "Alibaba Cloud" => ALIBABA_ENV_VARS,
+            "DeepSeek" => DEEPSEEK_ENV_VARS,
             _ => &[],
         }
     }
 }
 
 #[derive(Debug, Clone)]
+struct OpenAiCompatAuth {
+    token: String,
+    account_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub struct OpenAiCompatClient {
     http: reqwest::Client,
-    api_key: String,
+    auth: OpenAiCompatAuth,
     base_url: String,
     max_retries: u32,
     initial_backoff: Duration,
@@ -76,9 +121,20 @@ pub struct OpenAiCompatClient {
 impl OpenAiCompatClient {
     #[must_use]
     pub fn new(api_key: impl Into<String>, config: OpenAiCompatConfig) -> Self {
+        Self::from_auth(
+            OpenAiCompatAuth {
+                token: api_key.into(),
+                account_id: None,
+            },
+            config,
+        )
+    }
+
+    #[must_use]
+    fn from_auth(auth: OpenAiCompatAuth, config: OpenAiCompatConfig) -> Self {
         Self {
             http: reqwest::Client::new(),
-            api_key: api_key.into(),
+            auth,
             base_url: read_base_url(config),
             max_retries: DEFAULT_MAX_RETRIES,
             initial_backoff: DEFAULT_INITIAL_BACKOFF,
@@ -94,6 +150,11 @@ impl OpenAiCompatClient {
             ));
         };
         Ok(Self::new(api_key, config))
+    }
+
+    pub fn from_codex_auth(config: OpenAiCompatConfig) -> Result<Self, ApiError> {
+        let auth = load_codex_auth_token()?;
+        Ok(Self::from_auth(auth, config))
     }
 
     #[must_use]
@@ -186,10 +247,15 @@ impl OpenAiCompatClient {
         request: &MessageRequest,
     ) -> Result<reqwest::Response, ApiError> {
         let request_url = chat_completions_endpoint(&self.base_url);
-        self.http
+        let mut request_builder = self
+            .http
             .post(&request_url)
             .header("content-type", "application/json")
-            .bearer_auth(&self.api_key)
+            .bearer_auth(&self.auth.token);
+        if let Some(account_id) = self.auth.account_id.as_deref() {
+            request_builder = request_builder.header(CHATGPT_ACCOUNT_ID_HEADER, account_id);
+        }
+        request_builder
             .json(&build_chat_completion_request(request))
             .send()
             .await
@@ -631,6 +697,26 @@ struct ErrorBody {
     message: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct CodexAuthFile {
+    #[serde(default)]
+    auth_mode: Option<String>,
+    #[serde(rename = "OPENAI_API_KEY")]
+    #[allow(dead_code)]
+    openai_api_key: Option<String>,
+    #[serde(default)]
+    tokens: Option<CodexTokenData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CodexTokenData {
+    access_token: String,
+    #[allow(dead_code)]
+    refresh_token: Option<String>,
+    #[serde(default)]
+    account_id: Option<String>,
+}
+
 fn build_chat_completion_request(request: &MessageRequest) -> Value {
     let mut messages = Vec::new();
     if let Some(system) = request.system.as_ref().filter(|value| !value.is_empty()) {
@@ -862,6 +948,11 @@ pub fn has_api_key(key: &str) -> bool {
 }
 
 #[must_use]
+pub fn has_codex_auth() -> bool {
+    load_codex_auth_token().is_ok()
+}
+
+#[must_use]
 pub fn read_base_url(config: OpenAiCompatConfig) -> String {
     std::env::var(config.base_url_env).unwrap_or_else(|_| config.default_base_url.to_string())
 }
@@ -873,6 +964,70 @@ fn chat_completions_endpoint(base_url: &str) -> String {
     } else {
         format!("{trimmed}/chat/completions")
     }
+}
+
+fn load_codex_auth_token() -> Result<OpenAiCompatAuth, ApiError> {
+    let auth_path = codex_auth_file_path().ok_or_else(|| {
+        ApiError::Auth(
+            "missing Codex auth cache; set CODEX_HOME or sign in with Codex/ChatGPT first"
+                .to_string(),
+        )
+    })?;
+    load_codex_auth_token_from_path(&auth_path).map_err(|error| match error {
+        ApiError::Io(io_error) if io_error.kind() == std::io::ErrorKind::NotFound => {
+            ApiError::Auth(format!(
+                "missing Codex auth cache at {}; sign in with Codex/ChatGPT first",
+                auth_path.display()
+            ))
+        }
+        ApiError::Auth(message) => ApiError::Auth(format!(
+            "{} ({})",
+            message,
+            auth_path.display()
+        )),
+        other => other,
+    })
+}
+
+fn auth_mode_uses_api_key(auth_mode: Option<&str>) -> bool {
+    let Some(auth_mode) = auth_mode else {
+        return false;
+    };
+    let normalized = auth_mode.trim().to_ascii_lowercase();
+    normalized == "apikey" || normalized == "api_key"
+}
+
+fn codex_auth_file_path() -> Option<PathBuf> {
+    if let Some(codex_home) = std::env::var_os("CODEX_HOME") {
+        return Some(PathBuf::from(codex_home).join("auth.json"));
+    }
+    home_dir().map(|path| path.join(".codex").join("auth.json"))
+}
+
+fn home_dir() -> Option<PathBuf> {
+    std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from)
+}
+
+fn load_codex_auth_token_from_path(path: &Path) -> Result<OpenAiCompatAuth, ApiError> {
+    let contents = std::fs::read_to_string(path)?;
+    let auth_file: CodexAuthFile = serde_json::from_str(&contents)?;
+    if auth_mode_uses_api_key(auth_file.auth_mode.as_deref()) {
+        return Err(ApiError::Auth(
+            "local auth is not a ChatGPT login".to_string(),
+        ));
+    }
+    let tokens = auth_file
+        .tokens
+        .ok_or_else(|| ApiError::Auth("Token data is not available.".to_string()))?;
+    if tokens.access_token.trim().is_empty() {
+        return Err(ApiError::Auth("ChatGPT access token is empty".to_string()));
+    }
+    Ok(OpenAiCompatAuth {
+        token: tokens.access_token,
+        account_id: tokens.account_id,
+    })
 }
 
 fn request_id_from_headers(headers: &reqwest::header::HeaderMap) -> Option<String> {
@@ -936,8 +1091,9 @@ impl StringExt for String {
 #[cfg(test)]
 mod tests {
     use super::{
-        build_chat_completion_request, chat_completions_endpoint, normalize_finish_reason,
-        openai_tool_choice, parse_tool_arguments, OpenAiCompatClient, OpenAiCompatConfig,
+        auth_mode_uses_api_key, build_chat_completion_request, chat_completions_endpoint,
+        load_codex_auth_token_from_path, normalize_finish_reason, openai_tool_choice,
+        parse_tool_arguments, OpenAiCompatClient, OpenAiCompatConfig,
     };
     use crate::error::ApiError;
     use crate::types::{
@@ -945,7 +1101,9 @@ mod tests {
         ToolResultContentBlock,
     };
     use serde_json::json;
+    use std::path::PathBuf;
     use std::sync::{Mutex, OnceLock};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
     fn request_translation_uses_openai_compatible_shape() {
@@ -1035,6 +1193,51 @@ mod tests {
         );
     }
 
+    #[test]
+    fn api_key_auth_modes_are_rejected_for_codex_login() {
+        assert!(auth_mode_uses_api_key(Some("api_key")));
+        assert!(auth_mode_uses_api_key(Some("ApiKey")));
+        assert!(!auth_mode_uses_api_key(Some("chatgpt")));
+        assert!(!auth_mode_uses_api_key(None));
+    }
+
+    #[test]
+    fn loads_chatgpt_token_data_from_codex_auth_json() {
+        let path = write_temp_auth_json(
+            r#"{
+                "auth_mode": "chatgpt",
+                "tokens": {
+                    "access_token": "chatgpt-access-token",
+                    "refresh_token": "chatgpt-refresh-token",
+                    "account_id": "org_123"
+                }
+            }"#,
+        );
+
+        let auth = load_codex_auth_token_from_path(&path).expect("auth json should load");
+
+        assert_eq!(auth.token, "chatgpt-access-token");
+        assert_eq!(auth.account_id.as_deref(), Some("org_123"));
+
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn rejects_api_key_only_codex_auth_json() {
+        let path = write_temp_auth_json(
+            r#"{
+                "auth_mode": "api_key",
+                "OPENAI_API_KEY": "sk-test"
+            }"#,
+        );
+
+        let error = load_codex_auth_token_from_path(&path).expect_err("api key auth should fail");
+
+        assert!(matches!(error, ApiError::Auth(message) if message == "local auth is not a ChatGPT login"));
+
+        let _ = std::fs::remove_file(path);
+    }
+
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
@@ -1046,5 +1249,15 @@ mod tests {
     fn normalizes_stop_reasons() {
         assert_eq!(normalize_finish_reason("stop"), "end_turn");
         assert_eq!(normalize_finish_reason("tool_calls"), "tool_use");
+    }
+
+    fn write_temp_auth_json(contents: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time")
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("claw-openai-auth-{unique}.json"));
+        std::fs::write(&path, contents).expect("write auth json");
+        path
     }
 }

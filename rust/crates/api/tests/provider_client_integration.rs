@@ -14,6 +14,34 @@ fn provider_client_routes_grok_aliases_through_xai() {
 }
 
 #[test]
+fn provider_client_routes_explicit_codex_models_through_openai_codex() {
+    let _lock = env_lock();
+    let codex_home = create_temp_dir("provider-codex-home");
+    let auth_path = codex_home.join("auth.json");
+    std::fs::write(
+        &auth_path,
+        r#"{
+            "auth_mode": "chatgpt",
+            "tokens": {
+                "access_token": "chatgpt-access-token",
+                "refresh_token": "chatgpt-refresh-token"
+            }
+        }"#,
+    )
+    .expect("write auth.json");
+    let _codex_home = EnvVarGuard::set_os("CODEX_HOME", Some(codex_home.as_os_str()));
+    let _openai_api_key = EnvVarGuard::set("OPENAI_API_KEY", None);
+
+    let client = ProviderClient::from_model("openai-codex/gpt-5.3-codex")
+        .expect("codex alias should resolve");
+
+    assert_eq!(client.provider_kind(), ProviderKind::OpenAiCodex);
+
+    let _ = std::fs::remove_file(auth_path);
+    let _ = std::fs::remove_dir(codex_home);
+}
+
+#[test]
 fn provider_client_reports_missing_xai_credentials_for_grok_models() {
     let _lock = env_lock();
     let _xai_api_key = EnvVarGuard::set("XAI_API_KEY", None);
@@ -74,6 +102,15 @@ impl EnvVarGuard {
         }
         Self { key, original }
     }
+
+    fn set_os(key: &'static str, value: Option<&std::ffi::OsStr>) -> Self {
+        let original = std::env::var_os(key);
+        match value {
+            Some(value) => std::env::set_var(key, value),
+            None => std::env::remove_var(key),
+        }
+        Self { key, original }
+    }
 }
 
 impl Drop for EnvVarGuard {
@@ -83,4 +120,14 @@ impl Drop for EnvVarGuard {
             None => std::env::remove_var(self.key),
         }
     }
+}
+
+fn create_temp_dir(prefix: &str) -> std::path::PathBuf {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("time")
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("claw-{prefix}-{unique}"));
+    std::fs::create_dir_all(&path).expect("create temp dir");
+    path
 }

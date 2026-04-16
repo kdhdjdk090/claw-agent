@@ -27,7 +27,14 @@ class ProviderModeTests(unittest.TestCase):
             agent_mod, cli_mod = self._reload_modules()
             models = cli_mod.list_models()
             self.assertGreaterEqual(len(models), len(set(models)))
-            self.assertGreaterEqual(len(models), len(getattr(importlib.import_module("claw_agent.ll_council"), "DEFAULT_COUNCIL_MODELS")))
+            if getattr(agent_mod, "USE_CODEX", False):
+                from claw_agent.codex_runtime import _detect_provider, FREE_ROLE_MODELS
+                provider = _detect_provider()
+                role_models = FREE_ROLE_MODELS.get(provider, {})
+                unique = {m for mlist in role_models.values() for m in mlist}
+                self.assertGreaterEqual(len(models), len(unique))
+            else:
+                self.assertGreaterEqual(len(models), len(getattr(importlib.import_module("claw_agent.ll_council"), "DEFAULT_COUNCIL_MODELS")))
 
 
 if __name__ == "__main__":

@@ -16,8 +16,9 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use api::{
-    resolve_startup_auth_source, AuthSource, ClawApiClient, ContentBlockDelta, InputContentBlock,
-    InputMessage, MessageRequest, MessageResponse, OutputContentBlock,
+    detect_provider_kind, has_codex_auth, resolve_startup_auth_source, AuthSource, ClawApiClient,
+    ContentBlockDelta, InputContentBlock, InputMessage, MessageRequest, MessageResponse,
+    OutputContentBlock, ProviderClient, ProviderKind,
     StreamEvent as ApiStreamEvent, ToolChoice, ToolDefinition, ToolResultContentBlock,
 };
 
@@ -42,6 +43,13 @@ use serde_json::json;
 use tools::GlobalToolRegistry;
 
 const DEFAULT_MODEL: &str = "claude-opus-4-6";
+const DEFAULT_OPENAI_MODEL: &str = "gpt-4o-mini";
+const DEFAULT_CODEX_MODEL: &str = "gpt-5.3-codex";
+const DEFAULT_XAI_MODEL: &str = "grok-3-mini";
+const DEFAULT_ALIBABA_MODEL: &str = "qwen-plus";
+const DEFAULT_DEEPSEEK_MODEL: &str = "deepseek-reasoner";
+const WORKSPACE_ENV_SEARCH_DEPTH: usize = 4;
+
 fn max_tokens_for_model(model: &str) -> u32 {
     if model.contains("opus") {
         32_000
@@ -80,7 +88,9 @@ fn render_cli_error(problem: &str) -> String {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
+    load_workspace_env();
     let args: Vec<String> = env::args().skip(1).collect();
+    let model_was_explicit = model_flag_was_explicit(&args);
     match parse_args(&args)? {
         CliAction::DumpManifests => dump_manifests(),
         CliAction::BootstrapPlan => print_bootstrap_plan(),
@@ -98,7 +108,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             output_format,
             allowed_tools,
             permission_mode,
-        } => LiveCli::new(model, true, allowed_tools, permission_mode)?
+        } => LiveCli::new(
+            select_runtime_model(model, model_was_explicit),
+            true,
+            allowed_tools,
+            permission_mode,
+        )?
             .run_turn_with_output(&prompt, output_format)?,
         CliAction::Login => run_login()?,
         CliAction::Logout => run_logout()?,
@@ -107,10 +122,121 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             model,
             allowed_tools,
             permission_mode,
-        } => run_repl(model, allowed_tools, permission_mode)?,
+        } => run_repl(
+            select_runtime_model(model, model_was_explicit),
+            allowed_tools,
+            permission_mode,
+        )?,
         CliAction::Help => print_help(),
     }
     Ok(())
+}
+
+fn model_flag_was_explicit(args: &[String]) -> bool {
+    args.iter().enumerate().any(|(index, arg)| {
+        arg.starts_with("--model=") || (arg == "--model" && args.get(index + 1).is_some())
+    })
+}
+
+fn select_runtime_model(parsed_model: String, model_was_explicit: bool) -> String {
+    if model_was_explicit || parsed_model != DEFAULT_MODEL {
+        return parsed_model;
+    }
+    default_startup_model().unwrap_or(parsed_model)
+}
+
+fn default_startup_model() -> Option<String> {
+    if env_var_present("DASHSCOPE_API_KEY") {
+        return Some(DEFAULT_ALIBABA_MODEL.to_string());
+    }
+    if env_var_present("DEEPSEEK_API_KEY") {
+        return Some(DEFAULT_DEEPSEEK_MODEL.to_string());
+    }
+    if has_codex_auth() {
+        return Some(DEFAULT_CODEX_MODEL.to_string());
+    }
+    if env_var_present("OPENAI_API_KEY") {
+        return Some(DEFAULT_OPENAI_MODEL.to_string());
+    }
+    if env_var_present("XAI_API_KEY") {
+        return Some(DEFAULT_XAI_MODEL.to_string());
+    }
+    None
+}
+
+fn env_var_present(key: &str) -> bool {
+    env::var(key).is_ok_and(|value| !value.trim().is_empty())
+}
+
+fn load_workspace_env() {
+    let mut start_dirs = Vec::new();
+    push_unique_path(&mut start_dirs, env::current_dir().ok());
+    push_unique_path(
+        &mut start_dirs,
+        env::current_exe()
+            .ok()
+            .and_then(|path| path.parent().map(Path::to_path_buf)),
+    );
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    push_unique_path(&mut start_dirs, Some(manifest_dir.clone()));
+    push_unique_path(
+        &mut start_dirs,
+        manifest_dir.parent().map(Path::to_path_buf),
+    );
+
+    for filename in [".env.local", ".env"] {
+        for start in &start_dirs {
+            let mut search = start.clone();
+            for _ in 0..WORKSPACE_ENV_SEARCH_DEPTH {
+                let candidate = search.join(filename);
+                if candidate.is_file() {
+                    load_env_file(&candidate);
+                    return;
+                }
+                if !search.pop() {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn push_unique_path(paths: &mut Vec<PathBuf>, candidate: Option<PathBuf>) {
+    if let Some(path) = candidate {
+        let normalized = path.components().collect::<PathBuf>();
+        if !paths.contains(&normalized) {
+            paths.push(normalized);
+        }
+    }
+}
+
+fn load_env_file(path: &Path) {
+    let Ok(contents) = fs::read_to_string(path) else {
+        return;
+    };
+
+    for raw_line in contents.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() || line.starts_with('#') || !line.contains('=') {
+            continue;
+        }
+        let Some((raw_key, raw_value)) = line.split_once('=') else {
+            continue;
+        };
+        let key = raw_key.trim().trim_start_matches("export ").trim();
+        if key.is_empty() {
+            continue;
+        }
+
+        let mut value = raw_value.trim();
+        if value.len() >= 2 {
+            let quote = value.as_bytes()[0] as char;
+            if (quote == '"' || quote == '\'') && value.ends_with(quote) {
+                value = &value[1..value.len() - 1];
+            }
+        }
+        env::set_var(key, value);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3040,7 +3166,7 @@ impl runtime::PermissionPrompter for CliPermissionPrompter {
 
 struct DefaultRuntimeClient {
     runtime: tokio::runtime::Runtime,
-    client: ClawApiClient,
+    client: ProviderClient,
     model: String,
     enable_tools: bool,
     emit_output: bool,
@@ -3058,10 +3184,14 @@ impl DefaultRuntimeClient {
         tool_registry: GlobalToolRegistry,
         progress_reporter: Option<InternalPromptProgressReporter>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
+        let default_auth = if detect_provider_kind(&model) == ProviderKind::ClawApi {
+            Some(resolve_cli_auth_source()?)
+        } else {
+            None
+        };
         Ok(Self {
             runtime: tokio::runtime::Runtime::new()?,
-            client: ClawApiClient::from_auth(resolve_cli_auth_source()?)
-                .with_base_url(api::read_base_url()),
+            client: ProviderClient::from_model_with_default_auth(&model, default_auth)?,
             model,
             enable_tools,
             emit_output,

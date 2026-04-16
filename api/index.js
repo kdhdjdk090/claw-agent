@@ -2,6 +2,48 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+function loadLocalEnv() {
+  const startDirs = Array.from(new Set([
+    process.cwd(),
+    path.join(__dirname, '..'),
+    __dirname,
+  ].map(dir => path.resolve(dir))));
+
+  for (const filename of ['.env.local', '.env']) {
+    for (const start of startDirs) {
+      let search = start;
+      for (let depth = 0; depth < 4; depth++) {
+        const candidate = path.join(search, filename);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+          const lines = fs.readFileSync(candidate, 'utf8').split(/\r?\n/);
+          for (const rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line || line.startsWith('#') || !line.includes('=')) continue;
+            const idx = line.indexOf('=');
+            const key = line.slice(0, idx).trim();
+            let value = line.slice(idx + 1).trim();
+            if (!key || process.env[key]) continue;
+            if (
+              value.length >= 2 &&
+              ((value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'")))
+            ) {
+              value = value.slice(1, -1);
+            }
+            process.env[key] = value;
+          }
+          return;
+        }
+        const parent = path.dirname(search);
+        if (parent === search) break;
+        search = parent;
+      }
+    }
+  }
+}
+
+loadLocalEnv();
+
 // Read the updated index.html from project root
 const HTML_PATH = path.join(__dirname, '..', 'index.html');
 const ADMIN_HTML_PATH = path.join(__dirname, '..', 'public', 'admin.html');

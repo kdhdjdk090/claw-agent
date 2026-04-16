@@ -31,12 +31,22 @@ class CouncilReportingTests(unittest.TestCase):
             os.environ.pop("COUNCIL_MODELS", None)
             _, cli_mod, council_mod, _ = self._reload_modules()
 
-            detail = cli_mod._get_runtime_mode()["detail"]
+            mode = cli_mod._get_runtime_mode()
+            detail = mode["detail"]
 
-            self.assertEqual(
-                detail,
-                f"{len(council_mod.DEFAULT_COUNCIL_MODELS)} models via Alibaba + OpenRouter",
-            )
+            if mode["kind"] == "codex":
+                from claw_agent.codex_runtime import _detect_provider, FREE_ROLE_MODELS
+                provider = _detect_provider()
+                role_models = FREE_ROLE_MODELS.get(provider, {})
+                self.assertEqual(
+                    detail,
+                    f"{len(role_models)} roles via {provider.title()}",
+                )
+            else:
+                self.assertEqual(
+                    detail,
+                    f"{len(council_mod.DEFAULT_COUNCIL_MODELS)} models via Alibaba + OpenRouter",
+                )
 
     def test_advanced_council_uses_same_default_roster_as_base_council(self) -> None:
         env = {

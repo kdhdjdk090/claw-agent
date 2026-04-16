@@ -232,6 +232,70 @@ async fn provider_client_dispatches_xai_requests_from_env() {
     );
 }
 
+#[tokio::test]
+async fn provider_client_dispatches_codex_auth_requests_from_auth_json() {
+    let _lock = env_lock();
+    let codex_home = create_temp_dir("codex-home");
+    let auth_path = codex_home.join("auth.json");
+    std::fs::write(
+        &auth_path,
+        r#"{
+            "auth_mode": "chatgpt",
+            "tokens": {
+                "access_token": "chatgpt-access-token",
+                "refresh_token": "chatgpt-refresh-token",
+                "account_id": "org_456"
+            }
+        }"#,
+    )
+    .expect("write auth.json");
+
+    let _codex_home = ScopedEnvVar::set("CODEX_HOME", codex_home.as_os_str());
+    let _openai_api_key = ScopedEnvVar::unset("OPENAI_API_KEY");
+
+    let state = Arc::new(Mutex::new(Vec::<CapturedRequest>::new()));
+    let server = spawn_server(
+        state.clone(),
+        vec![http_response(
+            "200 OK",
+            "application/json",
+            "{\"id\":\"chatcmpl_codex\",\"model\":\"gpt-5.3-codex\",\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\"Through Codex auth\",\"tool_calls\":[]},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":6,\"completion_tokens\":4}}",
+        )],
+    )
+    .await;
+    let _base_url = ScopedEnvVar::set("OPENAI_BASE_URL", server.base_url());
+
+    let client = ProviderClient::from_model("openai-codex/gpt-5.3-codex")
+        .expect("codex provider client should be constructed");
+    assert!(matches!(client, ProviderClient::OpenAiCodex(_)));
+
+    let request = MessageRequest {
+        model: "gpt-5.3-codex".to_string(),
+        ..sample_request(false)
+    };
+    let response = client
+        .send_message(&request)
+        .await
+        .expect("provider-dispatched request should succeed");
+
+    assert_eq!(response.total_tokens(), 10);
+
+    let captured = state.lock().await;
+    let request = captured.first().expect("captured request");
+    assert_eq!(request.path, "/chat/completions");
+    assert_eq!(
+        request.headers.get("authorization").map(String::as_str),
+        Some("Bearer chatgpt-access-token")
+    );
+    assert_eq!(
+        request.headers.get("chatgpt-account-id").map(String::as_str),
+        Some("org_456")
+    );
+
+    let _ = std::fs::remove_file(auth_path);
+    let _ = std::fs::remove_dir(codex_home);
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CapturedRequest {
     path: String,
@@ -403,6 +467,12 @@ impl ScopedEnvVar {
         std::env::set_var(key, value);
         Self { key, previous }
     }
+
+    fn unset(key: &'static str) -> Self {
+        let previous = std::env::var_os(key);
+        std::env::remove_var(key);
+        Self { key, previous }
+    }
 }
 
 impl Drop for ScopedEnvVar {
@@ -412,4 +482,14 @@ impl Drop for ScopedEnvVar {
             None => std::env::remove_var(self.key),
         }
     }
+}
+
+fn create_temp_dir(prefix: &str) -> std::path::PathBuf {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("time")
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!("claw-{prefix}-{unique}"));
+    std::fs::create_dir_all(&path).expect("create temp dir");
+    path
 }

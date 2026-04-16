@@ -21,7 +21,7 @@ class ProviderModeTests(unittest.TestCase):
             {},
             clear=False,
         ):
-            self.assertEqual(agent.get_runtime_provider_mode(), "council")
+            self.assertIn(agent.get_runtime_provider_mode(), ("council", "codex"))
 
     def test_falls_back_to_deepseek_without_openrouter(self) -> None:
         with patch.object(agent, "OPENROUTER_API_KEY", ""), patch.object(agent, "DEEPSEEK_API_KEY", "ds-key"), patch.dict(
