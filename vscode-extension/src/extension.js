@@ -5,7 +5,7 @@ const path = require("path");
 
 /**
  * Claw Agent VS Code Extension
- * Claude Code-style agent chat panel inside VS Code.
+ * Claw Agent chat panel inside VS Code.
  * 
  * Security: Command validation for dangerous operations.
  */
@@ -175,6 +175,7 @@ class ClawChatViewProvider {
     // Default to Qwen3.5+ - most powerful flagship model
     const model = config.get("model", "qwen3.5-397b-a17b");
     const ollamaUrl = config.get("ollamaUrl", "http://localhost:11434");
+    const nvidiaApiKey = config.get("nvidiaApiKey", "");
     const dashscopeKey = config.get("dashscopeApiKey", "");
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
     const bridgePath = path.join(this._context.extensionPath, "src", "bridge.py");
@@ -198,7 +199,10 @@ class ClawChatViewProvider {
 
     try {
       const spawnEnv = { ...process.env };
-      // Pass DashScope API key if configured
+      // Pass provider API keys if configured
+      if (nvidiaApiKey) {
+        spawnEnv.NVIDIA_API_KEY = nvidiaApiKey;
+      }
       if (dashscopeKey) {
         spawnEnv.DASHSCOPE_API_KEY = dashscopeKey;
       }

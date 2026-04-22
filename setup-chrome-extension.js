@@ -44,11 +44,11 @@ envContent.split('\n').forEach(line => {
   }
 });
 
-const OPENROUTER_KEY = envVars.OPENROUTER_API_KEY || '';
+const NVIDIA_KEY = envVars.NVIDIA_API_KEY || envVars.NIM_API_KEY || '';
 const DASHSCOPE_KEY = envVars.DASHSCOPE_API_KEY || '';
 
 console.log('✅ Found API keys:');
-console.log(`   OpenRouter: ${OPENROUTER_KEY ? OPENROUTER_KEY.substring(0, 15) + '...' : '❌ Not found'}`);
+console.log(`   NVIDIA:    ${NVIDIA_KEY ? NVIDIA_KEY.substring(0, 15) + '...' : '❌ Not found'}`);
 console.log(`   DashScope:  ${DASHSCOPE_KEY ? DASHSCOPE_KEY.substring(0, 15) + '...' : '❌ Not found'}`);
 
 // Create auto-load script
@@ -67,7 +67,7 @@ const loaderScript = `// 🦞 Claw Agent - Auto-Load API Keys
   console.log('🦞 Loading API keys from .env.local...\\n');
   
   const CONFIG = {
-    openrouter_api_key: '${OPENROUTER_KEY}',
+    nvidia_api_key: '${NVIDIA_KEY}',
     dashscope_api_key: '${DASHSCOPE_KEY}',
     current_model: 'qwen3.5-397b-a17b'
   };
@@ -76,7 +76,7 @@ const loaderScript = `// 🦞 Claw Agent - Auto-Load API Keys
     await chrome.storage.sync.set(CONFIG);
     
     console.log('✅ SUCCESS! API keys configured:\\n');
-    console.log('   OpenRouter Key: ' + CONFIG.openrouter_api_key.substring(0, 15) + '...');
+    console.log('   NVIDIA Key:    ' + CONFIG.nvidia_api_key.substring(0, 15) + '...');
     console.log('   DashScope Key:  ' + CONFIG.dashscope_api_key.substring(0, 15) + '...');
     console.log('   Default Model:  ' + CONFIG.current_model);
     console.log('\\n🔄 RELOAD the extension now:');
@@ -92,7 +92,7 @@ const loaderScript = `// 🦞 Claw Agent - Auto-Load API Keys
 })();
 `;
 
-const loaderPath = path.join(__dirname, 'chrome-extension', 'AUTO_LOAD_KEYS.js');
+const loaderPath = path.join(__dirname, 'chrome-extension', 'AUTO_LOAD_KEYS.local.js');
 fs.writeFileSync(loaderPath, loaderScript);
 console.log(`\n💾 Created: ${loaderPath}`);
 
@@ -109,12 +109,12 @@ $extensionPath = "$PSScriptRoot\\chrome-extension"
 
 Write-Host "📖 Reading API keys from .env.local..."
 $envContent = Get-Content "$PSScriptRoot\\.env.local" -Raw
-$openrouterKey = ""
+$nvidiaKey = ""
 $dashscopeKey = ""
 
 foreach ($line in $envContent -split "\\n") {
-    if ($line -match '^OPENROUTER_API_KEY=(.*)$') {
-        $openrouterKey = $matches[1].Trim('"', "'")
+    if ($line -match '^(NVIDIA_API_KEY|NIM_API_KEY)=(.*)$') {
+        $nvidiaKey = $matches[2].Trim('"', "'")
     }
     if ($line -match '^DASHSCOPE_API_KEY=(.*)$') {
         $dashscopeKey = $matches[1].Trim('"', "'")
@@ -122,7 +122,7 @@ foreach ($line in $envContent -split "\\n") {
 }
 
 Write-Host "✅ Found API keys:"
-Write-Host "   OpenRouter: $($openrouterKey.Substring(0, [Math]::Min(15, $openrouterKey.Length)))..."
+Write-Host "   NVIDIA:    $($nvidiaKey.Substring(0, [Math]::Min(15, $nvidiaKey.Length)))..."
 Write-Host "   DashScope:  $($dashscopeKey.Substring(0, [Math]::Min(15, $dashscopeKey.Length)))..."
 Write-Host ""
 
@@ -133,7 +133,7 @@ Write-Host "3. Find 'Claw Agent' and click 'Reload'"
 Write-Host "4. Click the Claw Agent icon to open side panel"
 Write-Host "5. Right-click in the panel → Inspect"
 Write-Host "6. Go to Console tab"
-Write-Host "7. Open file: AUTO_LOAD_KEYS.js"
+Write-Host "7. Open file: AUTO_LOAD_KEYS.local.js"
 Write-Host "8. Copy ALL content and paste into Console"
 Write-Host "9. Press Enter"
 Write-Host "10. Reload extension again"
@@ -176,7 +176,7 @@ console.log(`💾 Created: ${batPath}`);
 console.log('\n' + '='.repeat(50));
 console.log('\n🎉 SETUP COMPLETE!\n');
 console.log('📁 Files created:');
-console.log('   - chrome-extension/AUTO_LOAD_KEYS.js (contains your API keys)');
+console.log('   - chrome-extension/AUTO_LOAD_KEYS.local.js (contains your local API keys)');
 console.log('   - setup-chrome-extension.ps1 (PowerShell helper)');
 console.log('   - setup-chrome-extension.bat (Batch helper)');
 console.log('');
@@ -189,7 +189,7 @@ console.log('   Option 2 (Batch):');
 console.log('     .\\setup-chrome-extension.bat');
 console.log('');
 console.log('   Option 3 (Manual):');
-console.log('     1. Open chrome-extension/AUTO_LOAD_KEYS.js');
+console.log('     1. Open chrome-extension/AUTO_LOAD_KEYS.local.js');
 console.log('     2. Copy all content');
 console.log('     3. Paste into Chrome extension console');
 console.log('     4. Press Enter');

@@ -1,7 +1,7 @@
 {
   "name": "claw-agent",
   "displayName": "Claw Agent",
-  "description": "AI coding agent powered by OpenRouter Multi-Model Council — Claude Code-style agent in VS Code",
+  "description": "AI coding agent powered by NVIDIA NIM and DashScope — Claw Agent in VS Code",
   "version": "2.0.0",
   "publisher": "claw-agent",
   "engines": {
@@ -85,22 +85,22 @@
           "type": "string",
           "default": "cloud",
           "enum": ["cloud", "local"],
-          "description": "API mode: cloud (OpenRouter/Alibaba) or local (Ollama)"
+          "description": "API mode: cloud (NVIDIA NIM/DashScope) or local (Ollama)"
         },
         "claw.model": {
           "type": "string",
           "default": "qwen3.5-397b-a17b",
           "description": "Model to use. Recommended: qwen3.5-397b-a17b (Qwen3.5+ flagship), qwen3-coder-480b-a35b-instruct (coding), qwen-plus (fast)"
         },
-        "claw.openrouterApiKey": {
+        "claw.nvidiaApiKey": {
           "type": "string",
           "default": "",
-          "description": "OpenRouter API key (leave empty to use built-in key)"
+          "description": "NVIDIA NIM API key"
         },
         "claw.dashscopeApiKey": {
           "type": "string",
           "default": "",
-          "description": "Alibaba Cloud DashScope API key (1M free tokens per model)"
+          "description": "Alibaba Cloud DashScope API key"
         },
         "claw.ollamaUrl": {
           "type": "string",
