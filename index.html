@@ -606,6 +606,11 @@ function getProviderLabel(payload){
 const labels=getProviderSections(payload).map(section=>section.label);
 return labels.length?labels.join(' + '):'No cloud providers configured';
 }
+function formatProviderNames(value){
+if(Array.isArray(value)&&value.length)return value.join(' + ');
+if(typeof value==='string'&&value.trim())return value.trim();
+return 'No cloud providers configured';
+}
 function formatModelInfo(payload,fallbackCount){
 const count=Number(payload?.model_count||fallbackCount||0);
 const providers=getProviderLabel(payload);
@@ -1032,19 +1037,20 @@ am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/
 case'/models':
 try{const r=await fetch('/api/models');const d=await r.json();
 const sections=getProviderSections(d);
-let msg='**Available Models ('+d.model_count+')**\n\n**Providers:** '+getProviderLabel(d)+'\n\n'
+let msg='**Available Models ('+d.model_count+')**\n\n**Providers:** '+formatProviderNames(d.providers||getProviderLabel(d))+'\n**Detail:** '+(d.detail||getProviderLabel(d))+'\n\n'
 +sections.map(section=>'**'+section.label+' ('+section.count+'):**\n'+section.models.map(model=>'- **'+model.n+'** — '+model.u).join('\n')).join('\n\n');
 msg+='\n\n**Status:** '+(d.api_key_set?'✓ NVIDIA NIM':'✗ NVIDIA NIM')+' · '+(d.alibaba_key_set?'✓ Alibaba Cloud':'✗ Alibaba Cloud')+' · '+(d.cometapi_key_set?'✓ CometAPI':'✗ CometAPI')+' · '+(d.openai_key_set?'✓ OpenAI':'✗ OpenAI');
 am('a',msg)
 }catch(e){ae('Failed to load models')}break;
 case'/skills':
 try{const r=await fetch('/api/skills');const d=await r.json();
-am('a','**Available Skills ('+d.total+')**\n\n'+d.skills.map(x=>'- **/'+x.id+'** — '+x.description).join('\n')+'\n\nUsage: `/skill-name your request`')
+am('a','**Available Skills ('+d.total+')**\n\n'+d.skills.map(x=>'- **/'+x.id+'** — '+x.name+' · '+x.description).join('\n')+'\n\nUse `/skills` anytime to review capabilities, or type a normal prompt and Claw will route it automatically.')
 }catch(e){am('a','**Available Skills (18)**\n\n'+SK.map(x=>'- **/'+x.id+'** — '+x.d).join('\n')+'\n\nUsage: `/skill-name your request`')}break;
 case'/clear':doClear();break;
 case'/status':
 try{const r=await fetch('/api/status');const d=await r.json();
-ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptime: '+Math.round(d.uptime)+'s\n- Models: '+d.models+'\n- Providers: '+d.providers+' configured\n- Skills: '+d.skills+'\n- NVIDIA NIM: '+(d.keys_configured.nvidia?'✓ Connected':'✗ Not configured')+'\n- Alibaba Cloud: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured')+'\n- CometAPI: '+(d.keys_configured.cometapi?'✓ Connected':'✗ Not configured')+'\n- OpenAI: '+(d.keys_configured.openai?'✓ Connected':'✗ Not configured')+'\n- Messages: '+H.length)
+const providerNames=formatProviderNames(d.provider_names);
+ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptime: '+Math.round(d.uptime)+'s\n- Models: '+d.models+'\n- Providers: '+providerNames+'\n- Detail: '+(d.council_detail||(''+d.models+' models'))+'\n- Skills: '+d.skills+'\n- NVIDIA NIM: '+(d.keys_configured.nvidia?'✓ Connected':'✗ Not configured')+'\n- Alibaba Cloud: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured')+'\n- CometAPI: '+(d.keys_configured.cometapi?'✓ Connected':'✗ Not configured')+'\n- OpenAI: '+(d.keys_configured.openai?'✓ Connected':'✗ Not configured')+'\n- Messages: '+H.length)
 }catch(e){ae('**Status**\n- Connection: Offline\n- Messages: '+H.length)}break;
 case'/version':
 try{const r=await fetch('/api/health');const d=await r.json();

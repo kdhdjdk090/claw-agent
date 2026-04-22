@@ -558,6 +558,7 @@ module.exports = async (req, res) => {
 
   // GET /api/status - Real system status
   if (req.url.startsWith('/api/status') && req.method === 'GET') {
+    const configuredProviders = getConfiguredProviders();
     return res.status(200).json({
       status: 'operational',
       version: '2.2.0',
@@ -565,7 +566,8 @@ module.exports = async (req, res) => {
       timestamp: new Date().toISOString(),
       models: COUNCIL_MODELS.length,
       council_detail: getCouncilDetail(),
-      providers: getConfiguredProviders().length,
+      providers: configuredProviders.length,
+      provider_names: configuredProviders,
       skills: 18,
       keys_configured: {
         nvidia: !!NVIDIA_API_KEY,
