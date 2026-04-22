@@ -15,7 +15,7 @@
   const CONFIG = {
     nvidia_api_key: '',
     dashscope_api_key: 'sk-dd-REDACTED',
-    current_model: 'meta/llama-3.3-70b-instruct'
+    current_model: 'qwen/qwen3.5-397b-a17b'
   };
   
   try {

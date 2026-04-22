@@ -12,7 +12,7 @@ Write-Host ""
 $envPath = Join-Path $PSScriptRoot ".env.local"
 $nvidiaApiKey = ""
 $dashScopeKey = ""
-$model = "qwen3.5-397b-a17b"
+$model = "qwen/qwen3.5-397b-a17b"
 
 Write-Host "📖 Reading API keys from .env.local..." -ForegroundColor Cyan
 

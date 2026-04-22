@@ -69,7 +69,7 @@ const loaderScript = `// 🦞 Claw Agent - Auto-Load API Keys
   const CONFIG = {
     nvidia_api_key: '${NVIDIA_KEY}',
     dashscope_api_key: '${DASHSCOPE_KEY}',
-    current_model: 'qwen3.5-397b-a17b'
+    current_model: 'qwen/qwen3.5-397b-a17b'
   };
   
   try {

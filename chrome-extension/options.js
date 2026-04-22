@@ -3,6 +3,18 @@
  * Saves API keys to chrome.storage.sync
  */
 
+const LEGACY_MODEL_MAP = {
+  'qwen3.5-397b-a17b': 'qwen/qwen3.5-397b-a17b',
+  'google/gemma-3-12b-it:free': 'google/gemma-4-27b-it',
+  'google/gemma-3-12b-it': 'google/gemma-4-27b-it',
+  'meta-llama/llama-3.3-70b-instruct:free': 'meta/llama-3.3-70b-instruct',
+  'nousresearch/hermes-3-llama-3.1-405b:free': 'qwen/qwen3-next-80b-a3b-instruct'
+};
+
+function normalizeModel(modelValue) {
+  return LEGACY_MODEL_MAP[modelValue] || modelValue;
+}
+
 // Load saved settings on page load
 document.addEventListener('DOMContentLoaded', async () => {
   const nvidiaInput = document.getElementById('nvidia-api-key');
@@ -26,7 +38,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       dashscopeInput.value = result.dashscope_api_key;
     }
     if (result.current_model) {
-      modelSelect.value = result.current_model;
+      const normalizedModel = normalizeModel(result.current_model);
+      modelSelect.value = normalizedModel;
+      if (normalizedModel !== result.current_model) {
+        await chrome.storage.sync.set({ current_model: normalizedModel });
+      }
     }
   } catch (err) {
     console.error('Failed to load settings:', err);
@@ -36,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   saveBtn.addEventListener('click', async () => {
     const nvidiaKey = nvidiaInput.value.trim();
     const dashscopeKey = dashscopeInput.value.trim();
-    const model = modelSelect.value;
+    const model = normalizeModel(modelSelect.value);
     
     try {
       await chrome.storage.sync.set({

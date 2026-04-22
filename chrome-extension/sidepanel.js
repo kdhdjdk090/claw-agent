@@ -7,8 +7,25 @@
 const CONFIG = {
   apiKey: '',
   apiBase: 'https://integrate.api.nvidia.com',
-  model: 'meta/llama-3.3-70b-instruct',
+  model: 'qwen/qwen3.5-397b-a17b',
   systemPrompt: 'You are Claw, a helpful AI browser agent. Be concise and helpful.'
+};
+
+const MODEL_OPTIONS = [
+  { value: 'qwen/qwen3.5-397b-a17b', label: 'Qwen 3.5 397B', blurb: 'Primary general model' },
+  { value: 'qwen/qwen3-next-80b-a3b-instruct', label: 'Qwen3 Next 80B', blurb: 'Fast balanced model' },
+  { value: 'qwen/qwen3-coder-480b-a35b-instruct', label: 'Qwen3 Coder 480B', blurb: 'Heavy coding model' },
+  { value: 'meta/llama-3.3-70b-instruct', label: 'Llama 3.3 70B', blurb: 'Stable generalist' },
+  { value: 'nvidia/nemotron-4-340b-instruct', label: 'Nemotron 4 340B', blurb: 'Large reasoning model' },
+  { value: 'google/gemma-4-27b-it', label: 'Gemma 4 27B', blurb: 'Midweight fast model' }
+];
+
+const LEGACY_MODEL_MAP = {
+  'qwen3.5-397b-a17b': 'qwen/qwen3.5-397b-a17b',
+  'google/gemma-3-12b-it:free': 'google/gemma-4-27b-it',
+  'google/gemma-3-12b-it': 'google/gemma-4-27b-it',
+  'meta-llama/llama-3.3-70b-instruct:free': 'meta/llama-3.3-70b-instruct',
+  'nousresearch/hermes-3-llama-3.1-405b:free': 'qwen/qwen3-next-80b-a3b-instruct'
 };
 
 // Retry configuration for rate limits
@@ -25,6 +42,40 @@ let isLoading = false;
 // DOM Elements
 let inputEl, sendBtn, messagesEl, modelSelect, statusText;
 
+function normalizeModel(modelValue) {
+  return LEGACY_MODEL_MAP[modelValue] || modelValue;
+}
+
+function getModelMeta(modelValue) {
+  const normalizedModel = normalizeModel(modelValue);
+  return MODEL_OPTIONS.find(option => option.value === normalizedModel) || MODEL_OPTIONS[0];
+}
+
+function syncModelSelect() {
+  if (!modelSelect) return;
+
+  const options = MODEL_OPTIONS.map(option => (
+    `<option value="${option.value}">${option.label}</option>`
+  )).join('');
+
+  modelSelect.innerHTML = options;
+  modelSelect.value = getModelMeta(CONFIG.model).value;
+}
+
+function updateWelcomeCopy() {
+  const titleEl = document.getElementById('welcomeTitle');
+  const subtitleEl = document.getElementById('welcomeSubtitle');
+  const modelMeta = getModelMeta(CONFIG.model);
+
+  if (titleEl) titleEl.textContent = 'Claw Agent';
+  if (subtitleEl) subtitleEl.textContent = `AI browser agent with ${modelMeta.label}`;
+}
+
+function updateReadyStatus() {
+  if (!statusText) return;
+  statusText.textContent = `✅ Ready - ${getModelMeta(CONFIG.model).label}`;
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🦞 Claw Agent Starting...');
@@ -34,8 +85,15 @@ document.addEventListener('DOMContentLoaded', () => {
       CONFIG.apiKey = result.nvidia_api_key;
     }
     if (result.current_model) {
-      CONFIG.model = result.current_model;
+      CONFIG.model = normalizeModel(result.current_model);
+      if (CONFIG.model !== result.current_model) {
+        chrome.storage.sync.set({ current_model: CONFIG.model });
+      }
     }
+
+    syncModelSelect();
+    updateWelcomeCopy();
+    updateReadyStatus();
   });
   
   // Get DOM elements
@@ -53,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   
   console.log('✅ UI Elements loaded');
+  syncModelSelect();
+  updateWelcomeCopy();
   
   // Event listeners
   sendBtn.addEventListener('click', sendMessage);
@@ -64,7 +124,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   modelSelect.addEventListener('change', (e) => {
-    CONFIG.model = e.target.value;
+    CONFIG.model = normalizeModel(e.target.value);
+    chrome.storage.sync.set({ current_model: CONFIG.model });
+    syncModelSelect();
+    updateWelcomeCopy();
+    updateReadyStatus();
     console.log('Model changed to:', CONFIG.model);
   });
   
@@ -72,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
   inputEl.focus();
   
   // Update status
-  statusText.textContent = `✅ Ready - ${CONFIG.model}`;
+  updateReadyStatus();
   
   console.log('🚀 Claw Agent Ready!');
   console.log('   Using model:', CONFIG.model);
