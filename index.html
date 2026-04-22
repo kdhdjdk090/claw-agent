@@ -339,7 +339,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 <pre><code>https://clean-claw-ai.vercel.app</code></pre>
 <p><strong>Features:</strong></p>
 <ul>
-<li>23 AI models across 4 providers (OpenRouter + Alibaba Cloud + CometAPI + OpenAI)</li>
+<li>Hosted cloud models via NVIDIA NIM and Alibaba Cloud on this deployment</li>
 <li>18 built-in skills (code, write, analyze, translate, debug...)</li>
 <li>Conversation history with auto-save</li>
 <li>File upload & analysis</li>
@@ -388,7 +388,7 @@ claw
 claw "write a python web scraper"
 
 # Specify model
-claw --model deepseek-r1:671b
+claw --model qwen/qwen3.5-397b-a17b
 
 # Print-only mode (no file edits)
 claw --print "explain this code"
@@ -412,10 +412,10 @@ claw --yolo "refactor this project"</code></pre>
 <h3>Cloud Mode (no Ollama needed)</h3>
 <pre><code># Set your API key
 # Windows PowerShell:
-$env:DEEPSEEK_API_KEY="your-key-here"
+$env:NVIDIA_API_KEY="your-key-here"
 
 # Linux/macOS:
-export DEEPSEEK_API_KEY="your-key-here"
+export NVIDIA_API_KEY="your-key-here"
 
 # Then run:
 claw</code></pre>
@@ -425,9 +425,9 @@ claw</code></pre>
 ollama serve
 
 # Terminal 2: Pull a model and run
-ollama pull deepseek-r1:32b
+ollama pull qwen2.5:7b
 claw</code></pre>
-<div class="note">Pre-configured API keys are included for OpenRouter and Alibaba Cloud. For local mode, install Ollama from ollama.com.</div>
+<div class="note">Hosted deployments use NVIDIA NIM and Alibaba Cloud. For local mode, install Ollama from ollama.com.</div>
 </div>
 
 <div class="install-panel" id="tab-chrome">
@@ -453,7 +453,7 @@ claw</code></pre>
 <li>Streaming responses</li>
 <li>Session persistence</li>
 <li>Model selection dropdown</li>
-<li>Works with OpenRouter Cloud API (no local setup)</li>
+<li>Works with the hosted NVIDIA NIM + Alibaba Cloud setup (no local setup)</li>
 </ul>
 
 <h3>Extension Files</h3>
@@ -504,8 +504,8 @@ Claw: Fix Selection       — Right-click → Fix code</code></pre>
 <h3>Settings</h3>
 <pre><code>{
   "claw.apiMode": "cloud",
-  "claw.model": "openai/gpt-4o-mini",
-  "claw.openrouterApiKey": "",
+  "claw.model": "qwen3.5-397b-a17b",
+  "claw.nvidiaApiKey": "",
   "claw.ollamaUrl": "http://localhost:11434"
 }</code></pre>
 
@@ -516,7 +516,7 @@ Claw: Fix Selection       — Right-click → Fix code</code></pre>
 │   ├── extension.js   # Main entry point
 │   └── bridge.py      # Python CLI bridge
 └── icon.png           # Extension icon</code></pre>
-<div class="note">Supports both cloud mode (OpenRouter, pre-configured) and local mode (Ollama). Cloud mode works out of the box.</div>
+<div class="note">Supports both cloud mode (NVIDIA NIM / Alibaba Cloud) and local mode (Ollama). Cloud mode works out of the box.</div>
 </div>
 </div>
 <div id="toastEl" class="toast"></div>
@@ -546,20 +546,37 @@ function updGreet(){const h=new Date().getHours(),g=h<12?'Good morning':h<18?'Go
 
 /* Data */
 const MD=[
-{n:'DeepSeek V3',u:'Most Powerful',p:'OR',b:671,ctx:128},{n:'Qwen3 80B',u:'Best Balance',p:'OR',b:80,ctx:128},
-{n:'Llama 3.3 70B',u:'Most Stable',p:'OR',b:70,ctx:128},{n:'Qwen Coder 32B',u:'Coding King',p:'OR',b:32,ctx:128},
-{n:'DeepSeek R1',u:'Reasoning',p:'OR',b:671,ctx:128},{n:'Gemma 3 12B',u:'Fastest',p:'OR',b:12,ctx:32},
-{n:'GPT-4o-mini',u:'Reliable',p:'OR',b:8,ctx:128},{n:'Claude 3 Haiku',u:'Natural Chat',p:'OR',b:20,ctx:200},
-{n:'Qwen3 Coder 480B',u:'Best Coder',p:'ALI',b:480,ctx:256},{n:'Qwen3.5 397B',u:'Most Powerful',p:'ALI',b:397,ctx:128},
-{n:'Qwen3 Max',u:'Flagship',p:'ALI',b:72,ctx:128},{n:'Qwen3 235B',u:'Reasoning',p:'ALI',b:235,ctx:128},
-{n:'Qwen3 Coder+',u:'Coding Expert',p:'ALI',b:32,ctx:128},{n:'Qwen Plus',u:'Fast Balanced',p:'ALI',b:72,ctx:128},
-{n:'GPT-4.1',u:'Premium',p:'CM',b:200,ctx:1024},{n:'Claude Sonnet 4',u:'Advanced',p:'CM',b:175,ctx:200},
-{n:'Gemini 2.5 Flash',u:'Ultra Fast',p:'CM',b:24,ctx:1024},{n:'O4 Mini',u:'Compact Smart',p:'CM',b:100,ctx:200},
-{n:'GPT-4.1',u:'Latest Flagship',p:'OA',b:200,ctx:1024},{n:'GPT-4.1 Mini',u:'Fast Latest',p:'OA',b:70,ctx:1024},
-{n:'GPT-4o',u:'Reliable',p:'OA',b:200,ctx:128},{n:'GPT-4o Mini',u:'Fast & Cheap',p:'OA',b:8,ctx:128},
-{n:'O4 Mini',u:'Reasoning',p:'OA',b:100,ctx:200}
+{n:'Qwen 3.5 397B',u:'Primary orchestrator',p:'NV'},
+{n:'Qwen3 Next 80B',u:'Fast balanced general model',p:'NV'},
+{n:'Llama 3.3 70B',u:'Stable generalist',p:'NV'},
+{n:'Nemotron 4 340B',u:'Large reasoning model',p:'NV'},
+{n:'Qwen3 Coder 480B',u:'Heavy coding engine',p:'NV'},
+{n:'Gemma 4 27B',u:'Midweight general model',p:'NV'},
+{n:'Gemma 3 12B',u:'Fast lightweight model',p:'NV'},
+{n:'Gemma 3 27B',u:'Balanced fast model',p:'NV'},
+{n:'Gemma 4 31B',u:'Strong midweight model',p:'NV'},
+{n:'Qwen3 Coder 480B',u:'Primary coding engine',p:'ALI'},
+{n:'Qwen 3.5 397B',u:'Unified outer shell',p:'ALI'},
+{n:'Qwen3 Max',u:'Flagship fallback',p:'ALI'},
+{n:'Qwen3 235B',u:'Verifier and architecture review',p:'ALI'},
+{n:'Qwen3 Coder+',u:'Fast patch loop',p:'ALI'},
+{n:'Qwen Plus',u:'Cheap utility work',p:'ALI'},
+{n:'GPT-4.1',u:'Premium fallback',p:'CM'},
+{n:'Claude Sonnet 4',u:'Advanced fallback',p:'CM'},
+{n:'Gemini 2.5 Flash',u:'Fast multimodal fallback',p:'CM'},
+{n:'O4 Mini',u:'Compact reasoning fallback',p:'CM'},
+{n:'GPT-4.1',u:'Latest flagship',p:'OA'},
+{n:'GPT-4.1 Mini',u:'Fast latest',p:'OA'},
+{n:'GPT-4o',u:'Reliable general model',p:'OA'},
+{n:'GPT-4o Mini',u:'Fast and cheap fallback',p:'OA'},
+{n:'O4 Mini',u:'Reasoning fallback',p:'OA'}
 ];
-const TOTAL_B=MD.reduce((s,m)=>s+m.b,0),MAX_CTX=Math.max(...MD.map(m=>m.ctx));
+const PROVIDER_SECTIONS=[
+{label:'NVIDIA NIM',countKey:'nvidia_models',statusKey:'api_key_set',catalog:'NV'},
+{label:'Alibaba Cloud',countKey:'alibaba_models',statusKey:'alibaba_key_set',catalog:'ALI'},
+{label:'CometAPI',countKey:'cometapi_models',statusKey:'cometapi_key_set',catalog:'CM'},
+{label:'OpenAI',countKey:'openai_models',statusKey:'openai_key_set',catalog:'OA'}
+];
 const SK=[
 {id:'code',d:'Generate, edit and debug code'},{id:'analyze',d:'Research and data analysis'},
 {id:'write',d:'Essays, emails and reports'},{id:'summarize',d:'Condense docs and articles'},
@@ -573,6 +590,29 @@ const SK=[
 ];
 
 let H=[],CM=false,AF=null,CID=null,CONVOS=[];
+
+function getProviderSections(payload){
+const d=payload||{};
+return PROVIDER_SECTIONS
+.map(section=>({
+label:section.label,
+count:Number(d[section.countKey]||0),
+enabled:!!d[section.statusKey],
+models:MD.filter(model=>model.p===section.catalog)
+}))
+.filter(section=>section.count>0);
+}
+function getProviderLabel(payload){
+const labels=getProviderSections(payload).map(section=>section.label);
+return labels.length?labels.join(' + '):'No cloud providers configured';
+}
+function formatModelInfo(payload,fallbackCount){
+const count=Number(payload?.model_count||fallbackCount||0);
+const providers=getProviderLabel(payload);
+return providers==='No cloud providers configured'
+?'Claw AI · '+count+' Models'
+:'Claw AI · '+count+' Models · '+providers;
+}
 
 /* Storage & Conversations */
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
@@ -625,14 +665,18 @@ root.innerHTML='<div class="sb-skill-grid">'+items+'</div><div class="sb-cap-foo
 async function fetchSt(){
 try{const r=await fetch('/api/status');const d=await r.json();
 if(d.status==='operational'){document.getElementById('ts').textContent='Ready · v'+d.version}
+let modelPayload={model_count:d.models};
+try{
+const mr=await fetch('/api/models');
+if(mr.ok)modelPayload=await mr.json();
+}catch(_){}
 const mi=document.getElementById('modelInfo');
-const tb=(TOTAL_B/1000).toFixed(1);
-mi.textContent='Claw AI · '+d.models+' Models · '+tb+'T Parameters · '+MAX_CTX+'K Context';
+mi.textContent=formatModelInfo(modelPayload,d.models);
 const mp=document.getElementById('modelCountPill');if(mp)mp.textContent=d.models+' models';
 }catch(e){
 document.getElementById('ts').textContent='Ready';
-const mi=document.getElementById('modelInfo');const tb=(TOTAL_B/1000).toFixed(1);
-mi.textContent='Claw AI · '+MD.length+' Models · '+tb+'T Parameters · '+MAX_CTX+'K Context';
+const mi=document.getElementById('modelInfo');
+mi.textContent=formatModelInfo(null,MD.length);
 const mp=document.getElementById('modelCountPill');if(mp)mp.textContent=MD.length+' models';
 }
 }
@@ -987,12 +1031,10 @@ case'/help':
 am('a','**Claw AI — Commands**\n\n**/clear** — Start a new conversation\n**/status** — Check system status\n**/version** — Version info\n**/models** — View all AI models\n**/skills** — View capabilities\n**/install** — Installation guides\n\n**Session:**\n**/save** `name` — Save chat\n**/export** — Download as markdown\n**/sessions** — List saved chats\n**/resume** `name` — Load a saved chat\n**/delete** `name` — Delete a saved chat\n**/continue** — Resume last AI response\n**/compact** — Trim long conversations\n**/undo** — Remove last exchange\n\n**Tips:**\n- Click ▶ on any AI message to resume from that point\n- Say "continue" to pick up incomplete responses\n- Complex prompts auto-activate UltraThink mode\n\n**Skills (18):**\n'+SK.map(s=>'- **/'+s.id+'** — '+s.d).join('\n'));break;
 case'/models':
 try{const r=await fetch('/api/models');const d=await r.json();
-const orn=MD.filter(x=>x.p==='OR'),aln=MD.filter(x=>x.p==='ALI'),cmn=MD.filter(x=>x.p==='CM'),oan=MD.filter(x=>x.p==='OA');
-const tb=(TOTAL_B/1000).toFixed(1);
-let msg='**Available Models ('+d.model_count+') · '+tb+'T Combined Parameters · '+MAX_CTX+'K Max Context**\n\n**OpenRouter ('+d.openrouter_models+'):**\n'+orn.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n')+'\n\n**Alibaba Cloud ('+d.alibaba_models+'):**\n'+aln.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n');
-if(cmn.length)msg+='\n\n**CometAPI ('+d.cometapi_models+'):**\n'+cmn.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n');
-if(oan.length)msg+='\n\n**OpenAI ('+(d.openai_models||oan.length)+'):**\n'+oan.map(x=>'- **'+x.n+'** — '+x.b+'B params · '+x.ctx+'K context · '+x.u).join('\n');
-msg+='\n\n**Status:** '+(d.api_key_set?'✓ OpenRouter':'✗ OpenRouter')+' · '+(d.alibaba_key_set?'✓ DashScope':'✗ DashScope')+(d.openai_key_set?' · ✓ OpenAI':'');
+const sections=getProviderSections(d);
+let msg='**Available Models ('+d.model_count+')**\n\n**Providers:** '+getProviderLabel(d)+'\n\n'
++sections.map(section=>'**'+section.label+' ('+section.count+'):**\n'+section.models.map(model=>'- **'+model.n+'** — '+model.u).join('\n')).join('\n\n');
+msg+='\n\n**Status:** '+(d.api_key_set?'✓ NVIDIA NIM':'✗ NVIDIA NIM')+' · '+(d.alibaba_key_set?'✓ Alibaba Cloud':'✗ Alibaba Cloud')+' · '+(d.cometapi_key_set?'✓ CometAPI':'✗ CometAPI')+' · '+(d.openai_key_set?'✓ OpenAI':'✗ OpenAI');
 am('a',msg)
 }catch(e){ae('Failed to load models')}break;
 case'/skills':
@@ -1002,7 +1044,7 @@ am('a','**Available Skills ('+d.total+')**\n\n'+d.skills.map(x=>'- **/'+x.id+'**
 case'/clear':doClear();break;
 case'/status':
 try{const r=await fetch('/api/status');const d=await r.json();
-ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptime: '+Math.round(d.uptime)+'s\n- Models: '+d.models+'\n- Providers: '+d.providers+'\n- Skills: '+d.skills+'\n- OpenRouter: '+(d.keys_configured.openrouter?'✓ Connected':'✗ Not configured')+'\n- DashScope: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured')+'\n- OpenAI: '+(d.keys_configured.openai?'✓ Connected':'✗ Not configured')+'\n- Messages: '+H.length)
+ae('**System Status**\n- Status: '+d.status+'\n- Version: '+d.version+'\n- Uptime: '+Math.round(d.uptime)+'s\n- Models: '+d.models+'\n- Providers: '+d.providers+' configured\n- Skills: '+d.skills+'\n- NVIDIA NIM: '+(d.keys_configured.nvidia?'✓ Connected':'✗ Not configured')+'\n- Alibaba Cloud: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured')+'\n- CometAPI: '+(d.keys_configured.cometapi?'✓ Connected':'✗ Not configured')+'\n- OpenAI: '+(d.keys_configured.openai?'✓ Connected':'✗ Not configured')+'\n- Messages: '+H.length)
 }catch(e){ae('**Status**\n- Connection: Offline\n- Messages: '+H.length)}break;
 case'/version':
 try{const r=await fetch('/api/health');const d=await r.json();
@@ -1015,7 +1057,7 @@ a.href=ur;a.download='claw-'+Date.now()+'.md';a.click();URL.revokeObjectURL(ur);
 ae('Exported as markdown');break;
 case'/config':
 try{const r=await fetch('/api/config');const d=await r.json();
-ae('**Configuration**\n- Version: '+d.version+'\n- Theme: '+document.documentElement.getAttribute('data-theme')+'\n- Models: '+d.models+'\n- Providers: '+d.providers.join(', ')+'\n- Skills: '+d.skills+'\n- Tools: '+d.tools+'\n- OpenRouter: '+(d.keys.openrouter?'✓':'✗')+'\n- DashScope: '+(d.keys.dashscope?'✓':'✗')+'\n- Max message: '+d.limits.max_message_length+' chars\n- Max tokens: '+d.limits.max_tokens+'\n- Temperature: '+d.limits.temperature)
+ae('**Configuration**\n- Version: '+d.version+'\n- Theme: '+document.documentElement.getAttribute('data-theme')+'\n- Models: '+d.models+'\n- Providers: '+d.providers.join(', ')+'\n- Skills: '+d.skills+'\n- Tools: '+d.tools+'\n- NVIDIA NIM: '+(d.keys.nvidia?'✓':'✗')+'\n- Alibaba Cloud: '+(d.keys.dashscope?'✓':'✗')+'\n- CometAPI: '+(d.keys.cometapi?'✓':'✗')+'\n- OpenAI: '+(d.keys.openai?'✓':'✗')+'\n- Max message: '+d.limits.max_message_length+' chars\n- Max tokens: '+d.limits.max_tokens+'\n- Temperature: '+d.limits.temperature)
 }catch(e){ae('**Config**\n- Theme: '+document.documentElement.getAttribute('data-theme')+'\n- Skills: '+SK.length+'\n- Messages: '+H.length)}break;
 case'/memory':
 const ch=H.reduce((s,m)=>s+(m.content?.length||0),0),tk=Math.round(ch/4),pc=Math.min(100,tk/2000).toFixed(1);
@@ -1023,7 +1065,7 @@ ae('**Context**\n- Tokens: ~'+tk.toLocaleString()+'\n- Max: 200,000\n- Usage: '+
 case'/tools':case'/capabilities':
 ae('**What I can do**\n\n**Code** — Write, debug, refactor, and review code in any language\n**Analyze** — Research topics, analyze data, compare options\n**Write** — Draft emails, essays, reports, documentation\n**Create** — Generate ideas, brainstorm, design systems\n**Understand** — Read files, explain concepts, summarize content\n**Search** — Look up information, fetch web pages\n**Edit** — Modify files, find & replace, multi-file edits\n**Automate** — Run commands, manage tasks, execute workflows\n\nJust ask naturally — no special syntax needed.');break;
 case'/cost':
-ae('**Cost Tracker**\n- Session cost: $0.00 (FREE)\n- All models: Free tier via OpenRouter + Alibaba\n- No API key charges\n- Messages this session: '+H.length);break;
+ae('**Cost Tracker**\n- Session cost: $0.00 (FREE)\n- Hosted cloud models: NVIDIA NIM + Alibaba Cloud\n- No API key charges in this hosted deployment\n- Messages this session: '+H.length);break;
 case'/sessions':
 var sl=[];try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.startsWith('claw_ses_'))sl.push(k.replace('claw_ses_',''))}}catch(e){}
 if(sl.length)ae('**Saved Sessions ('+sl.length+')**\n'+sl.map(x=>'- `'+x+'`').join('\n')+'\n\nUse `/resume <name>` to load');
@@ -1044,8 +1086,10 @@ try{const r=await fetch('/api/health');const d=await r.json();
 var checks=[];
 checks.push('API: '+(d.status==='ok'?'✓ Healthy':'✗ Unhealthy'));
 checks.push('Version: '+d.version);
-checks.push('OpenRouter: '+(d.keys_configured.openrouter?'✓ Connected':'✗ Not configured'));
-checks.push('DashScope: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured'));
+checks.push('NVIDIA NIM: '+(d.keys_configured.nvidia?'✓ Connected':'✗ Not configured'));
+checks.push('Alibaba Cloud: '+(d.keys_configured.dashscope?'✓ Connected':'✗ Not configured'));
+checks.push('CometAPI: '+(d.keys_configured.cometapi?'✓ Connected':'✗ Not configured'));
+checks.push('OpenAI: '+(d.keys_configured.openai?'✓ Connected':'✗ Not configured'));
 checks.push('Theme: '+document.documentElement.getAttribute('data-theme'));
 checks.push('History: '+H.length+' messages');
 checks.push('Skills: '+SK.length+' loaded');

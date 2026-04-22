@@ -138,7 +138,6 @@ function getProviderMode() {
   if (count >= 2) return 'multi';
   if (OPENAI_API_KEY) return 'openai';
   if (NVIDIA_API_KEY) return 'nvidia';
-  if (process.env.DEEPSEEK_API_KEY) return 'deepseek';
   if (DASHSCOPE_API_KEY) return 'dashscope';
   if (COMETAPI_KEY) return 'cometapi';
   return 'ollama';
@@ -649,6 +648,7 @@ module.exports = async (req, res) => {
         nvidia: !!NVIDIA_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
         cometapi: !!COMETAPI_KEY,
+        openai: !!OPENAI_API_KEY,
       },
       limits: {
         max_message_length: 50000,
@@ -1129,7 +1129,7 @@ async function handleTestModel(req, res) {
   const model = urlObj.searchParams.get('model');
 
   if (!model) {
-    return res.status(400).json({ error: 'Missing required query parameter: model', usage: '/api/test/model?model=deepseek/deepseek-v3' });
+    return res.status(400).json({ error: 'Missing required query parameter: model', usage: '/api/test/model?model=qwen/qwen3.5-397b-a17b' });
   }
 
   const provider = getProviderForModel(model);

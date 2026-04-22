@@ -477,7 +477,7 @@ class ClawChatViewProvider {
   <div class="cost-bar" id="costBar"></div>
 
   <!-- Risk banner -->
-  <div class="risk-banner">🦞 <strong>CLAW AI</strong> — 14-model council with OpenRouter + Alibaba Cloud. Free tier.</div>
+  <div class="risk-banner">🦞 <strong>CLAW AI</strong> — hosted multi-model council with NVIDIA NIM + Alibaba Cloud. Free tier.</div>
 
   <!-- Input area -->
   <div class="input-area">
