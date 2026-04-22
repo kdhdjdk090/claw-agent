@@ -174,7 +174,7 @@ You now KNOW the answer is reliable because all 6 models agree!
 1. **✅ START USING IT** - Go to https://clean-claw-ai.vercel.app
 2. **✅ TEST IT** - Ask questions and see consensus
 3. **✅ SHARE IT** - It's production ready
-4. **✅ MONITOR** - Check OpenRouter dashboard for usage
+4. **✅ MONITOR** - Check NVIDIA NIM dashboard for usage
 
 ---
 
@@ -194,7 +194,7 @@ You now KNOW the answer is reliable because all 6 models agree!
 - **Parallel Queries** - All 6 models queried simultaneously
 - **Consensus Algorithm** - Semantic similarity grouping
 - **Fault Tolerant** - Works even if models fail
-- **Free Tier** - All models completely free on OpenRouter
+- **Free Tier** - All models completely free on NVIDIA NIM
 
 ### Deployment
 - **Vercel Serverless** - Automatic scaling

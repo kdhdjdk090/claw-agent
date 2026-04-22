@@ -86,7 +86,7 @@ claw_agent/tools/utility_tools.py
 claw_agent/tools/validation_tools.py
 claw_agent/tools/web_tools.py
 tests/test_council_streaming.py
-tests/test_openrouter_mode.py
+tests/test_NVIDIA NIM_mode.py
 tests/test_porting_workspace.py
 tests/test_provider_mode.py
 tests/test_provider_modes.py

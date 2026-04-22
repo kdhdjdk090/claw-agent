@@ -2,18 +2,18 @@
 
 ## ✅ What Was Done
 
-Your Claw AI has been **successfully upgraded** from a single-model setup to a **multi-model ensemble** system using OpenRouter and inspired by Karpathy's ll-ensemble!
+Your Claw AI has been **successfully upgraded** from a single-model setup to a **multi-model ensemble** system using NVIDIA NIM and inspired by Karpathy's ll-ensemble!
 
 ## 📋 Summary of Changes
 
 ### 🔑 1. API Configuration Updated
-- **Replaced**: DeepSeek API key with OpenRouter
-- **API Key**: `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`
+- **Replaced**: DeepSeek API key with NVIDIA NIM
+- **API Key**: `sk-or-v1-REDACTED`
 - **Status**: ✅ Configured in `.env.local`
 
 ### 🏛️ 2. ensemble System Created
 - **Module**: `claw_agent/ll_ensemble.py` (NEW)
-- **Models**: 6 free AI models from OpenRouter
+- **Models**: 6 free AI models from NVIDIA NIM
   1. OpenAI GPT-4o-mini
   2. Anthropic Claude 3 Haiku
   3. Google Gemini Flash 1.5
@@ -25,7 +25,7 @@ Your Claw AI has been **successfully upgraded** from a single-model setup to a *
 ### 🤖 3. Agent Enhanced
 - **File**: `claw_agent/agent.py`
 - **Changes**: 
-  - Auto-detects OpenRouter API key
+  - Auto-detects NVIDIA NIM API key
   - Enables ensemble mode by default
   - Added `ensemble_chat()` method
   - Fallback to single model with `/noensemble`
@@ -119,7 +119,7 @@ python -m claw_agent
 - ✅ **Consensus validation** - know when AI agrees
 - ✅ **Fault tolerant** - works even if 5 models fail
 - ✅ **Cross-validated** - wrong answers stand out
-- ✅ **Completely FREE** - all models on OpenRouter free tier
+- ✅ **Completely FREE** - all models on NVIDIA NIM free tier
 - ✅ **Diverse perspectives** - balanced responses
 
 ## 🧪 Verification
@@ -128,7 +128,7 @@ All components verified working:
 
 ```
 ✓ ensemble module imported successfully
-✓ OPENROUTER_API_KEY: SET
+✓ NVIDIA NIM_API_KEY: SET
 ✓ ensemble_MODELS: 6 models configured
 ✓ Environment variables loaded
 ```
@@ -136,7 +136,7 @@ All components verified working:
 ## 📁 Files Changed
 
 ### Modified (4 files)
-1. `.env.local` - OpenRouter configuration
+1. `.env.local` - NVIDIA NIM configuration
 2. `claw_agent/agent.py` - ensemble integration
 3. `api/index.js` - ensemble API endpoints
 4. `vercel.json` - Cloud deployment config
@@ -154,7 +154,7 @@ All components verified working:
 - **ensemble_GUIDE.md** - Full feature documentation
 - **MIGRATION.md** - Detailed migration guide
 - **karpathy/ll-ensemble** - Original concept: https://github.com/karpathy/llm-ensemble
-- **OpenRouter** - Multi-model platform: https://openrouter.ai
+- **NVIDIA NIM** - Multi-model platform: https://integrate.api.nvidia.com
 
 ## 🌐 Deploy to Vercel
 
@@ -172,8 +172,8 @@ The ensemble will work identically in the cloud with the same 6 models!
 All configuration is in `.env.local`:
 
 ```bash
-# Your OpenRouter API key
-OPENROUTER_API_KEY="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"
+# Your NVIDIA NIM API key
+NVIDIA NIM_API_KEY="sk-or-v1-REDACTED"
 
 # Models in the ensemble (comma-separated)
 ensemble_MODELS="openai/gpt-4o-mini,anthropic/claude-3-haiku,google/gemini-flash-1.5,qwen/qwen-2.5-coder-32b-instruct,meta-llama/llama-3.3-70b-instruct,mistralai/mistral-small-24b-instruct-2501"
@@ -204,7 +204,7 @@ You can customize these anytime!
 Your Claw AI is now powered by:
 - ✅ 6 state-of-the-art AI models
 - ✅ Consensus-validated responses
-- ✅ Completely free (OpenRouter free tier)
+- ✅ Completely free (NVIDIA NIM free tier)
 - ✅ Inspired by Karpathy's ll-ensemble
 - ✅ Production-ready and tested
 

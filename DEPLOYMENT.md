@@ -1,102 +1,71 @@
-# Claw AI Production Deployment - COMPLETE ✅
+# Deployment
 
-## What Was Done
+## Target
 
-### 1. **Cleaned Up Vercel Account**
-- Removed 4 duplicate old deployments
-- Kept only 1 active deployment
-- Account cleaned and consolidated
+Deploy the NVIDIA-first Claw AI runtime.
 
-### 2. **Created Web UI for Claw AI Chat**
-- ✅ Created `index.html` (root & public/) - Dark theme UI with modern chat interface
-- ✅ Created `api/chat.js` - Serverless API endpoint for chat requests
-- ✅ Created `vercel.json` - Production routing configuration
-- ✅ Created `package.json` - Node.js dependencies
+## Pre-deploy checks
 
-### 3. **Fixed Deployment Configuration**
-- Fixed routing to serve static HTML from root
-- Configured API routes at `/api/chat`
-- Set to production environment
-
-## Current State
-
-**Project:** `clean-claw-ai`  
-**Current URL:** `https://clean-claw-jx162e7dg-kdhdjdk090-3373s-projects.vercel.app`
-
-## Final Step - Redeploy to Production
-
-Your files are ready. To activate them and see the  UI:
-
-### Option 1: **Use Vercel Dashboard (Easiest)**
-1. Go to: https://vercel.com/dashboard
-2. Select **`clean-claw-ai`** project
-3. Go to **Deployments** tab
-4. Click **Redeploy** on the latest deployment
-5. Select **Production** environment → Confirm
-
-### Option 2: **Use Git Push** (If connected to GitHub)
 ```bash
-cd claw-agent
-git add -A
-git commit -m "feat: add Claw AI web chat interface"
-git push origin main
+python -m unittest discover -s tests -p "test_*.py"
+node --check api/index.js
 ```
 
-### Option 3: **Use Vercel CLI**
+## Required environment variables
+
+- NVIDIA_API_KEY
+
+Optional:
+- DASHSCOPE_API_KEY
+- OPENAI_API_KEY
+- COMETAPI_KEY
+- DEEPSEEK_API_KEY
+
+## Vercel
+
+Dashboard path:
+- `Project -> Settings -> Environment Variables`
+
+Add:
+- `NVIDIA_API_KEY` for `Production`, `Preview`, and `Development`
+- `NIM_API_KEY` only if you want a compatibility alias
+
+Vercel CLI:
+
 ```bash
-cd claw-agent
-vercel deploy --prod --force
+vercel env add NVIDIA_API_KEY production
+vercel env add NVIDIA_API_KEY preview
+vercel env add NVIDIA_API_KEY development
 ```
 
-## What You'll See
+If you update the secret later:
 
-Once redeployed to production, visiting the URL will show:
-- 🎨 Dark themed Claw AI chat interface
-- 💬 Message input and chat history
-- ⚡ Live API responses
-- 📱 Responsive, mobile-friendly design
-
-## Files Created
-
-```
-claw-agent/
-├── index.html            (Chat UI - in root for easy serving)
-├── vercel.json          (Production routing config)
-├── package.json         (Node.js metadata)
-├── api/
-│   └── chat.js          (API endpoint: POST /api/chat)
-└── public/
-    └── index.html       (Backup copy of UI)
+```bash
+vercel env update NVIDIA_API_KEY production
+vercel env update NVIDIA_API_KEY preview
+vercel env update NVIDIA_API_KEY development
 ```
 
-## Chat API
+Pull the Vercel development values locally:
 
-The API endpoint is ready at: `/api/chat`
-
-**Request:**
-```json
-{
-  "message": "Your question here"
-}
+```bash
+vercel env pull .env.local
 ```
 
-**Response:**
-```json
-{
-  "reply": "AI response here"
-}
-```
+Important:
+- do not commit `.env.local`
+- redeploy after changing env vars
+- rotate the key if it was ever pasted into logs, chat, or commits
 
-## Next Steps
+## Deploy notes
 
-After redeployment:
-1. ✅ Visit your Vercel URL
-2. ✅ See the beautiful Claw AI chat interface
-3. ✅ Try the chat (currently in demo mode - responds to keywords)
-4. (Optional) Integrate real LLM backend (Claude, OpenAI, Ollama)
+- API server uses https://integrate.api.nvidia.com for NVIDIA paths.
+- Chrome extension CSP/connect-src must include NVIDIA endpoint.
+- Ensure no hardcoded keys remain in repository files.
 
----
+## Smoke test
 
-**Status:** 🟢 Ready for Production  
-**Last Updated:** 2026-04-12  
-**Deployment:** Ready at click of Redeploy button
+- GET /api/health
+- GET /api/models
+- POST /api/chat
+- GET /api/status

@@ -75,7 +75,7 @@ All queries go through the ensemble:
 - **8 models** queried in parallel
 - **Consensus algorithm** finds agreement
 - **Confidence score** shows reliability
-- **FREE** - all models on OpenRouter free tier
+- **FREE** - all models on NVIDIA NIM free tier
 
 ---
 
@@ -239,7 +239,7 @@ ensemble_MODELS="deepseek/deepseek-v3,qwen/qwen3-80b,meta-llama/llama-3.3-70b-in
 ensemble_THRESHOLD=0.6
 
 # API Key
-OPENROUTER_API_KEY="sk-or-v1-..." ✅
+NVIDIA NIM_API_KEY="sk-or-v1-..." ✅
 ```
 
 ---
@@ -309,7 +309,7 @@ User Query
 ✅ **INTELLIGENT ROUTING** (Best model per task)  
 ✅ **100% VERIFIED** (All tests passing)  
 ✅ **PRODUCTION READY** (Deployed to Vercel)  
-✅ **COMPLETELY FREE** (OpenRouter free tier)  
+✅ **COMPLETELY FREE** (NVIDIA NIM free tier)  
 
 ---
 

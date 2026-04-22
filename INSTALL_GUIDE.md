@@ -24,7 +24,7 @@ cd c:\Users\Sinwa\Pictures\ClaudeAI\claw-agent
 pip install -e .
 
 # 3. Set environment variables (already configured in .env.local)
-# OPENROUTER_API_KEY and DASHSCOPE_API_KEY are already set
+# NVIDIA NIM_API_KEY and DASHSCOPE_API_KEY are already set
 
 # 4. Start Claw AI
 claw
@@ -60,7 +60,7 @@ claw
 
 4. **Start Using:**
    - Click the Claw Agent icon
-   - The extension uses **OpenRouter Cloud API** by default (no Ollama needed!)
+   - The extension uses **NVIDIA NIM Cloud API** by default (no Ollama needed!)
    - Select model from dropdown: GPT-4o-mini, Claude 3 Haiku, etc.
 
 ### Method 2: Install from Chrome Web Store (Coming Soon)
@@ -99,9 +99,9 @@ claw
    - Open VS Code Settings (Ctrl+,)
    - Search for **"Claw"**
    - Set:
-     - `claw.apiMode`: **cloud** (for OpenRouter)
-     - `claw.model`: `openai/gpt-4o-mini` (or any OpenRouter model)
-     - `claw.openrouterApiKey`: Leave empty (built-in key)
+     - `claw.apiMode`: **cloud** (for NVIDIA NIM)
+     - `claw.model`: `openai/gpt-4o-mini` (or any NVIDIA NIM model)
+     - `claw.NVIDIA NIMApiKey`: Leave empty (built-in key)
 
 4. **Start Using:**
    - Press **Ctrl+Shift+A** to open Claw Agent
@@ -125,20 +125,20 @@ claw
 - ✅ **Explain Selection** - Right-click → Claw: Explain
 - ✅ **Fix Selection** - Right-click → Claw: Fix
 - ✅ **Agent Chat** - Full chat interface in sidebar
-- ✅ **Model selection** - Choose from OpenRouter models
+- ✅ **Model selection** - Choose from NVIDIA NIM models
 
 ---
 
 ## ️ API Configuration
 
-### OpenRouter API Key (Pre-configured)
+### NVIDIA NIM API Key (Pre-configured)
 ```
-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
+sk-or-v1-REDACTED
 ```
 
 ### Alibaba Cloud API Key (Pre-configured)
 ```
-sk-dd77222941994dd2b7d76d728f211047
+sk-dd-REDACTED
 ```
 
 Both keys are already configured in all platforms. No additional setup needed!
@@ -147,7 +147,7 @@ Both keys are already configured in all platforms. No additional setup needed!
 
 ## 🤖 Available Models
 
-### OpenRouter Models (8)
+### NVIDIA NIM Models (8)
 | Model | Use Case |
 |-------|----------|
 | `deepseek/deepseek-v3` | Most powerful (600B MoE) |
@@ -255,7 +255,7 @@ The web interface is **fully mobile responsive**:
 ### All Platforms Share
 - ✅ Same 14 AI models
 - ✅ Same 14 skills
-- ✅ Same OpenRouter + Alibaba Cloud APIs
+- ✅ Same NVIDIA NIM + Alibaba Cloud APIs
 - ✅ Session persistence
 - ✅ File upload support
 - ✅ Mobile responsive

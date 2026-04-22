@@ -85,22 +85,35 @@
           "type": "string",
           "default": "cloud",
           "enum": ["cloud", "local"],
-          "description": "API mode: cloud (OpenRouter) or local (Ollama)"
+          "description": "API mode: cloud (OpenRouter/Alibaba) or local (Ollama)"
         },
         "claw.model": {
           "type": "string",
-          "default": "openai/gpt-4o-mini",
-          "description": "Model to use (OpenRouter: openai/gpt-4o-mini, anthropic/claude-3-haiku, etc.)"
+          "default": "qwen3.5-397b-a17b",
+          "description": "Model to use. Recommended: qwen3.5-397b-a17b (Qwen3.5+ flagship), qwen3-coder-480b-a35b-instruct (coding), qwen-plus (fast)"
         },
         "claw.openrouterApiKey": {
           "type": "string",
           "default": "",
           "description": "OpenRouter API key (leave empty to use built-in key)"
         },
+        "claw.dashscopeApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Alibaba Cloud DashScope API key (1M free tokens per model)"
+        },
         "claw.ollamaUrl": {
           "type": "string",
           "default": "http://localhost:11434",
           "description": "Ollama server URL (for local mode)"
+        },
+        "claw.security": {
+          "type": "object",
+          "default": {
+            "validateCommands": true,
+            "blockDangerousOperations": true
+          },
+          "description": "Security settings for command validation"
         }
       }
     }

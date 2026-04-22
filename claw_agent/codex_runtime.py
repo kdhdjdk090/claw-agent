@@ -52,21 +52,21 @@ class CodexTaskResult:
 # ---------------------------------------------------------------------------
 
 FREE_ROLE_MODELS: dict[str, dict[str, list[str]]] = {
-    "openrouter": {
-        "planner":     ["qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free"],
-        "coder":       ["qwen/qwen3-coder:free", "qwen/qwen3-235b-a22b:free"],
-        "reviewer":    ["meta-llama/llama-3.3-70b-instruct:free", "google/gemma-4-27b-it:free"],
-        "critic":      ["nousresearch/hermes-3-llama-3.1-405b:free", "google/gemma-4-27b-it:free"],
-        "tool":        ["qwen/qwen3-coder:free", "qwen/qwen3-235b-a22b:free"],
-        "synthesizer": ["qwen/qwen3-235b-a22b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+    "nvidia": {
+        "planner":     ["qwen/qwen3.5-397b-a17b", "meta/llama-3.3-70b-instruct", "nvidia/nemotron-4-340b-instruct"],
+        "coder":       ["qwen/qwen3-coder-480b-a35b-instruct", "qwen/qwen3-coder-32b-instruct", "nvidia/nemotron-4-340b-instruct"],
+        "reviewer":    ["meta/llama-3.3-70b-instruct", "google/gemma-4-27b-it", "nvidia/nemotron-4-340b-instruct"],
+        "critic":      ["nvidia/llama-3.1-nemotron-ultra-253b-v1", "nvidia/nemotron-4-340b-instruct", "google/gemma-4-27b-it"],
+        "tool":        ["qwen/qwen3-coder-480b-a35b-instruct", "google/gemma-3-27b-it", "meta/llama-3.3-70b-instruct"],
+        "synthesizer": ["qwen/qwen3.5-397b-a17b", "nvidia/nemotron-4-340b-instruct", "meta/llama-3.3-70b-instruct"],
     },
     "alibaba": {
-        "planner":     ["qwen3.5-397b-a17b", "qwen3-235b-a22b"],
-        "coder":       ["qwen3-coder-480b-a35b-instruct", "qwen3-coder-plus"],
-        "reviewer":    ["qwen3.5-397b-a17b", "qwen-plus"],
-        "critic":      ["qwen-plus", "qwen3-235b-a22b"],
-        "tool":        ["qwen3-coder-plus", "qwen3-coder-480b-a35b-instruct"],
-        "synthesizer": ["qwen3-max", "qwen3.5-397b-a17b"],
+        "planner":     ["qwen3.5-397b-a17b", "qwen3-max", "qwen3-235b-a22b"],
+        "coder":       ["qwen3-coder-480b-a35b-instruct", "qwen3-coder-plus", "qwen3.5-397b-a17b"],
+        "reviewer":    ["qwen3.5-397b-a17b", "qwen3-max", "qwen-plus"],
+        "critic":      ["qwen3.5-397b-a17b", "qwen-plus", "qwen3-max"],
+        "tool":        ["qwen3-coder-plus", "qwen3-coder-480b-a35b-instruct", "qwen3.5-397b-a17b"],
+        "synthesizer": ["qwen3.5-397b-a17b", "qwen3-max", "qwen3-coder-plus"],
     },
 }
 
@@ -173,18 +173,18 @@ class ModelBackend(ABC):
         pass
 
 
-class OpenRouterBackend(ModelBackend):
-    """Backend using OpenRouter's free-tier models via REST API."""
+class NvidiaBackend(ModelBackend):
+    """Backend using NVIDIA NIM models via REST API."""
 
-    API_BASE = "https://openrouter.ai/api/v1/chat/completions"
+    API_BASE = "https://integrate.api.nvidia.com/v1/chat/completions"
     INTER_ROLE_DELAY = 4.0  # seconds between calls to avoid rate limits
     MAX_429_RETRIES = 3     # retry count for rate-limit responses
     INITIAL_BACKOFF = 5.0   # seconds for first 429 retry
 
     def __init__(self, api_key: str | None = None):
-        self.api_key = api_key or os.environ.get("OPENROUTER_API_KEY", "")
+        self.api_key = api_key or os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
         if not self.api_key:
-            raise ValueError("OPENROUTER_API_KEY is required for OpenRouter backend")
+            raise ValueError("NVIDIA_API_KEY is required for NVIDIA NIM backend")
         self._client = __import__("httpx").Client(timeout=120)
         self._last_call = 0.0
 
@@ -260,6 +260,9 @@ class OpenRouterBackend(ModelBackend):
 
     def close(self) -> None:
         self._client.close()
+
+
+OpenRouterBackend = NvidiaBackend
 
 
 class AlibabaBackend(ModelBackend):
@@ -420,7 +423,24 @@ class Workspace:
         return f"Replaced 1 of {count} occurrences in {rel_path}"
 
     def run_command(self, command: str, timeout: int = 30) -> str:
-        # Safety check
+        """Run a shell command with security validation.
+        
+        Args:
+            command: Shell command to execute
+            timeout: Timeout in seconds (default 30)
+        
+        Returns:
+            Command output or error message
+        """
+        # Safety check - validate command before execution
+        from .validation import validate_command, SecurityError
+        
+        try:
+            validate_command(command)
+        except SecurityError as e:
+            return f"[BLOCKED: {e}]"
+        
+        # Additional workspace-level blocklist
         cmd_lower = command.lower().strip()
         for blocked in self._BLOCKED_COMMANDS:
             if blocked in cmd_lower:
@@ -429,7 +449,7 @@ class Workspace:
         try:
             result = subprocess.run(
                 command,
-                shell=True,
+                shell=True,  # Required for shell features, but validated above
                 capture_output=True,
                 text=True,
                 timeout=timeout,
@@ -444,6 +464,11 @@ class Workspace:
         except subprocess.TimeoutExpired:
             return f"[command timed out after {timeout}s]"
         except Exception as e:
+            # Log the exception for debugging
+            import logging
+            logging.getLogger("claw_agent.codex_runtime").exception(
+                "Command execution failed: %s", command
+            )
             return f"[command error: {e}]"
 
 
@@ -454,16 +479,16 @@ class Workspace:
 def _detect_provider() -> str:
     """Auto-detect the best free provider based on available API keys."""
     provider = os.environ.get("COUNCIL_PROVIDER", "auto").strip().lower()
-    if provider in ("openrouter", "alibaba", "chatgpt"):
+    if provider in ("nvidia", "alibaba", "chatgpt", "openrouter"):
         return provider
 
-    # Auto mode: prefer OpenRouter (larger free model selection), fall back to Alibaba
-    if os.environ.get("OPENROUTER_API_KEY", ""):
-        return "openrouter"
+    # Auto mode: prefer NVIDIA NIM (larger model selection), fall back to Alibaba
+    if os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", ""):
+        return "nvidia"
     from .alibaba_cloud import _get_dashscope_key
     if _get_dashscope_key():
         return "alibaba"
-    return "openrouter"  # will fail at backend init with a clear error
+    return "nvidia"  # will fail at backend init with a clear error
 
 
 class CodexRuntime:
@@ -492,8 +517,8 @@ class CodexRuntime:
                 self._backend = AlibabaBackend()
                 self._role_models = FREE_ROLE_MODELS["alibaba"]
             else:
-                self._backend = OpenRouterBackend()
-                self._role_models = FREE_ROLE_MODELS["openrouter"]
+                self._backend = NvidiaBackend()
+                self._role_models = FREE_ROLE_MODELS["nvidia"]
 
     # -- Heuristics ----------------------------------------------------------
 
@@ -543,8 +568,8 @@ class CodexRuntime:
             if "rate limit" not in (msg.error or "").lower():
                 all_rate_limited = False
 
-        # Cross-provider fallback: if OpenRouter is rate-limited, try Alibaba
-        if all_rate_limited and self._provider == "openrouter":
+        # Cross-provider fallback: if NVIDIA is rate-limited, try Alibaba
+        if all_rate_limited and self._provider == "nvidia":
             try:
                 dashscope_key = os.environ.get("DASHSCOPE_API_KEY", "")
                 if dashscope_key:

@@ -15,23 +15,28 @@ from typing import Any, Callable
 
 import httpx
 
-# Default free models available on OpenRouter - OPTIMIZED TOP TIER
-# Priority order based on performance: Reasoning > Coding > Chat > Speed
-OPENROUTER_MODELS = [
-    # 🥇 TIER 1: MOST POWERFUL (Free tier)
-    "qwen/qwen3-next-80b-a3b-instruct:free",  # 🥇 Best Qwen reasoning (free)
-    "meta-llama/llama-3.3-70b-instruct:free",  # 🥈 Most consistent & reliable (free)
-    "nousresearch/hermes-3-llama-3.1-405b:free",  # 🥉 Largest free model (405B)
+# Default models available on NVIDIA NIM - OPTIMIZED TOP TIER - QWEN3.5+ PRIORITY
+# Priority order: Qwen3.5+ variants > Reasoning > Coding > Chat > Speed
+NVIDIA_MODELS = [
+    # 🥇 TIER 1: QWEN3.5+ MODELS (HIGHEST PRIORITY)
+    "qwen/qwen3.5-397b-a17b",        # 🏆 Qwen3.5+ - Best overall
 
-    # ⭐ TIER 2: SPECIALIZED (Free tier)
-    "qwen/qwen3-coder:free",                  # 💻 Coding specialist (free)
-    "google/gemma-4-26b-a4b-it:free",         # 🧮 Newest Gemma 4 (free)
+    # 🥈 TIER 2: MOST POWERFUL
+    "qwen/qwen3-next-80b-a3b-instruct",  # 🥇 Best Qwen reasoning
+    "meta/llama-3.3-70b-instruct",  # 🥈 Most consistent & reliable
+    "nvidia/nemotron-4-340b-instruct",  # 🥉 Large NVIDIA reasoning model
 
-    # ⚡ TIER 3: FAST + EFFICIENT (Free tier)
-    "google/gemma-3-12b-it:free",             # ⚡ Fast & capable (free)
-    "google/gemma-3-27b-it:free",             # 🎯 Larger Gemma (free)
-    "google/gemma-4-31b-it:free",             # 🎭 Newest Gemma 4 31B (free)
+    # ⭐ TIER 3: SPECIALIZED
+    "qwen/qwen3-coder-480b-a35b-instruct",  # 💻 Coding specialist
+    "google/gemma-4-27b-it",  # 🧮 Newest Gemma 4
+
+    # ⚡ TIER 4: FAST + EFFICIENT
+    "google/gemma-3-12b-it",  # ⚡ Fast & capable
+    "google/gemma-3-27b-it",  # 🎯 Larger Gemma
+    "google/gemma-4-31b-it",  # 🎭 Newest Gemma 4 31B
 ]
+
+OPENROUTER_MODELS = NVIDIA_MODELS
 
 # Alibaba Cloud models (1M free tokens each via DashScope)
 from .alibaba_cloud import ALIBABA_CLOUD_MODELS
@@ -46,7 +51,8 @@ from .cometapi import COMETAPI_MODELS
 COMET_MODELS = COMETAPI_MODELS  # 4 CometAPI models
 
 _PROVIDER_LABELS = {
-    "openrouter": "OpenRouter",
+    "nvidia": "NVIDIA NIM",
+    "openrouter": "NVIDIA NIM",
     "alibaba": "Alibaba Cloud",
     "chatgpt": "ChatGPT/g4f",
     "cometapi": "CometAPI",
@@ -60,7 +66,7 @@ def _provider_key_for_model(model: str) -> str:
         return "chatgpt"
     if model in COMET_MODELS:
         return "cometapi"
-    return "openrouter"
+    return "nvidia"
 
 
 def _provider_label(provider_key: str) -> str:
@@ -74,14 +80,17 @@ def _group_provider_errors(responses: list["CouncilResponse"]) -> dict[str, list
     return grouped
 
 
-def _is_openrouter_session_blocker(error: str) -> bool:
+def _is_nvidia_session_blocker(error: str) -> bool:
     normalized = error.lower()
     return (
         "http 429" in normalized
         or "temporarily rate-limited upstream" in normalized
         or "http 401" in normalized
-        or "openrouter api key not configured" in normalized
+        or "nvidia api key not configured" in normalized
     )
+
+
+_is_openrouter_session_blocker = _is_nvidia_session_blocker
 
 
 def _build_default_council() -> list[str]:
@@ -97,9 +106,9 @@ def _build_default_council() -> list[str]:
     if _get_dashscope_key():
         models.extend(ALIBABA_MODELS)
 
-    # OpenRouter free-tier — include only when a key is configured.
-    if os.environ.get("OPENROUTER_API_KEY", ""):
-        models.extend(OPENROUTER_MODELS)
+    # NVIDIA NIM — include only when a key is configured.
+    if os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", ""):
+        models.extend(NVIDIA_MODELS)
 
     # CometAPI — include only if COMETAPI_KEY is set
     from .cometapi import COMETAPI_KEY as _ck
@@ -110,7 +119,7 @@ def _build_default_council() -> list[str]:
     # Disabled by default; re-enable when key is configured.
     # models.extend(CHATGPT_MODELS)
 
-    return models or list(OPENROUTER_MODELS)
+    return models or list(NVIDIA_MODELS)
 
 
 def run_role_council(task: str, workspace_root: str | None = None) -> str:
@@ -144,41 +153,45 @@ def _get_default_council() -> list[str]:
         DEFAULT_COUNCIL_MODELS = _DEFAULT_COUNCIL
     return _DEFAULT_COUNCIL
 
-# Model priority tiers for intelligent routing
+# Model priority tiers for intelligent routing - QWEN3.5+ FIRST
 MODEL_TIERS = {
-    "tier_1_premium": [
+    "tier_1_qwen35_plus": [
+        "qwen/qwen3.5-397b-a17b",
+        "qwen/qwen3.5-397b-a17b:free",
+    ],
+    "tier_2_premium": [
         "deepseek/deepseek-v3",
         "qwen/qwen3-80b",
         "meta-llama/llama-3.3-70b-instruct",
     ],
-    "tier_2_specialized": [
+    "tier_3_specialized": [
         "qwen/qwen-2.5-coder-32b-instruct",
         "deepseek/deepseek-r1",
     ],
-    "tier_3_fast": [
+    "tier_4_fast": [
         "google/gemma-3-12b-it",
         "openai/gpt-4o-mini",
         "anthropic/claude-3-haiku-20240307",
     ],
 }
 
-# Specialized model routing - which model is best for what task
+# Specialized model routing - QWEN3.5+ IS THE DEFAULT FOR ALL TASKS
 TASK_MODEL_MAP = {
-    "coding": "qwen/qwen-2.5-coder-32b-instruct",
-    "reasoning": "deepseek/deepseek-r1",
-    "math": "deepseek/deepseek-r1",
-    "chat": "anthropic/claude-3-haiku-20240307",
-    "creative": "meta-llama/llama-3.3-70b-instruct",
-    "fast": "google/gemma-3-12b-it",
-    "general": "deepseek/deepseek-v3",
+    "coding": "qwen/qwen3.5-397b-a17b",      # Qwen3.5+ handles all coding
+    "reasoning": "qwen/qwen3.5-397b-a17b",   # Qwen3.5+ for all reasoning
+    "math": "qwen/qwen3.5-397b-a17b",        # Qwen3.5+ for math
+    "chat": "qwen/qwen3.5-397b-a17b",        # Qwen3.5+ for chat
+    "creative": "qwen/qwen3.5-397b-a17b",    # Qwen3.5+ for creative
+    "fast": "google/gemma-3-12b-it",         # Only use Gemma for speed
+    "general": "qwen/qwen3.5-397b-a17b",     # Qwen3.5+ default for everything
 }
 
-# OpenRouter API configuration
-OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
+# NVIDIA NIM API configuration
+OPENROUTER_API_BASE = "https://integrate.api.nvidia.com"
 
 def _get_openrouter_key() -> str:
-    """Lazily read OpenRouter key so _load_project_env() has time to run."""
-    return os.environ.get("OPENROUTER_API_KEY", "")
+    """Lazily read NVIDIA key so _load_project_env() has time to run."""
+    return os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "") or os.environ.get("OPENROUTER_API_KEY", "")
 
 # Council configuration
 COUNCIL_THRESHOLD = float(os.environ.get("COUNCIL_THRESHOLD", "0.6"))  # 60% consensus
@@ -255,19 +268,19 @@ class LLCouncil:
             if provider_key in self._disabled_providers:
                 continue
 
-            # Delay between consecutive OpenRouter free-tier requests (429 rate limits)
-            if i > 0 and provider_key == "openrouter":
+            # Delay between consecutive NVIDIA requests (429 rate limits)
+            if i > 0 and provider_key == "nvidia":
                 prev = models_to_query[i - 1]
-                if _provider_key_for_model(prev) == "openrouter":
+                if _provider_key_for_model(prev) == "nvidia":
                     time.sleep(3)
 
             response = self._query_model(model, user_message)
 
             if (
-                provider_key == "openrouter"
+                provider_key == "nvidia"
                 and response.error
                 and self._has_alternative_provider(provider_key)
-                and _is_openrouter_session_blocker(response.error)
+                and _is_nvidia_session_blocker(response.error)
             ):
                 self._disable_provider_for_session(provider_key, response.error)
                 continue
@@ -303,7 +316,7 @@ class LLCouncil:
         return result
 
     def _query_model(self, model: str, user_message: str) -> CouncilResponse:
-        """Query a single model in the council (OpenRouter, Alibaba, ChatGPT, or CometAPI)."""
+        """Query a single model in the council (NVIDIA NIM, Alibaba, ChatGPT, or CometAPI)."""
         start_time = time.time()
 
         try:
@@ -369,13 +382,13 @@ class LLCouncil:
                     error=result.error,
                 )
             else:
-                # Use OpenRouter API
+                # Use NVIDIA NIM API
                 if not _get_openrouter_key():
                     return CouncilResponse(
                         model=model,
                         content="",
                         latency_ms=0,
-                        error="OpenRouter API key not configured",
+                        error="NVIDIA API key not configured",
                     )
                 payload = {
                     "model": model,
@@ -493,7 +506,7 @@ class LLCouncil:
         consensus_percentage = len(voting_models) / len(valid_responses) if valid_responses else 0
         total_tokens = sum(r.token_count for r in responses)
         
-        # Free models on OpenRouter are actually free (no cost)
+        # Free models on NVIDIA NIM are actually free (no cost)
         total_cost = 0.0
 
         # Build votes dictionary
@@ -564,7 +577,7 @@ class LLCouncil:
                 if provider_counts.get(provider_key, 0)
             ],
             "total_models": len(self.models),
-            "openrouter_models": provider_counts.get("openrouter", 0),
+            "nvidia_models": provider_counts.get("nvidia", 0),
             "alibaba_models": provider_counts.get("alibaba", 0),
             "chatgpt_models": provider_counts.get("chatgpt", 0),
             "cometapi_models": provider_counts.get("cometapi", 0),

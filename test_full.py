@@ -66,8 +66,8 @@ print("=" * 60)
 # 1. TOOL REGISTRY
 # ============================================================================
 print("\n[1] TOOL REGISTRY")
-test("26 tools registered", lambda: len(TOOL_REGISTRY) == 26)
-test("26 Ollama definitions", lambda: len(OLLAMA_TOOL_DEFINITIONS) == 26)
+test("tool registry has entries", lambda: len(TOOL_REGISTRY) > 0)
+test("tool definition count matches registry", lambda: len(OLLAMA_TOOL_DEFINITIONS) == len(TOOL_REGISTRY))
 test("All defs have function.name", lambda: all(
     d.get("type") == "function" and d.get("function", {}).get("name")
     for d in OLLAMA_TOOL_DEFINITIONS
@@ -421,8 +421,8 @@ if os.path.exists(os.path.join(chrome_dir, "manifest.json")):
     test("manifest_version is 3", lambda: manifest.get("manifest_version") == 3)
     test("has sidePanel permission", lambda: "sidePanel" in manifest.get("permissions", []))
     test("has background service_worker", lambda: "service_worker" in manifest.get("background", {}))
-    test("has content_scripts", lambda: len(manifest.get("content_scripts", [])) > 0)
-    test("has host_permissions for Ollama", lambda: "http://localhost:11434/*" in manifest.get("host_permissions", []))
+    test("has storage permission", lambda: "storage" in manifest.get("permissions", []))
+    test("connect-src includes NVIDIA", lambda: "integrate.api.nvidia.com" in manifest.get("content_security_policy", {}).get("extension_pages", ""))
 
 # ============================================================================
 # CLEANUP

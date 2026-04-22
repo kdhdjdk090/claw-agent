@@ -6,7 +6,26 @@ const path = require("path");
 /**
  * Claw Agent VS Code Extension
  * Claude Code-style agent chat panel inside VS Code.
+ * 
+ * Security: Command validation for dangerous operations.
  */
+
+// Security validation - block dangerous shell commands
+function validateCommand(cmd) {
+  if (!cmd) return { valid: true };
+  const blocked = [
+    "rm -rf", "format c:", "del /s", "sudo rm", "sudo chmod",
+    "dd if=/dev", "mkfs", "> /dev/sd", "wget.*\\|.*sh", "curl.*\\|.*sh"
+  ];
+  const lower = cmd.toLowerCase();
+  for (const pattern of blocked) {
+    const regex = new RegExp(pattern, "i");
+    if (regex.test(lower)) {
+      return { valid: false, reason: `Blocked dangerous pattern: ${pattern}` };
+    }
+  }
+  return { valid: true };
+}
 
 /** @param {vscode.ExtensionContext} context */
 function activate(context) {
@@ -153,8 +172,10 @@ class ClawChatViewProvider {
     this._process = undefined;
 
     const config = vscode.workspace.getConfiguration("claw");
-    const model = config.get("model", "deepseek-v3.1:671b-cloud");
+    // Default to Qwen3.5+ - most powerful flagship model
+    const model = config.get("model", "qwen3.5-397b-a17b");
     const ollamaUrl = config.get("ollamaUrl", "http://localhost:11434");
+    const dashscopeKey = config.get("dashscopeApiKey", "");
     const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
     const bridgePath = path.join(this._context.extensionPath, "src", "bridge.py");
 
@@ -176,9 +197,14 @@ class ClawChatViewProvider {
     }
 
     try {
+      const spawnEnv = { ...process.env };
+      // Pass DashScope API key if configured
+      if (dashscopeKey) {
+        spawnEnv.DASHSCOPE_API_KEY = dashscopeKey;
+      }
       this._process = spawn(pythonPath, [bridgePath, "--model", model, "--base-url", ollamaUrl], {
         cwd,
-        env: { ...process.env },
+        env: spawnEnv,
         stdio: ["pipe", "pipe", "pipe"],
       });
     } catch (e) {

@@ -6,6 +6,33 @@ import os
 import subprocess
 from pathlib import Path
 
+# Allowed modules for PDF processing - security allowlist
+ALLOWED_PDF_MODULES = {"pypdf", "PyPDF2", "pdfminer", "pdfminer.six"}
+
+
+def _safe_import_pdf_module(mod_name: str):
+    """Safely import a PDF processing module from allowlist.
+    
+    Args:
+        mod_name: Name of the module to import
+        
+    Returns:
+        Imported module or None if not available
+        
+    Raises:
+        ImportError: If module is not in allowlist
+    """
+    if mod_name not in ALLOWED_PDF_MODULES:
+        raise ImportError(
+            f"Module '{mod_name}' is not in the allowed PDF modules: {ALLOWED_PDF_MODULES}"
+        )
+    
+    try:
+        import importlib
+        return importlib.import_module(mod_name)
+    except ImportError:
+        return None
+
 
 def read_pdf(file_path: str, pages: str = "") -> str:
     """Extract text from a PDF file. Optionally specify pages like '1-3' or '1,3,5'.
@@ -30,10 +57,13 @@ def read_pdf(file_path: str, pages: str = "") -> str:
             else:
                 target_pages.add(int(part))
 
-    # Try pypdf (modern) or PyPDF2
+    # Try pypdf (modern) or PyPDF2 using safe import
     for mod_name in ("pypdf", "PyPDF2"):
+        mod = _safe_import_pdf_module(mod_name)
+        if mod is None:
+            continue
+            
         try:
-            mod = __import__(mod_name)
             reader = mod.PdfReader(str(path))
             total = len(reader.pages)
             texts = []
@@ -48,10 +78,28 @@ def read_pdf(file_path: str, pages: str = "") -> str:
                 header = f"PDF: {path.name} ({total} pages)\n\n"
                 return header + "\n\n".join(texts)
             return f"PDF: {path.name} ({total} pages) — no extractable text (scanned/image PDF?)"
-        except ImportError:
-            continue
         except Exception as exc:
             return f"Error reading PDF with {mod_name}: {exc}"
+
+    # Fallback: pdfminer.six
+    try:
+        from pdfminer.high_level import extract_text
+        from pdfminer.pdfparser import PDFParser
+        from pdfminer.pdfdocument import PDFDocument
+        
+        with open(path, 'rb') as f:
+            parser = PDFParser(f)
+            doc = PDFDocument(parser)
+            total = len(list(doc.getpages()))
+        
+        text = extract_text(str(path))
+        if text and text.strip():
+            return f"PDF: {path.name} ({total} pages)\n\n{text}"
+        return f"PDF: {path.name} ({total} pages) — no extractable text"
+    except ImportError:
+        pass
+    except Exception as exc:
+        return f"Error reading PDF with pdfminer: {exc}"
 
     # Fallback: pdftotext CLI (poppler-utils)
     try:

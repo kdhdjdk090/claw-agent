@@ -69,7 +69,7 @@ Here's the solution...
 
 ```bash
 # API Key (already configured!)
-OPENROUTER_API_KEY="sk-or-v1-..."
+NVIDIA NIM_API_KEY="sk-or-v1-..."
 
 # Customize models (optional)
 ensemble_MODELS="openai/gpt-4o-mini,..."
@@ -98,7 +98,7 @@ ensemble works identically in the cloud! ☁️
 ## ✅ Quick Checklist
 
 Before you start:
-- [x] OpenRouter API key configured
+- [x] NVIDIA NIM API key configured
 - [x] 6 ensemble models loaded
 - [x] ensemble mode enabled (automatic)
 - [x] All tests passing
@@ -110,7 +110,7 @@ Before you start:
 | "All models failed" | Check internet & API key |
 | Slow responses | Normal for 6 models, use `/noensemble` |
 | Want single model | Use `/noensemble` command |
-| ensemble not working | Check `OPENROUTER_API_KEY` in `.env.local` |
+| ensemble not working | Check `NVIDIA NIM_API_KEY` in `.env.local` |
 
 ## 💡 Pro Tips
 
@@ -132,6 +132,6 @@ Claw: [model agreement (83% - 5/6 models agree)]
 
 ---
 
-**Powered by 6 FREE AI models via OpenRouter**  
+**Powered by 6 FREE AI models via NVIDIA NIM**  
 **Inspired by Karpathy's ll-ensemble**  
 **Consensus-validated for accuracy** 🦞✨

@@ -7,7 +7,7 @@ It is the agent's persistent memory about the project, architecture, and convent
 - **Language**: Python 3.10+ (strict type hints, asyncio throughout)
 - **Package**: `claw_agent` — installed as `claw` CLI command
 - **LLM Backends** (auto-detected, priority order):
-  1. Council mode: 14 models via OpenRouter (8) + Alibaba Cloud (6)
+  1. Council mode: 14 models via NVIDIA NIM (8) + Alibaba Cloud (6)
   2. DeepSeek Cloud: deepseek-reasoner via API
   3. Ollama local: deepseek-v3.1:671b-cloud (default)
 - **Surfaces**: CLI (`claw` command), VS Code extension, Chrome extension, Web UI (`public/index.html`)
@@ -53,7 +53,7 @@ It is the agent's persistent memory about the project, architecture, and convent
 - Bridge cost event test is flaky (timing issue, not a real bug)
 - Chrome extension: javascript_eval removed (CSP blocks it on most sites)
 - SEAKS kernel evolution rate needs tuning for edge-case prompts
-- Council mode requires OPENROUTER_API_KEY in env; falls back to DeepSeek if unset
+- Council mode requires NVIDIA NIM_API_KEY in env; falls back to DeepSeek if unset
 
 ## Recent Changes
 - PATCH 8 added to reasoning_engine.py — constraint feasibility checker (ELITE verdict)

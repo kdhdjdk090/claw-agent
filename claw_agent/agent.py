@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import inspect
+import logging
 import os
 import re
 import sys
@@ -24,6 +25,16 @@ from .cost_tracker import CostTracker
 from .hooks import HookRunner
 from .mcp import MCPManager
 from .codex_runtime import CodexRuntime, CodexTaskResult
+
+# Configure logging for claw_agent module
+logger = logging.getLogger("claw_agent")
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    ))
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 try:
     import tiktoken
@@ -208,15 +219,21 @@ RESPONSE FORMATTING — always structure your output clearly:
 """
 
 MAX_ITERATIONS = 200
-# Support local Ollama, DeepSeek Cloud API, OpenRouter (direct + Council), and Codex mode
+# Support local Ollama, DeepSeek Cloud API, NVIDIA NIM (direct + Council), and Codex mode
 AUTH_MODE = os.environ.get("AUTH_MODE", "free").strip().lower()  # free | chatgpt
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_API_BASE = "https://api.deepseek.com/v1"
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
+NVIDIA_API_KEY = (
+    os.environ.get("NVIDIA_API_KEY", "")
+    or os.environ.get("NIM_API_KEY", "")
+    or os.environ.get("OPENROUTER_API_KEY", "")
+)
+NVIDIA_API_BASE = "https://integrate.api.nvidia.com"
+OPENROUTER_API_KEY = NVIDIA_API_KEY
+OPENROUTER_API_BASE = NVIDIA_API_BASE
 OLLAMA_BASE = "http://localhost:11434"
 
-_OPENROUTER_MODEL_ERROR_HINTS = (
+_NVIDIA_MODEL_ERROR_HINTS = (
     "no endpoints found",
     "model not found",
     "unknown model",
@@ -225,14 +242,21 @@ _OPENROUTER_MODEL_ERROR_HINTS = (
 )
 
 
-def _get_openrouter_direct_models() -> list[str]:
-    """Return preferred direct-mode OpenRouter models, newest first."""
-    env_default = os.environ.get("OPENROUTER_DEFAULT_MODEL", "").strip()
+def _get_nvidia_direct_models() -> list[str]:
+    """Return preferred direct-mode NVIDIA NIM models, newest first."""
+    env_default = (
+        os.environ.get("NVIDIA_DEFAULT_MODEL", "").strip()
+        or os.environ.get("NIM_DEFAULT_MODEL", "").strip()
+        or os.environ.get("OPENROUTER_DEFAULT_MODEL", "").strip()
+    )
     models = []
     if env_default:
         models.append(env_default)
     models.extend(OPENROUTER_MODELS)
     return list(dict.fromkeys(model for model in models if model))
+
+
+_get_openrouter_direct_models = _get_nvidia_direct_models
 
 
 def _format_http_error(response: httpx.Response) -> str:
@@ -251,11 +275,13 @@ def _format_http_error(response: httpx.Response) -> str:
                 if not detail and data.get("message"):
                     detail = str(data.get("message"))
         except Exception:
+            # JSON parsing failed - will fall back to text extraction
             detail = ""
     if not detail:
         try:
             detail = response.text.strip()
         except Exception:
+            # Text extraction failed
             detail = ""
     detail = detail[:200]
     if detail:
@@ -263,25 +289,28 @@ def _format_http_error(response: httpx.Response) -> str:
     return f"HTTP {response.status_code}: {response.reason_phrase}"
 
 
-def _should_retry_openrouter_model_error(response: httpx.Response) -> bool:
-    """Return True when an OpenRouter request should try the next model."""
+def _should_retry_nvidia_model_error(response: httpx.Response) -> bool:
+    """Return True when an NVIDIA request should try the next model."""
     if response.status_code in {429, 402}:
         return True
     if response.status_code not in {400, 404}:
         return False
     details = _format_http_error(response).lower()
-    return response.status_code == 404 or any(hint in details for hint in _OPENROUTER_MODEL_ERROR_HINTS)
+    return response.status_code == 404 or any(hint in details for hint in _NVIDIA_MODEL_ERROR_HINTS)
+
+
+_should_retry_openrouter_model_error = _should_retry_nvidia_model_error
 
 
 def get_runtime_provider_mode() -> str:
     """Return the active runtime provider mode.
 
     Priority:
-    0. Codex (role-based deliberation) when AUTH_MODE=chatgpt or council enabled
-    1. OpenRouter council when available and not disabled
-    2. OpenRouter direct when explicitly preferred or council is disabled
+    0. Codex (role-based deliberation) when AUTH_MODE=chatgpt or NVIDIA council enabled
+    1. NVIDIA council when available and not disabled
+    2. NVIDIA direct when explicitly preferred or council is disabled
     3. DeepSeek direct
-    4. OpenRouter direct fallback
+    4. NVIDIA direct fallback
     5. Local Ollama
     """
     # Codex mode: role-based deliberation pipeline
@@ -289,17 +318,22 @@ def get_runtime_provider_mode() -> str:
         return "codex"
 
     council_disabled = bool(os.environ.get("DISABLE_COUNCIL", ""))
-    prefer_openrouter = bool(os.environ.get("PREFER_OPENROUTER", "") or os.environ.get("OPENROUTER_DIRECT", ""))
+    prefer_nvidia = bool(
+        os.environ.get("PREFER_NVIDIA", "")
+        or os.environ.get("NVIDIA_DIRECT", "")
+        or os.environ.get("PREFER_OPENROUTER", "")
+        or os.environ.get("OPENROUTER_DIRECT", "")
+    )
 
     # Use codex mode as the new default for council
-    if OPENROUTER_API_KEY and not council_disabled:
+    if NVIDIA_API_KEY and not council_disabled:
         return "codex"
-    if OPENROUTER_API_KEY and (prefer_openrouter or council_disabled):
-        return "openrouter"
+    if NVIDIA_API_KEY and (prefer_nvidia or council_disabled):
+        return "nvidia"
     if DEEPSEEK_API_KEY:
         return "deepseek"
-    if OPENROUTER_API_KEY:
-        return "openrouter"
+    if NVIDIA_API_KEY:
+        return "nvidia"
     return "ollama"
 
 
@@ -311,17 +345,17 @@ if RUNTIME_PROVIDER_MODE == "codex":
     # Codex mode uses role-based models; pick synthesizer model as default label
     from .codex_runtime import FREE_ROLE_MODELS, _detect_provider
     _codex_provider = _detect_provider()
-    DEFAULT_BASE_URL = OPENROUTER_API_BASE if _codex_provider == "openrouter" else "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+    DEFAULT_BASE_URL = NVIDIA_API_BASE if _codex_provider == "nvidia" else "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     DEFAULT_MODEL = FREE_ROLE_MODELS.get(_codex_provider, {}).get("synthesizer", ["codex-council"])[0]
-    _CLOUD_API_KEY = OPENROUTER_API_KEY or os.environ.get("DASHSCOPE_API_KEY", "")
+    _CLOUD_API_KEY = NVIDIA_API_KEY or os.environ.get("DASHSCOPE_API_KEY", "")
 elif RUNTIME_PROVIDER_MODE == "deepseek":
     DEFAULT_BASE_URL = DEEPSEEK_API_BASE
     DEFAULT_MODEL = "deepseek-reasoner"
     _CLOUD_API_KEY = DEEPSEEK_API_KEY
-elif RUNTIME_PROVIDER_MODE in {"openrouter", "council"}:
-    DEFAULT_BASE_URL = OPENROUTER_API_BASE
-    DEFAULT_MODEL = _get_openrouter_direct_models()[0]
-    _CLOUD_API_KEY = OPENROUTER_API_KEY
+elif RUNTIME_PROVIDER_MODE in {"nvidia", "council"}:
+    DEFAULT_BASE_URL = NVIDIA_API_BASE
+    DEFAULT_MODEL = _get_nvidia_direct_models()[0]
+    _CLOUD_API_KEY = NVIDIA_API_KEY
 else:
     DEFAULT_BASE_URL = OLLAMA_BASE
     DEFAULT_MODEL = "deepseek-v3.1:671b-cloud"

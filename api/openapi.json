@@ -1,8 +1,8 @@
-﻿{
+{
   "openapi": "3.0.3",
   "info": {
     "title": "Claw AI API",
-    "description": "REST API for Claw AI -- a multi-model AI assistant that queries OpenRouter, Alibaba Cloud (DashScope), and CometAPI models and returns intelligent responses.\n\n## Architecture\n- **18 models**: 8 via OpenRouter + 6 via Alibaba Cloud DashScope + 4 via CometAPI\n- **Multi-model mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via its provider\n- **Providers**: OpenRouter (openrouter.ai), Alibaba Cloud (dashscope.aliyuncs.com), CometAPI (api.cometapi.com)\n- **Testing**: Test individual models, entire providers, or all models at once for availability and response times\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `OPENROUTER_API_KEY` -- OpenRouter API key\n- `DASHSCOPE_API_KEY` -- Alibaba Cloud DashScope API key\n- `COMETAPI_KEY` -- CometAPI API key\n\nNo client-side authentication is required for the public endpoints.",
+    "description": "REST API for Claw AI -- a multi-model AI assistant that queries NVIDIA NIM, Alibaba Cloud (DashScope), and CometAPI models and returns intelligent responses.\n\n## Architecture\n- **18 models**: 8 via NVIDIA NIM + 6 via Alibaba Cloud DashScope + 4 via CometAPI\n- **Multi-model mode**: Queries all models in parallel, groups by content similarity (Jaccard index), returns consensus answer\n- **Single mode**: Routes to a chosen model via its provider\n- **Providers**: NVIDIA NIM (NVIDIA NIM.ai), Alibaba Cloud (dashscope.aliyuncs.com), CometAPI (api.cometapi.com)\n- **Testing**: Test individual models, entire providers, or all models at once for availability and response times\n\n## Authentication\nAPI keys are configured server-side via environment variables:\n- `NVIDIA NIM_API_KEY` -- NVIDIA NIM API key\n- `DASHSCOPE_API_KEY` -- Alibaba Cloud DashScope API key\n- `COMETAPI_KEY` -- CometAPI API key\n\nNo client-side authentication is required for the public endpoints.",
     "version": "2.2.0",
     "contact": {
       "name": "Claw AI",
@@ -253,7 +253,7 @@
             "description": "Provider name to test",
             "schema": {
               "type": "string",
-              "enum": ["openrouter", "alibaba", "cometapi"]
+              "enum": ["NVIDIA NIM", "alibaba", "cometapi"]
             }
           }
         ],
@@ -281,7 +281,7 @@
       "get": {
         "operationId": "testAllModels",
         "summary": "Test all models across all providers",
-        "description": "Tests every configured model across OpenRouter, Alibaba, and CometAPI in parallel. Returns per-provider breakdown with total up/down counts.",
+        "description": "Tests every configured model across NVIDIA NIM, Alibaba, and CometAPI in parallel. Returns per-provider breakdown with total up/down counts.",
         "tags": ["Testing"],
         "responses": {
           "200": {
@@ -310,7 +310,7 @@
           },
           "model": {
             "type": "string",
-            "description": "Specific model to use (bypasses multi-model mode). Must be an OpenRouter model ID.",
+            "description": "Specific model to use (bypasses multi-model mode). Must be an NVIDIA NIM model ID.",
             "example": "deepseek/deepseek-v3"
           },
           "use_council": {
@@ -417,9 +417,9 @@
           "providers": {
             "type": "array",
             "items": { "type": "string" },
-            "example": ["OpenRouter", "Alibaba Cloud (DashScope)", "CometAPI"]
+            "example": ["NVIDIA NIM", "Alibaba Cloud (DashScope)", "CometAPI"]
           },
-          "openrouter_models": { "type": "integer", "example": 8 },
+          "NVIDIA NIM_models": { "type": "integer", "example": 8 },
           "alibaba_models": { "type": "integer", "example": 6 },
           "cometapi_models": { "type": "integer", "example": 4 },
           "model_count": { "type": "integer", "example": 18 }
@@ -438,7 +438,7 @@
           "keys_configured": {
             "type": "object",
             "properties": {
-              "openrouter": { "type": "boolean" },
+              "NVIDIA NIM": { "type": "boolean" },
               "dashscope": { "type": "boolean" },
               "cometapi": { "type": "boolean" }
             }
@@ -458,7 +458,7 @@
           "keys_configured": {
             "type": "object",
             "properties": {
-              "openrouter": { "type": "boolean" },
+              "NVIDIA NIM": { "type": "boolean" },
               "dashscope": { "type": "boolean" },
               "cometapi": { "type": "boolean" }
             }
@@ -507,7 +507,7 @@
           "keys": {
             "type": "object",
             "properties": {
-              "openrouter": { "type": "boolean" },
+              "NVIDIA NIM": { "type": "boolean" },
               "dashscope": { "type": "boolean" },
               "cometapi": { "type": "boolean" }
             }
@@ -552,7 +552,7 @@
         "type": "object",
         "properties": {
           "model": { "type": "string", "example": "deepseek/deepseek-v3" },
-          "provider": { "type": "string", "example": "openrouter" },
+          "provider": { "type": "string", "example": "NVIDIA NIM" },
           "status": { "type": "string", "enum": ["up", "down"], "example": "up" },
           "response_time_ms": { "type": "integer", "example": 342 },
           "tokens": {
@@ -571,7 +571,7 @@
       "TestProviderResponse": {
         "type": "object",
         "properties": {
-          "provider": { "type": "string", "example": "openrouter" },
+          "provider": { "type": "string", "example": "NVIDIA NIM" },
           "total_models": { "type": "integer", "example": 8 },
           "models_up": { "type": "integer", "example": 7 },
           "models_down": { "type": "integer", "example": 1 },

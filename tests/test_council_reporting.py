@@ -38,14 +38,15 @@ class CouncilReportingTests(unittest.TestCase):
                 from claw_agent.codex_runtime import _detect_provider, FREE_ROLE_MODELS
                 provider = _detect_provider()
                 role_models = FREE_ROLE_MODELS.get(provider, {})
+                provider_label = cli_mod._provider_display_name(provider)
                 self.assertEqual(
                     detail,
-                    f"{len(role_models)} roles via {provider.title()}",
+                    f"{len(role_models)} roles via {provider_label}",
                 )
             else:
                 self.assertEqual(
                     detail,
-                    f"{len(council_mod.DEFAULT_COUNCIL_MODELS)} models via Alibaba + OpenRouter",
+                    f"{len(council_mod.DEFAULT_COUNCIL_MODELS)} models via Alibaba + NVIDIA NIM",
                 )
 
     def test_advanced_council_uses_same_default_roster_as_base_council(self) -> None:

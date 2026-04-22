@@ -82,8 +82,12 @@ def _get_council_provider_groups(configured_models: list[str]) -> list[tuple[str
         ("CometAPI", [model for model in configured_models if model in COMET_MODELS]),
     ]
     routed = set(ALIBABA_MODELS) | set(CHATGPT_MODELS) | set(COMET_MODELS)
-    groups.append(("OpenRouter", [model for model in configured_models if model not in routed]))
+    groups.append(("NVIDIA NIM", [model for model in configured_models if model not in routed]))
     return [(label, models) for label, models in groups if models]
+
+
+def _provider_display_name(provider: str) -> str:
+    return "NVIDIA NIM" if provider == "nvidia" else provider.title()
 
 
 def _format_council_detail(configured_models: list[str]) -> str:
@@ -93,7 +97,7 @@ def _format_council_detail(configured_models: list[str]) -> str:
 
 def _get_runtime_mode() -> dict[str, str]:
     """Return the active runtime/provider mode for UI and diagnostics."""
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, USE_CODEX
+    from .agent import DEEPSEEK_API_KEY, NVIDIA_API_KEY, USE_COUNCIL, USE_CODEX
     from .ll_council import DEFAULT_COUNCIL_MODELS
 
     configured_models = list(DEFAULT_COUNCIL_MODELS)
@@ -107,21 +111,21 @@ def _get_runtime_mode() -> dict[str, str]:
             "kind": "codex",
             "icon": "🧠",
             "label": "Codex",
-            "detail": f"{n_roles} roles via {provider.title()}",
+            "detail": f"{n_roles} roles via {_provider_display_name(provider)}",
         }
-    if USE_COUNCIL and OPENROUTER_API_KEY:
+    if USE_COUNCIL and NVIDIA_API_KEY:
         return {
             "kind": "council",
             "icon": "🏛️",
             "label": "Council",
             "detail": _format_council_detail(configured_models),
         }
-    if OPENROUTER_API_KEY:
+    if NVIDIA_API_KEY:
         return {
-            "kind": "openrouter",
+            "kind": "nvidia",
             "icon": "☁️",
             "label": "Cloud",
-            "detail": "OpenRouter API",
+            "detail": "NVIDIA NIM API",
         }
     if DEEPSEEK_API_KEY:
         return {
@@ -140,7 +144,7 @@ def _get_runtime_mode() -> dict[str, str]:
 
 def list_models() -> list[str]:
     import httpx
-    from .agent import DEFAULT_MODEL, _get_openrouter_direct_models
+    from .agent import DEFAULT_MODEL, _get_nvidia_direct_models
     from .ll_council import DEFAULT_COUNCIL_MODELS
 
     # Get local Ollama models
@@ -167,8 +171,8 @@ def list_models() -> list[str]:
                     seen.add(m)
     elif mode["kind"] == "council":
         cloud_models = DEFAULT_COUNCIL_MODELS
-    elif mode["kind"] == "openrouter":
-        cloud_models = _get_openrouter_direct_models()
+    elif mode["kind"] == "nvidia":
+        cloud_models = _get_nvidia_direct_models()
     elif mode["kind"] == "deepseek":
         cloud_models = [DEFAULT_MODEL, "deepseek-reasoner", "deepseek-chat", "deepseek-coder"]
 
@@ -744,7 +748,7 @@ def cmd_version():
 
 def cmd_doctor():
     """Diagnose connectivity, tools, and model availability."""
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, get_runtime_provider_mode, _get_openrouter_direct_models
+    from .agent import DEEPSEEK_API_KEY, NVIDIA_API_KEY, USE_COUNCIL, get_runtime_provider_mode, _get_nvidia_direct_models
 
     console.print()
     console.print("[bold]Running diagnostics...[/bold]\n")
@@ -755,11 +759,11 @@ def cmd_doctor():
     checks.append(("Python", True, sys.version.split()[0]))
 
     # 2. Cloud provider configuration
-    if USE_COUNCIL and OPENROUTER_API_KEY:
+    if USE_COUNCIL and NVIDIA_API_KEY:
         from .ll_council import DEFAULT_COUNCIL_MODELS
         checks.append(("Council Mode", True, f"✓ {_format_council_detail(list(DEFAULT_COUNCIL_MODELS))}"))
-    elif OPENROUTER_API_KEY:
-        checks.append(("OpenRouter Direct", True, "✓ API key configured"))
+    elif NVIDIA_API_KEY:
+        checks.append(("NVIDIA Direct", True, "✓ API key configured"))
     elif DEEPSEEK_API_KEY:
         checks.append(("DeepSeek Cloud", True, "✓ API key configured"))
     else:
@@ -767,22 +771,22 @@ def cmd_doctor():
 
     # 2b. Live API key validation
     import httpx
-    if OPENROUTER_API_KEY:
-        live_model = _get_openrouter_direct_models()[0]
+    if NVIDIA_API_KEY:
+        live_model = _get_nvidia_direct_models()[0]
         try:
             r = httpx.post(
-                "https://openrouter.ai/api/v1/chat/completions",
+                "https://integrate.api.nvidia.com/v1/chat/completions",
                 json={"model": live_model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1},
-                headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}", "Content-Type": "application/json"},
+                headers={"Authorization": f"Bearer {NVIDIA_API_KEY}", "Content-Type": "application/json"},
                 timeout=15,
             )
             if r.status_code == 200:
-                checks.append(("OpenRouter Key", True, f"✓ Live test passed with {live_model} (HTTP 200)"))
+                checks.append(("NVIDIA Key", True, f"✓ Live test passed with {live_model} (HTTP 200)"))
             else:
                 err = r.json().get("error", {}).get("message", r.text[:80]) if r.headers.get("content-type", "").startswith("application/json") else r.text[:80]
-                checks.append(("OpenRouter Key", False, f"{live_model}: HTTP {r.status_code}: {err}"))
+                checks.append(("NVIDIA Key", False, f"{live_model}: HTTP {r.status_code}: {err}"))
         except Exception as e:
-            checks.append(("OpenRouter Key", False, f"Connection error: {str(e)[:60]}"))
+            checks.append(("NVIDIA Key", False, f"Connection error: {str(e)[:60]}"))
 
     dashscope_key = os.environ.get("DASHSCOPE_API_KEY", "")
     if dashscope_key:
@@ -817,12 +821,12 @@ def cmd_doctor():
         models = []
 
     # 4. Default model
-    if USE_COUNCIL and OPENROUTER_API_KEY:
+    if USE_COUNCIL and NVIDIA_API_KEY:
         from .ll_council import DEFAULT_COUNCIL_MODELS
         checks.append(("Council Models", True, _format_council_detail(list(DEFAULT_COUNCIL_MODELS))))
-    elif OPENROUTER_API_KEY:
+    elif NVIDIA_API_KEY:
         from .agent import DEFAULT_MODEL
-        checks.append(("Default Model", True, f"{DEFAULT_MODEL} via OpenRouter"))
+        checks.append(("Default Model", True, f"{DEFAULT_MODEL} via NVIDIA NIM"))
     elif models:
         preferred = "deepseek-v3.1:671b-cloud"
         has_preferred = any(preferred in m for m in models)
@@ -1783,16 +1787,16 @@ def main():
     )
     args = parser.parse_args()
 
-    # Auto-detect: Priority 1) OpenRouter Council 2) OpenRouter Direct 3) DeepSeek 4) Ollama
-    from .agent import DEEPSEEK_API_KEY, OPENROUTER_API_KEY, USE_COUNCIL, DEFAULT_MODEL, DEFAULT_BASE_URL
+    # Auto-detect: Priority 1) NVIDIA Council 2) NVIDIA Direct 3) DeepSeek 4) Ollama
+    from .agent import DEEPSEEK_API_KEY, NVIDIA_API_KEY, USE_COUNCIL, DEFAULT_MODEL, DEFAULT_BASE_URL
     from .ll_council import DEFAULT_COUNCIL_MODELS
 
     models = []
 
-    if USE_COUNCIL and OPENROUTER_API_KEY:
+    if USE_COUNCIL and NVIDIA_API_KEY:
         model = args.model or "council"
         models = DEFAULT_COUNCIL_MODELS
-    elif OPENROUTER_API_KEY:
+    elif NVIDIA_API_KEY:
         model = args.model or DEFAULT_MODEL
         models = list_models()
     elif DEEPSEEK_API_KEY:
@@ -1806,7 +1810,7 @@ def main():
                 "  1. Install: [cyan]https://ollama.com/download[/cyan]\n"
                 "  2. Start:   [cyan]ollama serve[/cyan]\n"
                 "  3. Pull:    [cyan]ollama pull deepseek-v3.1:671b-cloud[/cyan]\n\n"
-                "  Or set OPENROUTER_API_KEY or DEEPSEEK_API_KEY for cloud mode.",
+                "  Or set NVIDIA_API_KEY or DEEPSEEK_API_KEY for cloud mode.",
                 title="Setup Required", border_style="red",
             ))
             sys.exit(1)

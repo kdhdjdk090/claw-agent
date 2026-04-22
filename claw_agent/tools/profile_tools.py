@@ -8,6 +8,8 @@ import sys
 import time
 from pathlib import Path
 
+from ..validation import validate_command, SecurityError
+
 
 def time_command(command: str, runs: int = 3) -> str:
     """Time a shell command over N runs and report min/avg/max.
@@ -16,6 +18,12 @@ def time_command(command: str, runs: int = 3) -> str:
         command: Shell command to time.
         runs: Number of iterations (default 3, max 20).
     """
+    # Validate command before execution
+    try:
+        validate_command(command)
+    except SecurityError as e:
+        return f"[BLOCKED: {e}]"
+    
     runs = max(1, min(int(runs), 20))
     times: list[float] = []
 
@@ -24,7 +32,7 @@ def time_command(command: str, runs: int = 3) -> str:
         try:
             result = subprocess.run(
                 command,
-                shell=True,
+                shell=True,  # Required for shell features, validated above
                 capture_output=True,
                 timeout=120,
             )

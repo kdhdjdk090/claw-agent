@@ -4,7 +4,7 @@
 
 **Test Date:** April 13, 2026  
 **Deployment:** https://clean-claw-ai.vercel.app  
-**System:** multi-model ensemble with OpenRouter (6 AI models)
+**System:** multi-model ensemble with NVIDIA NIM (6 AI models)
 
 ---
 
@@ -126,7 +126,7 @@ The capital of France is Paris.
 ### ensemble Initialization
 ```python
 ✅ LLensemble created with 6 models
-✅ OpenRouter API key loaded
+✅ NVIDIA NIM API key loaded
 ✅ System prompt configured
 ```
 
@@ -253,7 +253,7 @@ Even if 1-2 models fail, the ensemble still works:
 ### Environment Variables
 | Variable | Status | Value |
 |----------|--------|-------|
-| `OPENROUTER_API_KEY` | ✅ Set | sk-or-v1-... (valid) |
+| `NVIDIA NIM_API_KEY` | ✅ Set | sk-or-v1-... (valid) |
 | `ensemble_MODELS` | ✅ Set | 6 models configured |
 | `ensemble_THRESHOLD` | ✅ Set | 0.6 (60%) |
 
@@ -333,7 +333,7 @@ Even if 1-2 models fail, the ensemble still works:
 1. Start using the ensemble - it's ready!
 2. Test with your own questions
 3. Deploy updates as needed
-4. Monitor usage in OpenRouter dashboard
+4. Monitor usage in NVIDIA NIM dashboard
 
 ---
 

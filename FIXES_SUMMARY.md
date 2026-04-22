@@ -40,14 +40,14 @@ ClaudeAI ❯ /models
 ```
 
 **Solution:**
-- Updated `list_models()` to include cloud/OpenRouter models
+- Updated `list_models()` to include cloud/NVIDIA NIM models
 - Fixed `/models` to show tiered ensemble models with proper formatting
 - Fixed `/model` to show available models with current marker
 
 **Before:** Empty output  
 **After:** 
 ```
-🏛️ ensemble models (8 via OpenRouter)
+🏛️ ensemble models (8 via NVIDIA NIM)
 
 🥇 Tier 1 - Most Powerful:
   • deepseek/deepseek-v3
@@ -101,7 +101,7 @@ KeyboardInterrupt
 **Solution:**
 - Made Ollama optional when cloud mode is active
 - Made Git optional (shows "OK" if missing)
-- Added OpenRouter ensemble status check
+- Added NVIDIA NIM ensemble status check
 - Shows meaningful status based on active mode
 
 **Before:**
@@ -113,9 +113,9 @@ KeyboardInterrupt
 
 **After (ensemble mode):**
 ```
-✓ OpenRouter ensemble: ✓ 8 models configured
+✓ NVIDIA NIM ensemble: ✓ 8 models configured
 ✓ Ollama (Optional): Not running — OK, using cloud mode
-✓ ensemble models: 8 models via OpenRouter
+✓ ensemble models: 8 models via NVIDIA NIM
 ✓ Tool Registry: 26 tools loaded
 ✓ Git (Optional): Not found — OK
 ```
@@ -125,12 +125,12 @@ KeyboardInterrupt
 
 ---
 
-### 5. ✅ Updated to OpenRouter ensemble
+### 5. ✅ Updated to NVIDIA NIM ensemble
 
 **Problem:** Only DeepSeek API was used, no ensemble mode
 
 **Solution:**
-- Auto-detect OpenRouter API key and enable ensemble mode
+- Auto-detect NVIDIA NIM API key and enable ensemble mode
 - Updated banner to show "ensemble" mode with model count
 - Updated all status commands to show ensemble info
 - Priority: ensemble > DeepSeek > Ollama
@@ -144,7 +144,7 @@ KeyboardInterrupt
 **After:**
 ```
 🦞 Claw AI v2.0 - multi-model ensemble
-🏛️ ensemble • 8 models via OpenRouter
+🏛️ ensemble • 8 models via NVIDIA NIM
 ```
 
 **Files Modified:**
@@ -229,7 +229,7 @@ claw
 ## 📁 FILES CHANGED
 
 ### Modified (3 files)
-1. `claw_agent/agent.py` - Tool validation, OpenRouter support
+1. `claw_agent/agent.py` - Tool validation, NVIDIA NIM support
 2. `claw_agent/cli.py` - All CLI fixes, ensemble integration
 3. `api/index.js` - ensemble models list updated
 

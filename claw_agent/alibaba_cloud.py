@@ -21,31 +21,27 @@ DASHSCOPE_API_BASE = os.environ.get(
     "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
 )
 
-# Best Alibaba Cloud models from free quota (1M tokens each)
+# Best Alibaba Cloud models from free quota (1M tokens each) - QWEN3.5+ PRIORITY
 ALIBABA_CLOUD_MODELS = [
-    # 🏆 BEST CODER
+    # 🏆 QWEN3.5+ - PRIMARY DEFAULT FOR ALL TASKS
+    "qwen3.5-397b-a17b",               # 397B - Newest flagship - DEFAULT MODEL
+
+    # 🥇 SPECIALIZED MODELS
     "qwen3-coder-480b-a35b-instruct",   # 480B - Best coding model
-    
-    # 🥇 MOST POWERFUL FLAGSHIP
-    "qwen3.5-397b-a17b",               # 397B - Newest flagship
-    "qwen3-max",                        # Top flagship
-    
-    # 🧮 REASONING
-    "qwen3-235b-a22b",                 # 235B - Deep reasoning
-    
-    # ⭐ CODING SPECIALIST
+    "qwen3-max",                        # Top flagship for complex reasoning
     "qwen3-coder-plus",                # Coding expert
-    
-    # ⚡ FAST BALANCED
-    "qwen-plus",                       # Fast & capable
+
+    # 🧮 REASONING & BALANCED
+    "qwen3-235b-a22b",                 # 235B - Deep reasoning
+    "qwen-plus",                       # Fast & capable for simple tasks
 ]
 
-# Task-specific routing for Alibaba models
+# Task-specific routing for Alibaba models - QWEN3.5+ AS DEFAULT
 ALIBABA_TASK_ROUTING = {
-    "coding": "qwen3-coder-480b-a35b-instruct",
-    "complex_reasoning": "qwen3.5-397b-a17b",
-    "general": "qwen3-max",
-    "fast": "qwen-plus",
+    "coding": "qwen3.5-397b-a17b",           # Qwen3.5+ handles coding best
+    "complex_reasoning": "qwen3.5-397b-a17b", # Qwen3.5+ for reasoning
+    "general": "qwen3.5-397b-a17b",          # Qwen3.5+ default for everything
+    "fast": "qwen-plus",                     # Only use qwen-plus for speed
 }
 
 

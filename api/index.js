@@ -52,9 +52,9 @@ const OPENAPI_PATH = path.join(__dirname, 'openapi.json');
 // Allowed CORS origins (add your production domain)
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '*').split(',').map(s => s.trim());
 
-// OpenRouter configuration - API keys from environment variables only
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '';
-const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
+// NVIDIA NIM configuration - API keys from environment variables only
+const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || process.env.NIM_API_KEY || '';
+const NVIDIA_API_BASE = 'https://integrate.api.nvidia.com';
 
 // Alibaba Cloud (DashScope) configuration
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY || '';
@@ -72,16 +72,17 @@ const OPENAI_API_BASE = 'https://api.openai.com/v1';
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Council models - kept in sync with the Python council defaults where possible.
-const OPENROUTER_MODELS = [
-  'qwen/qwen3-next-80b-a3b-instruct:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'qwen/qwen3-coder:free',
-  'google/gemma-4-26b-a4b-it:free',
-  'google/gemma-3-12b-it:free',
-  'google/gemma-3-27b-it:free',
-  'google/gemma-4-31b-it:free'
+// Council models - kept in sync with the Python defaults where possible.
+const NVIDIA_MODELS = [
+  'qwen/qwen3.5-397b-a17b',
+  'qwen/qwen3-next-80b-a3b-instruct',
+  'meta/llama-3.3-70b-instruct',
+  'nvidia/nemotron-4-340b-instruct',
+  'qwen/qwen3-coder-480b-a35b-instruct',
+  'google/gemma-4-27b-it',
+  'google/gemma-3-12b-it',
+  'google/gemma-3-27b-it',
+  'google/gemma-4-31b-it'
 ];
 
 const ALIBABA_MODELS = [
@@ -108,16 +109,16 @@ const OPENAI_MODELS = [
   'o4-mini'                            // 🔬 Reasoning
 ];
 
-const ACTIVE_OPENROUTER_MODELS = OPENROUTER_API_KEY ? OPENROUTER_MODELS : [];
+const ACTIVE_NVIDIA_MODELS = NVIDIA_API_KEY ? NVIDIA_MODELS : [];
 const ACTIVE_ALIBABA_MODELS = DASHSCOPE_API_KEY ? ALIBABA_MODELS : [];
 const ACTIVE_COMETAPI_MODELS = COMETAPI_KEY ? COMETAPI_MODELS : [];
 const ACTIVE_OPENAI_MODELS = OPENAI_API_KEY ? OPENAI_MODELS : [];
-const COUNCIL_MODELS = [...ACTIVE_OPENROUTER_MODELS, ...ACTIVE_ALIBABA_MODELS, ...ACTIVE_COMETAPI_MODELS, ...ACTIVE_OPENAI_MODELS];
+const COUNCIL_MODELS = [...ACTIVE_NVIDIA_MODELS, ...ACTIVE_ALIBABA_MODELS, ...ACTIVE_COMETAPI_MODELS, ...ACTIVE_OPENAI_MODELS];
 
 function getCouncilProviderGroups() {
   return [
     { label: 'Alibaba Cloud', models: ACTIVE_ALIBABA_MODELS },
-    { label: 'OpenRouter', models: ACTIVE_OPENROUTER_MODELS },
+    { label: 'NVIDIA NIM', models: ACTIVE_NVIDIA_MODELS },
     { label: 'CometAPI', models: ACTIVE_COMETAPI_MODELS },
     { label: 'OpenAI', models: ACTIVE_OPENAI_MODELS },
   ].filter(group => group.models.length > 0);
@@ -133,10 +134,10 @@ function getConfiguredProviders() {
 }
 
 function getProviderMode() {
-  const count = Number(!!OPENROUTER_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY) + Number(!!OPENAI_API_KEY);
+  const count = Number(!!NVIDIA_API_KEY) + Number(!!DASHSCOPE_API_KEY) + Number(!!COMETAPI_KEY) + Number(!!OPENAI_API_KEY);
   if (count >= 2) return 'multi';
   if (OPENAI_API_KEY) return 'openai';
-  if (OPENROUTER_API_KEY) return 'openrouter';
+  if (NVIDIA_API_KEY) return 'nvidia';
   if (process.env.DEEPSEEK_API_KEY) return 'deepseek';
   if (DASHSCOPE_API_KEY) return 'dashscope';
   if (COMETAPI_KEY) return 'cometapi';
@@ -148,13 +149,13 @@ function getProviderForModel(model) {
   if (ALIBABA_MODELS.includes(model)) return 'alibaba';
   if (OPENAI_MODELS.includes(model)) return 'openai';
   if (COMETAPI_MODELS.includes(model)) return 'cometapi';
-  if (OPENROUTER_MODELS.includes(model)) return 'openrouter';
+  if (NVIDIA_MODELS.includes(model)) return 'nvidia';
   return 'unknown';
 }
 
 function getProviderConfig(provider) {
   switch (provider) {
-    case 'openrouter': return { base: OPENROUTER_API_BASE, key: OPENROUTER_API_KEY, models: OPENROUTER_MODELS };
+    case 'nvidia': return { base: NVIDIA_API_BASE, key: NVIDIA_API_KEY, models: NVIDIA_MODELS };
     case 'alibaba': return { base: DASHSCOPE_API_BASE, key: DASHSCOPE_API_KEY, models: ALIBABA_MODELS };
     case 'cometapi': return { base: COMETAPI_BASE, key: COMETAPI_KEY, models: COMETAPI_MODELS };
     case 'openai': return { base: OPENAI_API_BASE, key: OPENAI_API_KEY, models: OPENAI_MODELS };
@@ -170,7 +171,7 @@ function getTestPayload(provider, model) {
   };
 
   switch (provider) {
-    case 'openrouter':
+    case 'nvidia':
       return { ...base, temperature: 0.7, top_p: 0.9 };
     case 'alibaba':
       return { ...base, enable_thinking: false };
@@ -184,7 +185,7 @@ function getTestPayload(provider, model) {
 
 function getHeadersForProvider(provider, key) {
   const base = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` };
-  if (provider === 'openrouter') {
+  if (provider === 'nvidia') {
     base['HTTP-Referer'] = 'https://github.com/claw-agent';
     base['X-Title'] = 'Claw AI';
   }
@@ -203,10 +204,10 @@ const FAST_MODELS = [
   ...(OPENAI_API_KEY ? [{ model: 'gpt-4o-mini', provider: 'openai' }] : []),
   ...(OPENAI_API_KEY ? [{ model: 'gpt-4.1-mini', provider: 'openai' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'gemini-2.5-flash', provider: 'cometapi' }] : []),
-  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
-  { model: 'google/gemma-3-12b-it:free', provider: 'openrouter' },
+  { model: 'meta/llama-3.3-70b-instruct', provider: 'nvidia' },
+  { model: 'google/gemma-3-12b-it', provider: 'nvidia' },
   ...(COMETAPI_KEY ? [{ model: 'gpt-4.1', provider: 'cometapi' }] : []),
-  { model: 'google/gemma-4-26b-a4b-it:free', provider: 'openrouter' },
+  { model: 'google/gemma-4-27b-it', provider: 'nvidia' },
 ];
 
 const REASONING_MODELS = [
@@ -214,10 +215,10 @@ const REASONING_MODELS = [
   ...(OPENAI_API_KEY ? [{ model: 'o4-mini', provider: 'openai' }] : []),
   ...(OPENAI_API_KEY ? [{ model: 'gpt-4.1', provider: 'openai' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'o4-mini', provider: 'cometapi' }] : []),
-  { model: 'qwen/qwen3-next-80b-a3b-instruct:free', provider: 'openrouter' },
-  { model: 'nousresearch/hermes-3-llama-3.1-405b:free', provider: 'openrouter' },
+  { model: 'qwen/qwen3.5-397b-a17b', provider: 'nvidia' },
+  { model: 'qwen/qwen3-next-80b-a3b-instruct', provider: 'nvidia' },
   ...(DASHSCOPE_API_KEY ? [{ model: 'qwen3-max', provider: 'alibaba' }] : []),
-  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
+  { model: 'meta/llama-3.3-70b-instruct', provider: 'nvidia' },
 ];
 
 const CODING_MODELS = [
@@ -226,9 +227,9 @@ const CODING_MODELS = [
   ...(OPENAI_API_KEY ? [{ model: 'gpt-4.1', provider: 'openai' }] : []),
   ...(OPENAI_API_KEY ? [{ model: 'gpt-4o', provider: 'openai' }] : []),
   ...(COMETAPI_KEY ? [{ model: 'claude-sonnet-4-20250514', provider: 'cometapi' }] : []),
-  { model: 'qwen/qwen3-coder:free', provider: 'openrouter' },
-  { model: 'meta-llama/llama-3.3-70b-instruct:free', provider: 'openrouter' },
-  { model: 'google/gemma-4-31b-it:free', provider: 'openrouter' },
+  { model: 'qwen/qwen3-coder-480b-a35b-instruct', provider: 'nvidia' },
+  { model: 'qwen/qwen3-coder-32b-instruct', provider: 'nvidia' },
+  { model: 'google/gemma-4-31b-it', provider: 'nvidia' },
 ];
 
 function dedupeModelChain(chain) {
@@ -465,7 +466,7 @@ module.exports = async (req, res) => {
       version: '2.2.0',
       timestamp: new Date().toISOString(),
       keys_configured: {
-        openrouter: !!OPENROUTER_API_KEY,
+        nvidia: !!NVIDIA_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
         cometapi: !!COMETAPI_KEY,
         openai: !!OPENAI_API_KEY,
@@ -543,12 +544,12 @@ module.exports = async (req, res) => {
       enabled: COUNCIL_ENABLED,
       mode: getProviderMode(),
       detail: getCouncilDetail(),
-      api_key_set: !!OPENROUTER_API_KEY,
+      api_key_set: !!NVIDIA_API_KEY,
       alibaba_key_set: !!DASHSCOPE_API_KEY,
       cometapi_key_set: !!COMETAPI_KEY,
       openai_key_set: !!OPENAI_API_KEY,
       providers: getConfiguredProviders(),
-      openrouter_models: ACTIVE_OPENROUTER_MODELS.length,
+      nvidia_models: ACTIVE_NVIDIA_MODELS.length,
       alibaba_models: ACTIVE_ALIBABA_MODELS.length,
       cometapi_models: ACTIVE_COMETAPI_MODELS.length,
       openai_models: ACTIVE_OPENAI_MODELS.length,
@@ -568,7 +569,7 @@ module.exports = async (req, res) => {
       providers: getConfiguredProviders().length,
       skills: 18,
       keys_configured: {
-        openrouter: !!OPENROUTER_API_KEY,
+        nvidia: !!NVIDIA_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
         cometapi: !!COMETAPI_KEY,
         openai: !!OPENAI_API_KEY,
@@ -583,7 +584,7 @@ module.exports = async (req, res) => {
         skills: '/api/skills',
         config: '/api/config',
         test_model: '/api/test/model?model={model_id}',
-        test_provider: '/api/test/provider?provider={openrouter|alibaba|cometapi}',
+        test_provider: '/api/test/provider?provider={nvidia|alibaba|cometapi}',
         test_all: '/api/test/all'
       }
     });
@@ -645,7 +646,7 @@ module.exports = async (req, res) => {
       skills: 18,
       tools: 26,
       keys: {
-        openrouter: !!OPENROUTER_API_KEY,
+        nvidia: !!NVIDIA_API_KEY,
         dashscope: !!DASHSCOPE_API_KEY,
         cometapi: !!COMETAPI_KEY,
       },
@@ -696,7 +697,7 @@ async function handleChat(req, res) {
       if (BROWSING_CAPABILITY_RE.test(message)) {
         return sendBuiltinReply(res, getBrowsingCapabilityReply(), wantStream);
       }
-      if (use_council && OPENROUTER_API_KEY) {
+      if (use_council && NVIDIA_API_KEY) {
         return handleCouncilRequest(res, message);
       }
 
@@ -993,9 +994,9 @@ async function handleCouncil(req, res) {
         return res.status(400).json({ error: 'message required' });
       }
 
-      if (!OPENROUTER_API_KEY && !DASHSCOPE_API_KEY && !COMETAPI_KEY) {
+      if (!NVIDIA_API_KEY && !DASHSCOPE_API_KEY && !COMETAPI_KEY) {
         return res.status(500).json({
-          error: 'No API keys configured. Set at least one of OPENROUTER_API_KEY, DASHSCOPE_API_KEY, or COMETAPI_KEY.',
+          error: 'No API keys configured. Set at least one of NVIDIA_API_KEY, DASHSCOPE_API_KEY, or COMETAPI_KEY.',
         });
       }
 
@@ -1008,10 +1009,10 @@ async function handleCouncil(req, res) {
 }
 
 async function handleCouncilRequest(res, message) {
-  // Query all council models in parallel (OpenRouter + Alibaba + CometAPI)
+  // Query all council models in parallel (NVIDIA NIM + Alibaba + CometAPI)
   const promises = COUNCIL_MODELS.map(async (model) => {
     try {
-      const provider = getProviderForModel(model) || 'openrouter';
+      const provider = getProviderForModel(model) || 'nvidia';
       const config = getProviderConfig(provider);
       if (!config || !config.key) {
         return { model, content: '', error: 'No API key for provider: ' + provider, usage: {}, provider };
@@ -1031,7 +1032,7 @@ async function handleCouncilRequest(res, message) {
       const content = result.choices?.[0]?.message?.content || '';
       return { model, content, error: null, usage: result.usage || {}, provider };
     } catch (error) {
-      const provider = getProviderForModel(model) || 'openrouter';
+      const provider = getProviderForModel(model) || 'nvidia';
       return { model, content: '', error: error.message, usage: {}, provider };
     }
   });
@@ -1169,9 +1170,9 @@ async function handleTestProvider(req, res) {
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const provider = (urlObj.searchParams.get('provider') || '').toLowerCase();
 
-  const validProviders = ['openrouter', 'alibaba', 'cometapi', 'openai'];
+  const validProviders = ['nvidia', 'alibaba', 'cometapi', 'openai'];
   if (!provider || !validProviders.includes(provider)) {
-    return res.status(400).json({ error: 'Missing or invalid provider', valid_providers: validProviders, usage: '/api/test/provider?provider=openrouter' });
+    return res.status(400).json({ error: 'Missing or invalid provider', valid_providers: validProviders, usage: '/api/test/provider?provider=nvidia' });
   }
 
   const config = getProviderConfig(provider);
@@ -1179,7 +1180,7 @@ async function handleTestProvider(req, res) {
     return res.status(503).json({ error: `API key not configured for provider: ${provider}`, provider });
   }
 
-  const models = provider === 'openrouter' ? ACTIVE_OPENROUTER_MODELS
+  const models = provider === 'nvidia' ? ACTIVE_NVIDIA_MODELS
     : provider === 'alibaba' ? ACTIVE_ALIBABA_MODELS
     : provider === 'cometapi' ? ACTIVE_COMETAPI_MODELS
     : ACTIVE_OPENAI_MODELS;
@@ -1214,7 +1215,7 @@ async function handleTestProvider(req, res) {
 
 async function handleTestAll(req, res) {
   const providers = [];
-  if (OPENROUTER_API_KEY) providers.push('openrouter');
+  if (NVIDIA_API_KEY) providers.push('nvidia');
   if (DASHSCOPE_API_KEY) providers.push('alibaba');
   if (COMETAPI_KEY) providers.push('cometapi');
   if (OPENAI_API_KEY) providers.push('openai');
@@ -1230,7 +1231,7 @@ async function handleTestAll(req, res) {
 
   await Promise.all(providers.map(async (provider) => {
     const config = getProviderConfig(provider);
-    const models = provider === 'openrouter' ? ACTIVE_OPENROUTER_MODELS
+    const models = provider === 'nvidia' ? ACTIVE_NVIDIA_MODELS
       : provider === 'alibaba' ? ACTIVE_ALIBABA_MODELS
       : provider === 'cometapi' ? ACTIVE_COMETAPI_MODELS
       : ACTIVE_OPENAI_MODELS;
@@ -1327,7 +1328,7 @@ function callAPI(apiBase, payload, headers, timeout = 10000) {
   });
 }
 
-// callOpenRouterAPI removed (dead code) - all providers now use generic callAPI()
+// callNvidiaAPI removed (dead code) - all providers now use generic callAPI()
 
 async function handleLeadEvents(req, res) {
   let body = '';
