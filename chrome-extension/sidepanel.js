@@ -6,7 +6,7 @@
 // API Configuration - AUTO-CONFIGURED
 const CONFIG = {
   apiKey: '',
-  apiBase: 'https://integrate.api.nvidia.com',
+  apiBase: 'https://integrate.api.nvidia.com/v1',
   model: 'qwen/qwen3.5-397b-a17b',
   systemPrompt: 'You are Claw, a helpful AI browser agent. Be concise and helpful.'
 };
@@ -147,6 +147,12 @@ document.addEventListener('DOMContentLoaded', () => {
 async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text || isLoading) return;
+
+  if (!CONFIG.apiKey) {
+    addMessage('error', '❌ NVIDIA API key is missing. Open the extension settings or run the Chrome setup helper, then reload the extension.');
+    statusText.textContent = '❌ Missing NVIDIA API key';
+    return;
+  }
   
   // Clear welcome message
   const welcome = messagesEl.querySelector('.welcome');
@@ -228,8 +234,11 @@ async function sendMessage() {
       // If this was the last attempt, show error
       if (attempt >= RETRY_CONFIG.maxRetries) {
         console.error('Final error:', error);
-        addMessage('error', `❌ ${error.message}`);
-        statusText.textContent = '❌ Error: ' + error.message;
+        const humanMessage = error instanceof TypeError && error.message === 'Failed to fetch'
+          ? 'Network request blocked. Reload the extension after updating it, and confirm the NVIDIA endpoint is allowed.'
+          : error.message;
+        addMessage('error', `❌ ${humanMessage}`);
+        statusText.textContent = '❌ Error: ' + humanMessage;
       }
     }
   }

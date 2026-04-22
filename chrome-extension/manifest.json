@@ -8,6 +8,10 @@
     "activeTab",
     "storage"
   ],
+  "host_permissions": [
+    "https://integrate.api.nvidia.com/*",
+    "https://dashscope-intl.aliyuncs.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
